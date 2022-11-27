@@ -18,6 +18,7 @@ spec:
       values: |
         ingress:
           enabled: true
+          className: alb
           hosts:
             - host: id-test.bacchus.io
               paths:
