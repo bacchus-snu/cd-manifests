@@ -10,8 +10,6 @@ spec:
   description: Testing applications
   sourceRepos:
     - https://github.com/bacchus-snu/cd-manifests.git
-  sourceNamespaces:
-    - testing
   destinations:
     - server: https://kubernetes.default.svc
       namespace: testing
@@ -35,7 +33,7 @@ spec:
   project: top-level
   destination:
     server: https://kubernetes.default.svc
-    namespace: testing
+    namespace: argo
   source:
     repoURL: https://github.com/bacchus-snu/cd-manifests.git
     targetRevision: HEAD

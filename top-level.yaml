@@ -13,7 +13,7 @@ spec:
   # Only allow app/appproj and ns
   destinations:
     - server: https://kubernetes.default.svc
-      namespace: '*'
+      namespace: argo
   clusterResourceWhitelist:
     - group: ''
       kind: Namespace
