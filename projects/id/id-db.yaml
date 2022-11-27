@@ -1,4 +1,27 @@
 ---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  namespace: id
+  name: id-db-config
+spec:
+  secretStoreRef:
+    name: cluster-secret-store
+    kind: ClusterSecretStore
+  data:
+    - secretKey: db-password
+      remoteRef:
+        key: prod/id/config
+        property: db-password
+    - secretKey: db-admin-password
+      remoteRef:
+        key: prod/id/config
+        property: db-admin-password
+    - secretKey: db-replication-password
+      remoteRef:
+        key: prod/id/config
+        property: db-replication-password
+---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -16,7 +39,7 @@ spec:
         auth:
           username: id
           database: id
-          existingSecret: id-core-config
+          existingSecret: id-db-config
           secretKeys:
             userPasswordKey: db-password
             adminPasswordKey: db-admin-password
