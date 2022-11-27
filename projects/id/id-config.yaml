@@ -1,5 +1,5 @@
 ---
-version: external-secrets.io/v1beta1
+apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
   name: id-core-config
@@ -14,7 +14,7 @@ spec:
         property: core
         decodingStrategy: Base64
 ---
-version: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   namespace: argo
