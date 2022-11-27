@@ -20,11 +20,6 @@ spec:
     - group: '*'
       kind: '*'
 ---
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: infra
----
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
