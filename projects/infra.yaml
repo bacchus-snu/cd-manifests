@@ -9,7 +9,7 @@ metadata:
 spec:
   description: Infra-related applications
   sourceRepos:
-    - https://github.com/bacchus-snu/cd-manifests.git
+    - '*'
   destinations:
     - server: https://kubernetes.default.svc
       namespace: '*'
