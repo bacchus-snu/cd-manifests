@@ -34,7 +34,7 @@ spec:
         config:
           volume:
             secret:
-              name: id-core-config
+              secretName: id-core-config
           subPath: 'config.json'
   project: id
   syncPolicy:
