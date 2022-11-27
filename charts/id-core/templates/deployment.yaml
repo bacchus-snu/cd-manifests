@@ -53,13 +53,17 @@ spec:
               mountPath: /app/config.json
               subPath: {{ .Values.config.subPath }}
             {{- end }}
-            {{- toYaml .Values.extraVolumeMounts | nindent 12 }}
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
       volumes:
         {{- if .Values.config }}
         - name: config
           {{- toYaml .Values.config.volume | nindent 10 }}
         {{- end }}
-        {{- toYaml .Values.extraVolumes | nindent 8 }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
