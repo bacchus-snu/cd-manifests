@@ -1,0 +1,43 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  namespace: argo
+  name: infra
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Infra-related applications
+  sourceRepos:
+    - https://github.com/bacchus-snu/cd-manifests.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argo
+  name: infra
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: top-level
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argo
+  source:
+    repoURL: https://github.com/bacchus-snu/cd-manifests.git
+    targetRevision: HEAD
+    path: projects/infra
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
