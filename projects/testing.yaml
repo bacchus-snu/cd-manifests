@@ -1,0 +1,44 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  namespace: argo
+  name: testing
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Testing applications
+  sourceRepos:
+    - https://github.com/bacchus-snu/cd-manifests.git
+  sourceNamespaces:
+    - testing
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: testing
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argo
+  name: testing
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: top-level
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: testing
+  source:
+    repoURL: https://github.com/bacchus-snu/cd-manifests.git
+    targetRevision: HEAD
+    path: projects/testing
+    directory:
+      recurse: false
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false

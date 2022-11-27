@@ -1,0 +1,45 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  namespace: argo
+  name: top-level
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Top-level ArgoCD project
+  sourceRepos:
+    - https://github.com/bacchus-snu/cd-manifests.git
+  # Only allow app/appproj in argo ns
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: argo
+  namespaceResourceWhitelist:
+    - group: 'argoproj.io'
+      kind: 'AppProject'
+    - group: 'argoproj.io'
+      kind: 'Application'
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argo
+  name: top-level
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: top-level
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argo
+  source:
+    repoURL: https://github.com/bacchus-snu/cd-manifests.git
+    targetRevision: HEAD
+    path: projects
+    directory:
+      recurse: false
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
