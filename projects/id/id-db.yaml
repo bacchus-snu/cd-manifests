@@ -1,0 +1,52 @@
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  namespace: id
+  name: id-db-config
+spec:
+  secretStoreRef:
+    name: cluster-secret-store
+    kind: ClusterSecretStore
+  data:
+    - secretKey: db-password
+      remoteRef:
+        key: prod/id/config
+        property: db-password
+    - secretKey: db-admin-password
+      remoteRef:
+        key: prod/id/config
+        property: db-admin-password
+    - secretKey: db-replication-password
+      remoteRef:
+        key: prod/id/config
+        property: db-replication-password
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: id-db
+spec:
+  destination:
+    namespace: id
+    server: 'https://kubernetes.default.svc'
+  source:
+    repoURL: 'https://charts.bitnami.com/bitnami'
+    targetRevision: 12.1.2
+    chart: postgresql
+    helm:
+      values: |
+        auth:
+          username: id
+          database: id
+          existingSecret: id-db-config
+          secretKeys:
+            userPasswordKey: db-password
+            adminPasswordKey: db-admin-password
+            replicationPasswordKey: db-replication-password
+  project: id
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
