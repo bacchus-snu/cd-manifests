@@ -10,15 +10,17 @@ spec:
   description: Top-level ArgoCD project
   sourceRepos:
     - https://github.com/bacchus-snu/cd-manifests.git
-  # Only allow app/appproj in argo ns
+  # Only allow app/appproj and ns
   destinations:
     - server: https://kubernetes.default.svc
-      namespace: argo
+      namespace: '*'
   namespaceResourceWhitelist:
     - group: 'argoproj.io'
       kind: 'AppProject'
     - group: 'argoproj.io'
       kind: 'Application'
+    - group: ''
+      kind: Namespace
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
