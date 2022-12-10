@@ -1,0 +1,93 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argo
+  name: dashboard
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    namespace: dashboard
+    server: 'https://kubernetes.default.svc'
+  source:
+    repoURL: 'https://prometheus-community.github.io/helm-charts'
+    targetRevision: 40.2.0
+    chart: kube-prometheus-stack
+    helm:
+      values: |
+        alertmanager:
+          enabled: false
+
+        prometheus:
+          prometheusSpec:
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 100Gi
+
+        grafana:
+          imageRenderer:
+            grafanaProtocol: https
+
+          grafana.ini:
+            server:
+              domain: dashboard.bacchus.io
+              root_url: "https://%(domain)s"
+            auth.github:
+              enabled: true
+              allow_sign_up: true
+              scopes: user:email,read:org
+              auth_url: https://github.com/login/oauth/authorize
+              token_url: https://github.com/login/oauth/access_token
+              api_url: https://api.github.com/user
+              allowed_organizations: bacchus-snu
+              client_id: '1d692134938f08d650f4'
+              client_secret: '$__file{/etc/secrets/github-oauth/secret}'
+
+          extraSecretMounts:
+          - name: github-oauth-mount
+            secretName: github-oauth
+            defaultMode: 0440
+            mountPath: /etc/secrets/github-oauth
+            readOnly: true
+
+          persistence:
+            enabled: true
+            type: pvc
+            size: 20Gi
+
+          ingress:
+            enabled: true
+            ingressClassName: alb
+            annotations:
+              alb.ingress.kubernetes.io/target-type: ip
+              alb.ingress.kubernetes.io/scheme: internet-facing
+            hosts:
+            - dashboard.bacchus.io
+  project: infra
+  syncPolicy:
+  #   automated:
+  #     prune: true
+  #     selfHeal: true
+  #     allowEmpty: false
+  #   syncOptions:
+  #     - CreateNamespace=true
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  namespace: dashboard
+  name: github-oauth
+spec:
+  secretStoreRef:
+    name: cluster-secret-store
+    kind: ClusterSecretStore
+  data:
+    - secretKey: secret
+      remoteRef:
+        key: infra/grafana/config
+        property: GITHUB_OAUTH_CLIENT_SECRET
