@@ -1,0 +1,126 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argo
+  name: vaultwarden
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    namespace: vaultwarden
+    server: 'https://kubernetes.default.svc'
+  source:
+    repoURL: 'https://k8s-at-home.com/charts/'
+    targetRevision: 5.3.2
+    chart: vaultwarden
+    helm:
+      values: |
+        env:
+          DATA_FOLDER: config
+          DISABLE_ICON_DOWNLOAD: true
+          DOMAIN: https://vw.bacchus.io
+          ORG_CREATION_USERS: null
+          SIGNUPS_ALLOWED: true
+          SIGNUPS_DOMAINS_WHITELIST: bacchus.snucse.org
+          SIGNUPS_VERIFY: true
+          SMTP_FROM: no-reply@snucse.org
+          SMTP_HOST: smtp.gmail.com
+          SMTP_PASSWORD:
+            valueFrom:
+              secretKeyRef:
+                name: vaultwarden-secret
+                key: smtp-password
+          SMTP_PORT: 587
+          SMTP_SSL: true
+          SMTP_USERNAME: no-reply@snucse.org
+          TZ: Asia/Seoul
+          WEBSOCKET_ENABLED: true
+
+        image:
+          pullPolicy: IfNotPresent
+          repository: vaultwarden/server
+          tag: null
+
+        ingress:
+          main:
+            annotations:
+              alb.ingress.kubernetes.io/scheme: internet-facing
+              alb.ingress.kubernetes.io/target-type: ip
+            enabled: true
+            hosts:
+            - host: vw.bacchus.io
+              paths:
+              - path: /
+                pathType: Prefix
+                service:
+                  port: 80
+              - path: /notifications/hub/negotiate
+                pathType: Prefix
+                service:
+                  port: 80
+              - path: /notifications/hub
+                pathType: Prefix
+                service:
+                  port: 3012
+            ingressClassName: alb
+
+        persistence:
+          config:
+            enabled: true
+            size: 16Gi
+            retain: true
+            existingClaim: vaultwarden-config
+
+        mariadb:
+          enabled: false
+
+        postgresql:
+          enabled: false
+
+        service:
+          main:
+            ports:
+              http:
+                port: 80
+              websocket:
+                enabled: true
+                port: 3012
+
+        strategy:
+          type: Recreate
+  project: infra
+  syncPolicy:
+  #   automated:
+  #     prune: true
+  #     selfHeal: true
+  #     allowEmpty: false
+  #   syncOptions:
+  #     - CreateNamespace=true
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  namespace: vaultwarden
+  name: vaultwarden-secret
+spec:
+  secretStoreRef:
+    name: cluster-secret-store
+    kind: ClusterSecretStore
+  data:
+    - secretKey: smtp-password
+      remoteRef:
+        key: infra/vaultwarden/config
+        property: smtp-password
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  namespace: vaultwarden
+  name: vaultwarden-config
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 16Gi
