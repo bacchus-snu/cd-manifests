@@ -11,7 +11,7 @@ spec:
     namespace: kube-system
     server: 'https://kubernetes.default.svc'
   source:
-    repoURL: 'https://aws.github.io/eks-charts'
+    repoURL: 'https://kubernetes.github.io/autoscaler'
     targetRevision: 9.21.0
     chart: cluster-autoscaler
     helm:
