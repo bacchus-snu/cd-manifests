@@ -22,9 +22,9 @@ spec:
             size: 100Gi
   project: infra
   syncPolicy:
-    # automated:
-    #   prune: true
-    #   selfHeal: true
-    #   allowEmpty: false
-    # syncOptions:
-    #   - CreateNamespace=true
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true

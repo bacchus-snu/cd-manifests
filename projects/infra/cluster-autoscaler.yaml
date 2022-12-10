@@ -29,7 +29,7 @@ spec:
         
   project: infra
   syncPolicy:
-  #   automated:
-  #     prune: true
-  #     selfHeal: true
-  #     allowEmpty: false
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false

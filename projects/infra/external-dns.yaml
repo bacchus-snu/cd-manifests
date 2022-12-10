@@ -31,12 +31,12 @@ spec:
               key: CF_API_TOKEN
   project: infra
   syncPolicy:
-  #   automated:
-  #     prune: true
-  #     selfHeal: true
-  #     allowEmpty: false
-  #   syncOptions:
-  #     - CreateNamespace=true
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
 ---
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret

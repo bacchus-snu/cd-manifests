@@ -19,9 +19,9 @@ spec:
         installCRDs: true
   project: infra
   syncPolicy:
-    # automated:
-    #   prune: true
-    #   selfHeal: true
-    #   allowEmpty: false
-    # syncOptions:
-    #   - CreateNamespace=true
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
