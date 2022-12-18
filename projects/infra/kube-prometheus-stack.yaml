@@ -3,6 +3,32 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   namespace: argo
+  name: prometheus-operator-crds
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    namespace: dashboard
+    server: 'https://kubernetes.default.svc'
+  source:
+    repoURL: 'https://github.com/prometheus-community/helm-charts.git'
+    path: charts/kube-prometheus-stack/crds/
+    targetRevision: kube-prometheus-stack-40.2.0
+  project: infra
+  syncPolicy:
+    # automated:
+    #   prune: true
+    #   selfHeal: true
+    #   allowEmpty: false
+    syncOptions:
+      - Replace=true
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argo
   name: dashboard
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -15,6 +41,7 @@ spec:
     targetRevision: 40.2.0
     chart: kube-prometheus-stack
     helm:
+      skipCrds: true
       values: |
         defaultRules:
           rules:
@@ -273,10 +300,10 @@ spec:
             - dashboard.bacchus.io
   project: infra
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-      allowEmpty: false
+    # automated:
+    #   prune: true
+    #   selfHeal: true
+    #   allowEmpty: false
     syncOptions:
       - CreateNamespace=true
       - ApplyOutOfSyncOnly=true
