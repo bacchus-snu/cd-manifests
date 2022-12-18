@@ -16,10 +16,10 @@ spec:
     targetRevision: kube-prometheus-stack-40.2.0
   project: infra
   syncPolicy:
-    # automated:
-    #   prune: true
-    #   selfHeal: true
-    #   allowEmpty: false
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
     syncOptions:
       - Replace=true
       - CreateNamespace=true
@@ -300,13 +300,22 @@ spec:
             - dashboard.bacchus.io
   project: infra
   syncPolicy:
-    # automated:
-    #   prune: true
-    #   selfHeal: true
-    #   allowEmpty: false
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
     syncOptions:
       - CreateNamespace=true
       - ApplyOutOfSyncOnly=true
+  ignoreDifferences:
+    - group: "admissionregistration.k8s.io"
+      kind: "MutatingWebhookConfiguration"
+      jsonPointers:
+        - /webhooks/0/failurePolicy
+    - group: "admissionregistration.k8s.io"
+      kind: "ValidatingWebhookConfiguration"
+      jsonPointers:
+        - /webhooks/0/failurePolicy
 ---
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
