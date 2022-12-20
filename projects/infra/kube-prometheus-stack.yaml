@@ -258,6 +258,9 @@ spec:
               - targets: ['sherry.snucse.org:9100']
                 labels:
                   machine_id: 'sherry'
+              - targets: ['oloroso.snucse.org:9100']
+                labels:
+                  machine_id: 'oloroso'
 
         grafana:
           imageRenderer:
