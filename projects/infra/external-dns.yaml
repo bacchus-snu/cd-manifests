@@ -21,6 +21,7 @@ spec:
         domainFilters:
         - bacchus.io
         provider: cloudflare
+        policy: sync
         extraArgs:
         - --cloudflare-proxied
         env:
