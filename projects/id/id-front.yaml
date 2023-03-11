@@ -18,10 +18,7 @@ spec:
       values: |
         ingress:
           enabled: true
-          className: alb
-          annotations:
-            alb.ingress.kubernetes.io/scheme: internet-facing
-            alb.ingress.kubernetes.io/target-type: ip
+          className: nginx
           hosts:
             - host: id-test.bacchus.io
               paths:
