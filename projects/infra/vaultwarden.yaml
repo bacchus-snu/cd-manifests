@@ -44,9 +44,6 @@ spec:
 
         ingress:
           main:
-            annotations:
-              alb.ingress.kubernetes.io/scheme: internet-facing
-              alb.ingress.kubernetes.io/target-type: ip
             enabled: true
             hosts:
             - host: vw.bacchus.io
@@ -63,7 +60,7 @@ spec:
                 pathType: Prefix
                 service:
                   port: 3012
-            ingressClassName: alb
+            ingressClassName: nginx
 
         persistence:
           config:

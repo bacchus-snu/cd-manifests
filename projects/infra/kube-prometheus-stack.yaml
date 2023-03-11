@@ -295,10 +295,7 @@ spec:
 
           ingress:
             enabled: true
-            ingressClassName: alb
-            annotations:
-              alb.ingress.kubernetes.io/target-type: ip
-              alb.ingress.kubernetes.io/scheme: internet-facing
+            ingressClassName: nginx
             hosts:
             - dashboard.bacchus.io
   project: infra
