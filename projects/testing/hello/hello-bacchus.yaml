@@ -33,11 +33,8 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: hello-bacchus
-  annotations:
-    alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/scheme: internet-facing
 spec:
-  ingressClassName: alb
+  ingressClassName: nginx
   rules:
   - host: hello-bacchus.bacchus.io
     http:
