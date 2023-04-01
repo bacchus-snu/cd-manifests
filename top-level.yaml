@@ -35,7 +35,7 @@ spec:
   source:
     repoURL: https://github.com/bacchus-snu/cd-manifests.git
     targetRevision: HEAD
-    path: projects
+    path: apps
   syncPolicy:
     automated:
       prune: true

@@ -21,25 +21,3 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: testing
----
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  namespace: argo
-  name: testing
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
-spec:
-  project: top-level
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: argo
-  source:
-    repoURL: https://github.com/bacchus-snu/cd-manifests.git
-    targetRevision: HEAD
-    path: projects/testing
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-      allowEmpty: false
