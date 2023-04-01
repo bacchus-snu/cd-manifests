@@ -1,0 +1,50 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argo
+  name: argo-cd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    namespace: argo
+    server: 'https://kubernetes.default.svc'
+  source:
+    repoURL: 'https://argoproj.github.io/argo-helm'
+    targetRevision: 5.13.3
+    chart: argo-cd
+    helm:
+      values: |
+        configs:
+          cm:
+            admin.enabled: false
+            dex.config: |
+              connectors:
+              - type: github
+                id: github
+                name: GitHub
+                config:
+                  clientID: 36bc63e3739b7724c29a
+                  clientSecret: $github-oauth:dex.github.clientSecret
+                  orgs:
+                  - name: bacchus-snu
+            url: https://cd.bacchus.io
+          params:
+            server.insecure: true
+          rbac:
+            policy.csv: |
+              g, bacchus-snu:deputy, role:admin
+            policy.default: role:readonly
+        server:
+          ingress:
+            enabled: true
+            hosts:
+            - cd.bacchus.io
+            ingressClassName: nginx
+  project: infra
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
