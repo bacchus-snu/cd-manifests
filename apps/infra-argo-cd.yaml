@@ -42,7 +42,6 @@ spec:
             hosts:
             - cd.bacchus.io
             ingressClassName: nginx
-
   project: infra
   syncPolicy:
     automated:
