@@ -6,7 +6,6 @@ metadata:
   name: argo-cd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
-
 spec:
   destination:
     namespace: argo
