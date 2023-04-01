@@ -1,0 +1,23 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  namespace: argo
+  name: id
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Bacchus ID
+  sourceRepos:
+    - '*'
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: id
