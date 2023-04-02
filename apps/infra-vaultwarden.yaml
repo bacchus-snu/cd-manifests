@@ -36,6 +36,7 @@ spec:
           SMTP_USERNAME: no-reply@snucse.org
           TZ: Asia/Seoul
           WEBSOCKET_ENABLED: true
+          ADMIN_TOKEN: fdMOthz7UAEkfDqesB6E1rC0w2YqWPUGxYTWX5bP5lp89HfD6uDzXT443TihcTqG
 
         image:
           pullPolicy: IfNotPresent
@@ -88,10 +89,10 @@ spec:
           type: Recreate
   project: infra
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-      allowEmpty: false
+    #automated:
+    #  prune: true
+    #  selfHeal: true
+    #  allowEmpty: false
     syncOptions:
       - CreateNamespace=true
 ---
