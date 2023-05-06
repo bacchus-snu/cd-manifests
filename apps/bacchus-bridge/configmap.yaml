@@ -36,7 +36,7 @@ data:
 
         [[gateway.inout]]
         account = "discord.bacchus"
-        channel = "general"
+        channel = "ID:1086936568746479657"
 
         [[gateway.inout]]
         account = "slack.bacchus"
