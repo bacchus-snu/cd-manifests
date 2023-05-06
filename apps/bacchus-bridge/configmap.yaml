@@ -1,0 +1,199 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bacchus-bridge-configmap
+  namespace: bacchus-bridge
+data:
+  matterbridge.toml: |
+    [discord]
+      [discord.bacchus]
+      Server = "480254918343655454"
+      AutoWebhooks = true
+      RemoteNickFormat = "<{NICK}> "
+      PreserveThreading = true
+
+    [slack]
+        [slack.bacchus]
+        RemoteNickFormat = "@{NICK}"
+        PreserveThreading = true
+
+    [[gateway]]
+        name = "random"
+        enable = true
+
+        [[gateway.inout]]
+        account = "discord.bacchus"
+        channel = "random"
+
+        [[gateway.inout]]
+        account = "slack.bacchus"
+        channel = "random"
+
+    [[gateway]]
+        name = "general"
+        enable = true
+
+        [[gateway.inout]]
+        account = "discord.bacchus"
+        channel = "general"
+
+        [[gateway.inout]]
+        account = "slack.bacchus"
+        channel = "general"
+
+    [[gateway]]
+        name = "work"
+        enable = true
+
+        [[gateway.inout]]
+        account = "discord.bacchus"
+        channel = "work"
+
+        [[gateway.inout]]
+        account = "slack.bacchus"
+        channel = "work"
+
+    [[gateway]]
+        name = "회계"
+        enable = true
+
+        [[gateway.inout]]
+        account = "discord.bacchus"
+        channel = "회계"
+
+        [[gateway.inout]]
+        account = "slack.bacchus"
+        channel = "회계"
+
+    [[gateway]]
+        name = "current"
+        enable = true
+
+        [[gateway.inout]]
+        account = "discord.bacchus"
+        channel = "current"
+
+        [[gateway.inout]]
+        account = "slack.bacchus"
+        channel = "current"
+
+    [[gateway]]
+        name = "intern"
+        enable = true
+
+        [[gateway.inout]]
+        account = "discord.bacchus"
+        channel = "intern"
+
+        [[gateway.inout]]
+        account = "slack.bacchus"
+        channel = "intern"
+
+    [[gateway]]
+        name = "team-leaders"
+        enable = true
+
+        [[gateway.inout]]
+        account = "discord.bacchus"
+        channel = "team-leaders"
+
+        [[gateway.inout]]
+        account = "slack.bacchus"
+        channel = "team-leaders"
+
+    [[gateway]]
+        name = "team-infra"
+        enable = true
+
+        [[gateway.inout]]
+        account = "discord.bacchus"
+        channel = "team-infra"
+
+        [[gateway.inout]]
+        account = "slack.bacchus"
+        channel = "team-infra"
+
+    [[gateway]]
+        name = "team-cloud"
+        enable = true
+
+        [[gateway.inout]]
+        account = "discord.bacchus"
+        channel = "team-cloud"
+
+        [[gateway.inout]]
+        account = "slack.bacchus"
+        channel = "team-cloud"
+
+    [[gateway]]
+        name = "team-onboarding"
+        enable = true
+
+        [[gateway.inout]]
+        account = "discord.bacchus"
+        channel = "team-onboarding"
+
+        [[gateway.inout]]
+        account = "slack.bacchus"
+        channel = "team-onboarding"
+
+    [[gateway]]
+        name = "id"
+        enable = true
+
+        [[gateway.inout]]
+        account = "discord.bacchus"
+        channel = "id"
+
+        [[gateway.inout]]
+        account = "slack.bacchus"
+        channel = "id"
+
+    [[gateway]]
+        name = "reservation"
+        enable = true
+
+        [[gateway.inout]]
+        account = "discord.bacchus"
+        channel = "reservation"
+
+        [[gateway.inout]]
+        account = "slack.bacchus"
+        channel = "reservation"
+
+    [[gateway]]
+        name = "project-gpu"
+        enable = true
+
+        [[gateway.inout]]
+        account = "discord.bacchus"
+        channel = "gpu"
+
+        [[gateway.inout]]
+        account = "slack.bacchus"
+        channel = "project-gpu"
+
+    [[gateway]]
+        name = "project-cse"
+        enable = true
+
+        [[gateway.inout]]
+        account = "discord.bacchus"
+        channel = "cse"
+
+        [[gateway.inout]]
+        account = "slack.bacchus"
+        channel = "project-cse"
+
+    [[gateway]]
+        name = "project-escape-slack"
+        enable = true
+
+        [[gateway.inout]]
+        account = "discord.bacchus"
+        channel = "escape-slack"
+
+        [[gateway.inout]]
+        account = "slack.bacchus"
+        channel = "project-escape-slack"
