@@ -261,6 +261,9 @@ spec:
               - targets: ['oloroso.snucse.org:9100']
                 labels:
                   machine_id: 'oloroso'
+              - targets: ['asahi.snucse.org:9100', 'asahi.snucse.org:9445']
+                labels:
+                  machine_id: 'asahi'
 
         grafana:
           imageRenderer:
