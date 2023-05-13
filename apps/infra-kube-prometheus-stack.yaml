@@ -261,6 +261,9 @@ spec:
               - targets: ['oloroso.snucse.org:9100']
                 labels:
                   machine_id: 'oloroso'
+            - job_name: 'GPU-servers'
+              metrics_path: /metrics
+              static_configs:
               - targets: ['asahi.snucse.org:9100', 'asahi.snucse.org:9445']
                 labels:
                   machine_id: 'asahi'
