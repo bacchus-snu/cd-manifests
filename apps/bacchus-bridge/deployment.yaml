@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: matterbridge
-          image: 42wim/matterbridge:stable
+          image: 42wim/matterbridge:latest
           imagePullPolicy: IfNotPresent
           env:
             - name: MATTERBRIDGE_DISCORD_BACCHUS_TOKEN
