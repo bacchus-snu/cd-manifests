@@ -87,7 +87,7 @@ spec:
               id: bacchus-grafana
               redirectURIs:
                 - https://dashboard.bacchus.io/login/generic_oauth
-              secret: $DEX_CLIENT_BACCHUS_GRAFANA
+              secretEnv: DEX_CLIENT_BACCHUS_GRAFANA
 
           connectors:
             - name: Google
