@@ -355,5 +355,5 @@ spec:
   data:
     - secretKey: slack-webhook
       remoteRef:
-        key: infra/argo/config
+        key: /infra/argo/config
         property: SLACK_WEBHOOK_URL
