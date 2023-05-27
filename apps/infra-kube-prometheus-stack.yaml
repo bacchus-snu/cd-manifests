@@ -280,24 +280,9 @@ spec:
               api_url: https://auth.bacchus.io/dex/userinfo
               auth_url: https://auth.bacchus.io/dex/auth
               token_url: https://auth.bacchus.io/dex/token
-
-            auth.github:
-              enabled: true
-              allow_sign_up: true
-              scopes: user:email,read:org
-              auth_url: https://github.com/login/oauth/authorize
-              token_url: https://github.com/login/oauth/access_token
-              api_url: https://api.github.com/user
-              allowed_organizations: bacchus-snu
-              client_id: '1d692134938f08d650f4'
-              client_secret: '$__file{/etc/secrets/github-oauth/secret}'
+              role_attribute_path: contains(groups[*], 'regular-members@bacchus.snucse.org') && 'Editor' || contains(groups[*], 'member@bacchus.snucse.org') && 'Viewer'
 
           extraSecretMounts:
-            - name: github-oauth-mount
-              secretName: github-oauth
-              defaultMode: 0440
-              mountPath: /etc/secrets/github-oauth
-              readOnly: true
             - name: dex-auth
               secretName: dex-auth
               mountPath: /etc/secrets/dex-auth
@@ -331,21 +316,6 @@ spec:
       kind: "ValidatingWebhookConfiguration"
       jsonPointers:
         - /webhooks/0/failurePolicy
----
-apiVersion: external-secrets.io/v1beta1
-kind: ExternalSecret
-metadata:
-  namespace: dashboard
-  name: github-oauth
-spec:
-  secretStoreRef:
-    name: cluster-secret-store
-    kind: ClusterSecretStore
-  data:
-    - secretKey: secret
-      remoteRef:
-        key: /infra/grafana/config
-        property: GITHUB_OAUTH_CLIENT_SECRET
 ---
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
