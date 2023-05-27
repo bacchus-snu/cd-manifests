@@ -11,7 +11,7 @@ spec:
   data:
     - secretKey: 'config.json'
       remoteRef:
-        key: prod/id/config
+        key: /prod/id/config
         property: core
         decodingStrategy: Base64
 ---

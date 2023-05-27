@@ -107,7 +107,7 @@ spec:
   data:
     - secretKey: smtp-password
       remoteRef:
-        key: infra/vaultwarden/config
+        key: /infra/vaultwarden/config
         property: smtp-password
 ---
 apiVersion: v1

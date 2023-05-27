@@ -329,5 +329,5 @@ spec:
   data:
     - secretKey: secret
       remoteRef:
-        key: infra/grafana/config
+        key: /infra/grafana/config
         property: GITHUB_OAUTH_CLIENT_SECRET
