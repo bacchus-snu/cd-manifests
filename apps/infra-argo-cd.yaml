@@ -16,25 +16,22 @@ spec:
     chart: argo-cd
     helm:
       values: |
+        dex:
+          enabled: false
         configs:
           cm:
             admin.enabled: false
-            dex.config: |
-              connectors:
-                - type: github
-                  id: github
-                  name: GitHub
-                  config:
-                    clientID: 36bc63e3739b7724c29a
-                    clientSecret: $github-oauth:dex.github.clientSecret
-                    orgs:
-                      - name: bacchus-snu
+            oidc.config: |
+              name: Bacchus Auth
+              issuer: https://auth.bacchus.io/dex
+              clientID: bacchus-argocd
+              clientSecret: $dex-auth:secret
             url: https://cd.bacchus.io
           params:
             server.insecure: true
           rbac:
             policy.csv: |
-              g, bacchus-snu:deputy, role:admin
+              g, regular-members@bacchus.snucse.org, role:admin
             policy.default: role:readonly
         server:
           ingress:
@@ -357,3 +354,19 @@ spec:
       remoteRef:
         key: /infra/argo/config
         property: SLACK_WEBHOOK_URL
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  namespace: argo
+  name: dex-auth
+  labels:
+    app.kubernetes.io/part-of: argocd
+spec:
+  secretStoreRef:
+    name: cluster-secret-store
+    kind: ClusterSecretStore
+  data:
+    - secretKey: secret
+      remoteRef:
+        key: /infra/dexidp/clients/bacchus-argocd
