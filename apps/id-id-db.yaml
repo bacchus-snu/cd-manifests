@@ -11,15 +11,15 @@ spec:
   data:
     - secretKey: db-password
       remoteRef:
-        key: prod/id/config
+        key: /prod/id/config
         property: db-password
     - secretKey: db-admin-password
       remoteRef:
-        key: prod/id/config
+        key: /prod/id/config
         property: db-admin-password
     - secretKey: db-replication-password
       remoteRef:
-        key: prod/id/config
+        key: /prod/id/config
         property: db-replication-password
 ---
 apiVersion: argoproj.io/v1alpha1
