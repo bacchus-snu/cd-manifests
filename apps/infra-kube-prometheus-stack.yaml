@@ -270,6 +270,17 @@ spec:
             server:
               domain: dashboard.bacchus.io
               root_url: "https://%(domain)s"
+
+            auth.generic_oauth:
+              enabled: true
+              allow_sign_up: true
+              client_id: bacchus-grafana
+              client_secret: '$__file{/etc/secrets/dex-auth/secret}'
+              scopes: openid email profile groups
+              api_url: https://auth.bacchus.io/dex/userinfo
+              auth_url: https://auth.bacchus.io/dex/auth
+              token_url: https://auth.bacchus.io/dex/token
+
             auth.github:
               enabled: true
               allow_sign_up: true
@@ -282,11 +293,15 @@ spec:
               client_secret: '$__file{/etc/secrets/github-oauth/secret}'
 
           extraSecretMounts:
-          - name: github-oauth-mount
-            secretName: github-oauth
-            defaultMode: 0440
-            mountPath: /etc/secrets/github-oauth
-            readOnly: true
+            - name: github-oauth-mount
+              secretName: github-oauth
+              defaultMode: 0440
+              mountPath: /etc/secrets/github-oauth
+              readOnly: true
+            - name: dex-auth
+              secretName: dex-auth
+              mountPath: /etc/secrets/dex-auth
+              readOnly: true
 
           persistence:
             enabled: true
@@ -331,3 +346,17 @@ spec:
       remoteRef:
         key: /infra/grafana/config
         property: GITHUB_OAUTH_CLIENT_SECRET
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  namespace: dashboard
+  name: dex-auth
+spec:
+  secretStoreRef:
+    name: cluster-secret-store
+    kind: ClusterSecretStore
+  data:
+    - secretKey: secret
+      remoteRef:
+        key: /infra/dexidp/clients/bacchus-grafana
