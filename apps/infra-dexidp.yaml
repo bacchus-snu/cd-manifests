@@ -121,7 +121,7 @@ metadata:
   name: dex-google-secret
 spec:
   secretStoreRef:
-    name: cluster-parameter-store
+    name: cluster-secret-store
     kind: ClusterSecretStore
   dataFrom:
     - extract:
@@ -138,7 +138,7 @@ metadata:
   name: dex-client-secrets
 spec:
   secretStoreRef:
-    name: cluster-parameter-store
+    name: cluster-secret-store
     kind: ClusterSecretStore
   dataFrom:
     - find:

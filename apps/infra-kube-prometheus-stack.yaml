@@ -354,7 +354,7 @@ metadata:
   name: dex-auth
 spec:
   secretStoreRef:
-    name: cluster-parameter-store
+    name: cluster-secret-store
     kind: ClusterSecretStore
   data:
     - secretKey: secret
