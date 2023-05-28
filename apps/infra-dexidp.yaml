@@ -47,6 +47,11 @@ spec:
           - name: GOOGLE_SERVICE_ACCOUNT
             value: /secret/service-account.json
 
+          - name: DEX_CLIENT_BACCHUS_ARGOCD
+            valueFrom:
+              secretKeyRef:
+                name: dex-client-secrets
+                key: bacchus-argocd
           - name: DEX_CLIENT_BACCHUS_GRAFANA
             valueFrom:
               secretKeyRef:
@@ -83,6 +88,11 @@ spec:
               file: /data/dex.db
 
           staticClients:
+            - name: ArgoCD
+              id: bacchus-argocd
+              redirectURIs:
+                - https://cd.bacchus.io/auth/callback
+              secretEnv: DEX_CLIENT_BACCHUS_ARGOCD
             - name: Grafana
               id: bacchus-grafana
               redirectURIs:
