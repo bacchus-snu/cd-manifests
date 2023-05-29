@@ -43,3 +43,20 @@ spec:
     # created with kubectl -n kube-system get secret/argo -o jsonpath='{.data}'
     - extract:
         key: /infra/ferrari/argo
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argo
+  name: ferrari-bootstrap
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: ferrari
+  destination:
+    namespace: kube-system
+    server: https://147.46.15.75:6443
+  source:
+    repoURL: https://github.com/bacchus-snu/cd-manifests.git
+    targetRevision: HEAD
+    path: projects/ferrari-bootstrap
