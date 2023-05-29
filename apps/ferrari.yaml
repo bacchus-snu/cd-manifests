@@ -1,0 +1,45 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  namespace: argo
+  name: ferrari
+spec:
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  sourceRepos:
+    - '*'
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  namespace: argo
+  name: ferrari
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+spec:
+  target:
+    template:
+      engineVersion: v2
+      data:
+        name: ferrari
+        project: ferrari
+        server: https://147.46.15.75:6443
+        config: |
+          {
+            "bearerToken": "{{ .token | b64dec }}",
+            "tlsClientConfig": {
+              "caData": "{{ index . "ca.crt" }}"
+            }
+          }
+  secretStoreRef:
+    name: cluster-secret-store
+    kind: ClusterSecretStore
+  dataFrom:
+    # created with kubectl -n kube-system get secret/argo -o jsonpath='{.data}'
+    - extract:
+        key: /infra/ferrari/argo
