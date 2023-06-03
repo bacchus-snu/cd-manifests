@@ -1,0 +1,62 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  namespace: argo
+  name: ferrari
+spec:
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  sourceRepos:
+    - '*'
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  namespace: argo
+  name: ferrari
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+spec:
+  target:
+    template:
+      engineVersion: v2
+      data:
+        name: ferrari
+        project: ferrari
+        server: https://147.46.15.75:6443
+        config: |
+          {
+            "bearerToken": "{{ .token | b64dec }}",
+            "tlsClientConfig": {
+              "caData": "{{ index . "ca.crt" }}"
+            }
+          }
+  secretStoreRef:
+    name: cluster-secret-store
+    kind: ClusterSecretStore
+  dataFrom:
+    # created with kubectl -n kube-system get secret/argo -o jsonpath='{.data}'
+    - extract:
+        key: /infra/ferrari/argo
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argo
+  name: ferrari-bootstrap
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: ferrari
+  destination:
+    namespace: kube-system
+    server: https://147.46.15.75:6443
+  source:
+    repoURL: https://github.com/bacchus-snu/cd-manifests.git
+    targetRevision: HEAD
+    path: projects/ferrari-bootstrap
