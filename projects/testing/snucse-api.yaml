@@ -1,0 +1,78 @@
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  namespace: testing
+  name: snucse-api-secret
+spec:
+  secretStoreRef:
+    name: cluster-secret-store
+    kind: ClusterSecretStore
+  data:
+    - secretKey: secrets.yml
+      remoteRef:
+        key: testing/snucse-api/secrets
+        property: secrets.yml
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  namespace: testing
+  name: snucse-api-env
+spec:
+  secretStoreRef:
+    name: cluster-secret-store
+    kind: ClusterSecretStore
+  data:
+    - secretKey: DATABASE_PASSWORD
+      remoteRef:
+        key: testing/snucse-api/secrets
+        property: mysql-password
+    - secretKey: REDIS_PASSWORD
+      remoteRef:
+        key: testing/snucse-api/secrets
+        property: redis-password
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argo
+  name: snucse-api
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    namespace: testing
+    server: 'https://kubernetes.default.svc'
+  source:
+    repoURL: 'https://github.com/bacchus-snu/cd-manifests.git'
+    path: charts/snucse-api
+    targetRevision: main
+    helm:
+      values: |
+        image:
+          tag: 'master'
+        config:
+          secret:
+            name: snucse-api-secret
+          cm:
+            database: |
+              production:
+                adapter: mysql2
+                host: snucse-mysql
+                username: snucse
+                password: <%= ENV['DATABASE_PASSWORD'] %>
+                database: snucse_production
+            elasticsearch: ''
+            redis: |
+              production:
+                host: snucse-redis
+                port: 6379
+                password: <%= ENV['REDIS_PASSWORD'] %>
+                db: 0
+  project: testing
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false

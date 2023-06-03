@@ -1,0 +1,91 @@
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  namespace: testing
+  name: snucse-mysql-secret
+spec:
+  secretStoreRef:
+    name: cluster-secret-store
+    kind: ClusterSecretStore
+  data:
+    - secretKey: mysql-password
+      remoteRef:
+        key: testing/snucse-api/secrets
+        property: mysql-password
+    - secretKey: mysql-root-password
+      remoteRef:
+        key: testing/snucse-api/secrets
+        property: mysql-root-password
+    - secretKey: mysql-replication-password
+      remoteRef:
+        key: testing/snucse-api/secrets
+        property: mysql-replication-password
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  namespace: testing
+  name: snucse-redis-secret
+spec:
+  secretStoreRef:
+    name: cluster-secret-store
+    kind: ClusterSecretStore
+  data:
+    - secretKey: redis-password
+      remoteRef:
+        key: testing/snucse-api/secrets
+        property: redis-password
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: snucse-mysql
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    namespace: testing
+    server: 'https://kubernetes.default.svc'
+  source:
+    repoURL: 'https://charts.bitnami.com/bitnami'
+    chart: mysql
+    targetRevision: 9.9.1
+    helm:
+      values: |
+        auth:
+          username: snucse
+          database: snucse_production
+          existingSecret: snucse-mysql-secret
+  project: testing
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: snucse-redis
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    namespace: testing
+    server: 'https://kubernetes.default.svc'
+  source:
+    repoURL: 'https://charts.bitnami.com/bitnami'
+    chart: redis
+    targetRevision: 17.11.2
+    helm:
+      values: |
+        auth:
+          existingSecret: snucse-redis-secret
+          existingSecretPasswordKey: redis-password
+  project: testing
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
