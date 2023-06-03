@@ -1,0 +1,32 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argo
+  name: id-front-dev
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    namespace: id-dev
+    server: 'https://kubernetes.default.svc'
+  source:
+    repoURL: 'https://github.com/bacchus-snu/cd-manifests.git'
+    path: charts/id-front
+    targetRevision: HEAD
+    helm:
+      values: |
+        ingress:
+          enabled: true
+          className: nginx
+          hosts:
+            - host: id-dev.bacchus.io
+              paths:
+                - path: /
+                  pathType: Prefix
+  project: id-dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
