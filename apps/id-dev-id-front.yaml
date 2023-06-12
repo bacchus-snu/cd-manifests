@@ -16,6 +16,15 @@ spec:
     targetRevision: HEAD
     helm:
       values: |
+        image:
+          tag: next
+        env:
+          - name: HOST
+            value: '0.0.0.0'
+          - name: PORT
+            value: '3000'
+          - name: API_BASE
+            value: 'http://id-core-dev.id-dev.svc'
         ingress:
           enabled: true
           className: nginx
