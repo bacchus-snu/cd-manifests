@@ -24,3 +24,10 @@ spec:
       prune: true
       selfHeal: true
       allowEmpty: false
+---
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: ebs-csi
+driver: ebs.csi.aws.com
+deletionPolicy: Delete
