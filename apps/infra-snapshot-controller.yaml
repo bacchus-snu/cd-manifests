@@ -14,6 +14,10 @@ spec:
     repoURL: 'https://piraeus.io/helm-charts'
     targetRevision: 1.8.1
     chart: snapshot-controller
+    helm:
+      values: |
+        serviceMonitor:
+          create: true
   project: infra
   syncPolicy:
     automated:
