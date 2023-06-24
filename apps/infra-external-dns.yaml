@@ -19,6 +19,7 @@ spec:
         sources:
         - ingress
         domainFilters:
+        - snucse.org
         - bacchus.io
         provider: cloudflare
         policy: sync

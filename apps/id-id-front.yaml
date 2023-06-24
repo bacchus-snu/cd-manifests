@@ -20,7 +20,7 @@ spec:
           enabled: true
           className: nginx
           hosts:
-            - host: id-test.bacchus.io
+            - host: id.snucse.org
               paths:
                 - path: /
                   pathType: Prefix
