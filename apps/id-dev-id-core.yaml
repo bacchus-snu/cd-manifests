@@ -32,6 +32,8 @@ spec:
     targetRevision: HEAD
     helm:
       values: |
+        image:
+          tag: dev
         config:
           volume:
             secret:
