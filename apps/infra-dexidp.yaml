@@ -98,6 +98,9 @@ spec:
               redirectURIs:
                 - https://dashboard.bacchus.io/login/generic_oauth
               secretEnv: DEX_CLIENT_BACCHUS_GRAFANA
+            - name: AWS
+              id: bacchus-aws
+              public: true
 
           connectors:
             - name: Google
