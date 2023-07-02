@@ -43,7 +43,11 @@ spec:
           hosts:
             - host: id-dev-api.bacchus.io
               paths:
-                - path: /api
+                - path: /
+                  pathType: Prefix
+            - host: id-dev.bacchus.io
+              paths:
+                - path: /o
                   pathType: Prefix
   project: id-dev
   syncPolicy:
