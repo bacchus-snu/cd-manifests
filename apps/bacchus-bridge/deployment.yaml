@@ -29,6 +29,11 @@ spec:
                 secretKeyRef:
                   name: bacchus-bridge-config
                   key: slack-token
+            - name: MATTERBRIDGE_SLACK_WAFFLE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: bacchus-bridge-config
+                  key: slack-waffle-token
           resources:
             requests:
               cpu: 100m

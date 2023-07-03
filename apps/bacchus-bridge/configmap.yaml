@@ -18,6 +18,10 @@ data:
         RemoteNickFormat = "@{NICK}"
         PreserveThreading = true
 
+        [slack.waffle]
+        RemoteNickFormat = "@{NICK}"
+        PreserveThreading = true
+
     [[gateway]]
         name = "random"
         enable = true
@@ -197,3 +201,16 @@ data:
         [[gateway.inout]]
         account = "slack.bacchus"
         channel = "project-escape-slack"
+
+    [[gateway]]
+        name = "cse-contact"
+        enable = true
+
+        [[gateway.inout]]
+        account = "discord.bacchus"
+        channel = "cse-contact"
+
+        [[gateway.inout]]
+        account = "slack.waffle"
+        channel = "team-cse-contact"
+
