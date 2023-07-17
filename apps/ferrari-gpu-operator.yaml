@@ -3,7 +3,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   namespace: argo
-  name: gpu-operator-ferrari
+  name: ferrari-gpu-operator
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
