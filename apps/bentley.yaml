@@ -1,0 +1,62 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  namespace: argo
+  name: bentley
+spec:
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  sourceRepos:
+    - '*'
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  namespace: argo
+  name: bentley
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+spec:
+  target:
+    template:
+      engineVersion: v2
+      data:
+        name: bentley
+        project: bentley
+        server: https://147.46.92.213:6443
+        config: |
+          {
+            "bearerToken": "{{ .token | b64dec }}",
+            "tlsClientConfig": {
+              "caData": "{{ index . "ca.crt" }}"
+            }
+          }
+  secretStoreRef:
+    name: cluster-secret-store
+    kind: ClusterSecretStore
+  dataFrom:
+    # created with kubectl -n kube-system get secret/argo -o jsonpath='{.data}'
+    - extract:
+        key: /infra/bentley/argo
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argo
+  name: bentley-bootstrap
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: bentley
+  destination:
+    namespace: kube-system
+    server: https://147.46.92.213:6443
+  source:
+    repoURL: https://github.com/bacchus-snu/cd-manifests.git
+    targetRevision: HEAD
+    path: projects/bentley-bootstrap
