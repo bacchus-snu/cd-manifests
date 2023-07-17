@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - https://github.com/openebs/zfs-localpv.git/deploy/yamls?ref=zfs-localpv-2.2.0
+  - sc.yaml
+
+# patch /var/lib/kubelet -> /var/lib/k0s/kubelet
+# ref: https://github.com/openebs/zfs-localpv#installation
+patches:
+  - target:
+      kind: DaemonSet
+      name: openebs-zfs-node
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/env/1/value
+        value: /var/lib/k0s/kubelet/plugins/zfs-localpv/csi.sock
+      - op: replace
+        path: /spec/template/spec/containers/1/volumeMounts/5/mountPath
+        value: /var/lib/k0s/kubelet/
+      - op: replace
+        path: /spec/template/spec/volumes/4/hostPath/path
+        value: /var/lib/k0s/kubelet/plugins_registry/
+      - op: replace
+        path: /spec/template/spec/volumes/5/hostPath/path
+        value: /var/lib/k0s/kubelet/plugins/zfs-localpv/
+      - op: replace
+        path: /spec/template/spec/volumes/6/hostPath/path
+        value: /var/lib/k0s/kubelet/
