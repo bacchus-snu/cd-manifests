@@ -1,0 +1,16 @@
+# application -> (filename, path, template) mappings
+# Used in scripts/patch_application.py
+#
+# application: name of the application as specified by the caller
+# filename: the yaml file to patch
+# path: the yaml value path to patch
+# template: Python string.Template for templating the value. Defaults to ${image}:${tag}.
+
+- application: bacchus-snu/id/dev
+  filename: apps/id-dev-id-core.yaml
+  path: spec.source.helm.values.image.tag
+  template: '${tag}'
+- application: bacchus-snu/id-front/dev
+  filename: apps/id-dev-id-front.yaml
+  path: spec.source.helm.values.image.tag
+  template: '${tag}'
