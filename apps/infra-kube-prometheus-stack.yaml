@@ -157,54 +157,6 @@ spec:
             - job_name: 'lounge'
               metrics_path: /metrics
               static_configs:
-              - targets: ['147.46.127.102:9100']
-                labels:
-                  machine_id: '314-A01'
-              - targets: ['147.46.127.103:9100']
-                labels:
-                  machine_id: '314-A02'
-              - targets: ['147.46.127.104:9100']
-                labels:
-                  machine_id: '314-A03'
-              - targets: ['147.46.127.105:9100']
-                labels:
-                  machine_id: '314-A04'
-              - targets: ['147.46.127.106:9100']
-                labels:
-                  machine_id: '314-A05'
-              - targets: ['147.46.127.107:9100']
-                labels:
-                  machine_id: '314-A06'
-              - targets: ['147.46.127.108:9100']
-                labels:
-                  machine_id: '314-A07'
-              - targets: ['147.46.127.109:9100']
-                labels:
-                  machine_id: '314-A08'
-              - targets: ['147.46.127.110:9100']
-                labels:
-                  machine_id: '314-B01'
-              - targets: ['147.46.127.111:9100']
-                labels:
-                  machine_id: '314-B02'
-              - targets: ['147.46.127.112:9100']
-                labels:
-                  machine_id: '314-B03'
-              - targets: ['147.46.127.113:9100']
-                labels:
-                  machine_id: '314-B04'
-              - targets: ['147.46.127.114:9100']
-                labels:
-                  machine_id: '314-B05'
-              - targets: ['147.46.127.115:9100']
-                labels:
-                  machine_id: '314-B06'
-              - targets: ['147.46.127.116:9100']
-                labels:
-                  machine_id: '314-B07'
-              - targets: ['147.46.127.117:9100']
-                labels:
-                  machine_id: '314-B08'
               - targets: ['147.46.127.118:9100']
                 labels:
                   machine_id: '314-C01'
@@ -235,18 +187,6 @@ spec:
               - targets: ['147.46.127.127:9100']
                 labels:
                   machine_id: '314-C10'
-              - targets: ['147.46.127.128:9100']
-                labels:
-                  machine_id: '314-C11'
-              - targets: ['147.46.127.129:9100']
-                labels:
-                  machine_id: '314-C12'
-              - targets: ['147.46.127.130:9100']
-                labels:
-                  machine_id: '314-C13'
-              - targets: ['147.46.127.131:9100']
-                labels:
-                  machine_id: '314-C14'
             - job_name: 'servers'
               metrics_path: /metrics
               static_configs:
@@ -262,6 +202,15 @@ spec:
               - targets: ['oloroso.snucse.org:9100']
                 labels:
                   machine_id: 'oloroso'
+            - job_name: 'gpu-servers'
+              metrics_path: /metrics
+              static_configs:
+              - targets: ['ferrari.snucse.org:31323', 'ferrari.snucse.org:30456']
+                labels:
+                  machine_id: 'ferrari'
+              - targets: ['bentley.snucse.org:31323', 'bentley.snucse.org:30456']
+                labels:
+                  machine_id: 'bentley'
 
         grafana:
           imageRenderer:
