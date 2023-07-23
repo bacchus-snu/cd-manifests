@@ -3,7 +3,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   namespace: argo
-  name: ingress-nginx
+  name: ferrari-ingress-nginx
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
