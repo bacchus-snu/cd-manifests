@@ -1,0 +1,19 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dcgm-exporter-ingress
+  namespace: gpu-operator
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: ferrari.snucse.org
+    http:
+      paths:
+      - path: /dcgm-exporter/
+        pathType: Prefix
+        backend:
+          service:
+            name: nvidia-dcgm-exporter
+            port:
+              number: 9400
