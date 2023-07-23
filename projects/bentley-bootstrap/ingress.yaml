@@ -20,3 +20,47 @@ spec:
             name: nvidia-dcgm-exporter
             port:
               number: 9400
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: node-exporter-ingress
+  namespace: kube-system
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: bentley.snucse.org
+    http:
+      paths:
+      - path: /node-exporter(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: bentley-node-exporter-prometheus-node-exporter
+            port:
+              number: 9100
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kube-state-ingress
+  namespace: kube-system
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: bentley.snucse.org
+    http:
+      paths:
+      - path: /kube-state(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: bentley-kube-state-metrics
+            port:
+              number: 8080
