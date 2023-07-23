@@ -202,13 +202,31 @@ spec:
               - targets: ['oloroso.snucse.org:9100']
                 labels:
                   machine_id: 'oloroso'
-            - job_name: 'gpu-servers'
-              metrics_path: /metrics
+            - job_name: 'gpu-node-exporter'
+              metrics_path: /node-exporter/metrics
               static_configs:
-              - targets: ['ferrari.snucse.org:31323', 'ferrari.snucse.org:30456']
+              - targets: ['ferrari.snucse.org:30080']
                 labels:
                   machine_id: 'ferrari'
-              - targets: ['bentley.snucse.org:31323', 'bentley.snucse.org:30456']
+              - targets: ['bentley.snucse.org:30080']
+                labels:
+                  machine_id: 'bentley'
+            - job_name: 'gpu-kube-state-metrics'
+              metrics_path: /kube-state/metrics
+              static_configs:
+              - targets: ['ferrari.snucse.org:30080']
+                labels:
+                  machine_id: 'ferrari'
+              - targets: ['bentley.snucse.org:30080']
+                labels:
+                  machine_id: 'bentley'
+            - job_name: 'gpu-dcgm-exporter'
+              metrics_path: /dcgm-exporter/metrics
+              static_configs:
+              - targets: ['ferrari.snucse.org:30080']
+                labels:
+                  machine_id: 'ferrari'
+              - targets: ['bentley.snucse.org:30080']
                 labels:
                   machine_id: 'bentley'
 
