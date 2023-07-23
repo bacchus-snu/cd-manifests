@@ -4,13 +4,16 @@ kind: Ingress
 metadata:
   name: dcgm-exporter-ingress
   namespace: gpu-operator
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
   ingressClassName: nginx
   rules:
   - host: ferrari.snucse.org
     http:
       paths:
-      - path: /dcgm-exporter/
+      - path: /dcgm-exporter(/|$)(.*)
         pathType: Prefix
         backend:
           service:
