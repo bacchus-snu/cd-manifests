@@ -1,0 +1,32 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argo
+  name: ferrari-gpu-controller
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    namespace: bacchus-gpu-controller
+    server: 'https://147.46.15.75:6443'
+  source:
+    repoURL: https://bacchus-snu.github.io/bacchus-gpu-controller/
+    targetRevision: 0.3.1
+    chart: bacchus-gpu
+    helm:
+      values: |
+        controller: {}
+        admission:
+          oidc_username_prefix: "oidc:"
+          default_role_name: "edit"
+          authorized_group_names:
+            - "snucse"
+            - "ferrari"
+
+  project: ferrari
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
