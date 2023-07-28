@@ -18,11 +18,12 @@ spec:
       values: |
         controller: {}
         admission:
-          oidc_username_prefix: "oidc:"
-          default_role_name: "edit"
-          authorized_group_names:
-            - "oidc:snucse"
-            - "oidc:ferrari"
+          configs:
+            oidc_username_prefix: "oidc:"
+            default_role_name: "edit"
+            authorized_group_names:
+              - "oidc:snucse"
+              - "oidc:ferrari"
 
   project: ferrari
   syncPolicy:
