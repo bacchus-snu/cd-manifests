@@ -12,7 +12,7 @@ spec:
     server: 'https://147.46.15.75:6443'
   source:
     repoURL: https://bacchus-snu.github.io/bacchus-gpu-controller/
-    targetRevision: 0.3.1
+    targetRevision: 0.3.2
     chart: bacchus-gpu
     helm:
       values: |
