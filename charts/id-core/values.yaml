@@ -89,3 +89,8 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+redis:
+  architecture: standalone
+  auth:
+    enabled: false
