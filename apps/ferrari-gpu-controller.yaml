@@ -12,7 +12,7 @@ spec:
     server: 'https://147.46.15.75:6443'
   source:
     repoURL: https://bacchus-snu.github.io/bacchus-gpu-controller/
-    targetRevision: 0.3.2
+    targetRevision: 0.4.1
     chart: bacchus-gpu
     helm:
       values: |
@@ -24,6 +24,12 @@ spec:
             authorized_group_names:
               - "oidc:snucse"
               - "oidc:ferrari"
+        synchronizer:
+          configs:
+            gpu_server_name: "ferrari"
+            google_service_account_json_secret_name: "google-service-account-json"
+            google_file_id: "16Q77VTnZgCytlWHEEEFIefV1SmLtAJbODa551P8y-yE"
+            sync_interval_secs: 60
 
   project: ferrari
   syncPolicy:
