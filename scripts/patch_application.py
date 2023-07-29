@@ -2,12 +2,14 @@
 
 import argparse
 from string import Template
+import subprocess
 
 import yaml
 
 default_template = '${image}:${tag}'
 
-from patch_yaml import patch_yaml
+# NOTE: We assume that the input is trusted. Bad things will occur if
+# mapping.yaml is malicious, including command injection.
 
 def patch_application(application, image, tag):
     with open('mapping.yaml', 'r') as f:
@@ -17,9 +19,22 @@ def patch_application(application, image, tag):
         if m['application'] != application:
             continue
         template = m.get('template', default_template)
-        patch_yaml(m['filename'], m['path'], Template(template).substitute(image=image, tag=tag))
+        value = Template(template).substitute(image=image, tag=tag)
+
+        q_lhs = ''
+        q_rhs = yaml.safe_dump(value, default_style='"').rstrip()
+        for p in reversed(m['path']):
+            if p == '_YAML':
+                q_rhs = f'(from_yaml | ({q_lhs} |= {q_rhs}) | to_yaml)'
+                q_lhs = ''
+            elif p.startswith('_DOC_'):
+                di = int(p[len('_DOC_'):])
+                q_lhs = f'(select(di == {di}) | {q_lhs})'
+            else:
+                q_lhs = f'.{p}{q_lhs}'
 
         print(f'patching {m["filename"]}')
+        subprocess.run(['yq', '-i', f'{q_lhs} |= {q_rhs}', m['filename']], check=True)
 
 def main():
     parser = argparse.ArgumentParser()
