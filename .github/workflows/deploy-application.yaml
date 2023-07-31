@@ -114,7 +114,12 @@ jobs:
           git commit -a \
             -m "Deploy $APPLICATION" \
             -m "Deployed by $FROM_WORKFLOW triggered from $FROM_REPO@$FROM_SHA"
-          git push
+
+          # retry up to two times
+          git pull --rebase && git push || \
+          sleep $(( 1 + 10 * RANDOM / 32767 )) && git pull --rebase && git push || \
+          sleep $(( 1 + 10 * RANDOM / 32767 )) && git pull --rebase && git push || \
+          exit 1
         env:
           GIT_COMMITTER_NAME: ${{ steps.app-details.outputs.appBot }}
           GIT_COMMITTER_EMAIL: ${{ steps.app-details.outputs.appBotId }}+${{ steps.app-details.outputs.appBot }}@users.noreply.github.com
