@@ -24,11 +24,6 @@ spec:
                 secretKeyRef:
                   name: bacchus-bridge-config
                   key: discord-token
-            - name: MATTERBRIDGE_SLACK_BACCHUS_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: bacchus-bridge-config
-                  key: slack-token
             - name: MATTERBRIDGE_SLACK_WAFFLE_TOKEN
               valueFrom:
                 secretKeyRef:
