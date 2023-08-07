@@ -1,0 +1,18 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    email: etc@bacchus.snucse.org
+    server: https://acme-v02.api.letsencrypt.org/directory
+    preferredChain: "ISRG Root X1"
+    privateKeySecretRef:
+      name: letsencrypt-prod-cluster-issuer
+    solvers:
+      - dns01:
+          cloudflare:
+            email: etc@bacchus.snucse.org
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: api-token
