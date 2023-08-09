@@ -16,6 +16,8 @@ spec:
     chart: harbor
     helm:
       values: |
+        updateStrategy:
+          type: Recreate
         expose:
           tls:
             certSource: secret
