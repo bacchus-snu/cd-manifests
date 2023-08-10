@@ -103,7 +103,7 @@ jobs:
           python-version: '3.11'
       - run: pip install -r scripts/requirements.txt
       - name: Apply patches
-        run: ./script/patch_application.py "$APPLICATION" "$IMAGE" "$TAG"
+        run: ./scripts/patch_application.py "$APPLICATION" "$IMAGE" "$TAG"
         env:
           APPLICATION: ${{ inputs.application }}
           IMAGE: ${{ inputs.image }}
