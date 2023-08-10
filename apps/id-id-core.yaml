@@ -49,12 +49,6 @@ spec:
                   pathType: Prefix
                 - path: /o
                   pathType: Prefix
-            - host: id-prod-test.snucse.org
-              paths:
-                - path: /api
-                  pathType: Prefix
-                - path: /o
-                  pathType: Prefix
   project: id
   syncPolicy:
     automated:

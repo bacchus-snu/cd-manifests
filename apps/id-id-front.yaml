@@ -33,10 +33,6 @@ spec:
               paths:
                 - path: /
                   pathType: Prefix
-            - host: id-prod-test.snucse.org
-              paths:
-                - path: /
-                  pathType: Prefix
   project: id
   syncPolicy:
     automated:
