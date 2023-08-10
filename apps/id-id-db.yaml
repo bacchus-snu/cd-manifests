@@ -25,6 +25,7 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
+  namespace: argo
   name: id-db
 spec:
   destination:
