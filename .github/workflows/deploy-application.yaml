@@ -72,7 +72,7 @@ jobs:
               request: { fetch },
             })
             const { data: { slug } } = await octokit.rest.apps.getAuthenticated()
-            const appBot = `${slug}[bot]`,
+            const appBot = `${slug}[bot]`
             const { data: { id: appBotId } } = await octokit.rest.users.getByUsername({
               username: appBot,
             })
