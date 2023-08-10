@@ -14,7 +14,16 @@
   filename: apps/id-dev-id-core.yaml
   path: [_DOC_1, spec, source, helm, values, _YAML, image, tag]
   template: '${tag}'
+- application: bacchus-snu/id/prod
+  filename: apps/id-id-core.yaml
+  path: [_DOC_1, spec, source, helm, values, _YAML, image, tag]
+  template: '${tag}'
+
 - application: bacchus-snu/id-front/dev
   filename: apps/id-dev-id-front.yaml
+  path: [spec, source, helm, values, _YAML, image, tag]
+  template: '${tag}'
+- application: bacchus-snu/id-front/prod
+  filename: apps/id-id-front.yaml
   path: [spec, source, helm, values, _YAML, image, tag]
   template: '${tag}'
