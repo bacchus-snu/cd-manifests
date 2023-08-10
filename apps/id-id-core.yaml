@@ -45,7 +45,11 @@ spec:
           hosts:
             - host: id.snucse.org
               paths:
-                - path: /api
+                - path: /
+                  pathType: Prefix
+            - host: id-prod-test.snucse.org
+              paths:
+                - path: /
                   pathType: Prefix
   project: id
   syncPolicy:
