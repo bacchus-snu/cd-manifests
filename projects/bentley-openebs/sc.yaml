@@ -8,4 +8,5 @@ metadata:
 parameters:
   fstype: zfs
   poolname: zpool
+  compression: zstd
 provisioner: zfs.csi.openebs.io
