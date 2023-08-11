@@ -33,7 +33,7 @@ spec:
     helm:
       values: |
         image:
-          tag: 20230811-bf43e68
+          tag: 20230811-3649223
         config:
           volume:
             secret:
