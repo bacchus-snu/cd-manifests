@@ -16,6 +16,9 @@ spec:
     chart: harbor
     helm:
       values: |
+        existingSecretAdminPassword: harbor-secrets
+        existingSecretAdminPasswordKey: adminPassword
+        existingSecretSecretKey: harbor-secrets
         updateStrategy:
           type: Recreate
         expose:
