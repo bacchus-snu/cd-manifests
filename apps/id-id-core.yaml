@@ -33,7 +33,7 @@ spec:
     helm:
       values: |
         image:
-          tag: 2023.08.11
+          tag: 2023.08.21
         config:
           volume:
             secret:
