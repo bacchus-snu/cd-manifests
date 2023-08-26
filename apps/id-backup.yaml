@@ -5,7 +5,7 @@ metadata:
   name: backup
   namespace: id
 spec:
-  accessModes: 
+  accessModes:
     - ReadWriteOnce
   resources:
     requests:
@@ -43,8 +43,8 @@ spec:
                     secretKeyRef:
                       key: db-password
                       name: id-db-config
-              command: ['/bin/bash', '-c', 
-                'kubectl exec -i id-db-dev-postgresql-0 -- pg_dump -U id <<<"$password" > /mnt/backup/$(date -Isecond).sql']
+              command: ['/bin/bash', '-c',
+                'kubectl exec -i id-db-postgresql-0 -- pg_dump -U id <<<"$password" > /mnt/backup/$(date -Isecond).sql']
           serviceAccountName: backup-job
           restartPolicy: Never
           securityContext:
