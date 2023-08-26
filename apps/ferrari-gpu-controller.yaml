@@ -22,6 +22,9 @@ spec:
             oidc_username_prefix: "oidc:"
             default_role_name: "edit"
             authorized_group_names:
+              - "oidc:bacchus"
+              - "oidc:undergraduate"
+              - "oidc:graduate"
               - "oidc:ferrari-users"
         synchronizer:
           configs:
