@@ -51,6 +51,8 @@ spec:
               paths:
                 - path: /o
                   pathType: Prefix
+                - path: /Authentication/Login.aspx
+                  pathType: Prefix
   project: id-dev
   syncPolicy:
     automated:
