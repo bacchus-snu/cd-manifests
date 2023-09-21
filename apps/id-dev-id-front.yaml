@@ -17,7 +17,7 @@ spec:
     helm:
       values: |
         image:
-          tag: 20230916-8a2e26f
+          tag: 20230921-cb83443
         env:
           - name: HOST
             value: '0.0.0.0'
