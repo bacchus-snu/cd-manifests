@@ -36,7 +36,3 @@ spec:
     repoURL: https://github.com/bacchus-snu/cd-manifests.git
     targetRevision: HEAD
     path: apps
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
