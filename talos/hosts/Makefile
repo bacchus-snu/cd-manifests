@@ -9,9 +9,6 @@ all: $(WORKERS) $(CONTROLPLANES)
 clean:
 	rm -rf worker controlplane
 
-define GENERATE_HOST
-endef
-
 controlplane/%.yaml: $(HOSTS)
 	mkdir -p controlplane
 	./generate.sh controlplane $* > $@
