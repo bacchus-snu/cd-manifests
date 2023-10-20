@@ -1,0 +1,6 @@
+# Configure shared VIP for the Kubernetes endpoint
+# rev: https://www.talos.dev/v1.1/talos-guides/network/vip/
+- op: add
+  path: /machine/network/interfaces/0/vip
+  value:
+    ip: 10.89.0.20
