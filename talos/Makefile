@@ -50,8 +50,12 @@ else ifeq ($(ROLE),worker)
 CONFIG_ROLE := $(CONFIG_WORKER)
 endif
 
-hosts/%:
+hosts/all: hosts/hosts.yaml
 	$(MAKE) -C hosts $*
+hosts/worker/%: hosts/hosts.yaml
+	$(MAKE) -C hosts worker/$*
+hosts/controlplane/%: hosts/hosts.yaml
+	$(MAKE) -C hosts controlplane/$*
 
 .PHONY: apply
 apply: check-apply-env hosts/$(ROLE)/$(CONFIG).yaml $(CONFIG_TALOSCONFIG) $(CONFIG_ROLE)
