@@ -1,5 +1,5 @@
-CLUSTER_NAME ?= bartender
-CLUSTER_ENDPOINT_HOST ?= cluster.test.snucse.org
+CLUSTER_NAME ?= waiter
+CLUSTER_ENDPOINT_HOST ?= waiter.bacchus.io
 CLUSTER_ENDPOINT := https://$(CLUSTER_ENDPOINT_HOST):6443
 
 PATCHES := $(wildcard patches/*.yaml)
