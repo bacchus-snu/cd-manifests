@@ -2,7 +2,7 @@
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: HTTPRoute
 metadata:
-  namespace: argo-cd
+  namespace: argocd
   name: argocd-server
 spec:
   parentRefs:
@@ -19,7 +19,7 @@ spec:
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultAuth
 metadata:
-  namespace: argo-cd
+  namespace: argocd
   name: default
 spec:
   method: kubernetes
@@ -31,13 +31,13 @@ spec:
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
 metadata:
-  namespace: argo-cd
+  namespace: argocd
   name: dex-auth
 spece:
   vaultAuthRef: default
   type: kv-v2
   mount: secret
-  path: argo-cd/dex-auth
+  path: argocd/dex-auth
   destination:
     create: true
     name: dex-auth
