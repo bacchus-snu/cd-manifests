@@ -77,6 +77,7 @@ config:
       id: bacchus-vault
       redirectURIs:
         - https://vault.bacchus.io/ui/vault/auth/oidc/oidc/callback
+        - http://localhost:8250/oidc/callback
       secretEnv: DEX_CLIENT_BACCHUS_VAULT
 
   connectors:
