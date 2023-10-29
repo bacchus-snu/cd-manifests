@@ -4,11 +4,11 @@ configs:
   cm:
     admin.enabled: false
     oidc.config: |
-      name: Bacchus Auth
-      issuer: https://auth.bacchus.io/dex
+      name: Google Auth
+      issuer: https://accounts.google.com
       clientID: bacchus-argocd
       clientSecret: $dex-auth:secret
-    url: https://cd.bacchus.io
+    url: https://argocd.bacchus.io
   params:
     server.insecure: true
   rbac:
@@ -20,9 +20,9 @@ server:
     enabled: true
     ingressClassName: nginx
     hosts:
-      - cd.bacchus.io
+      - argocd.bacchus.io
 notifications:
-  argocdUrl: 'https://cd.bacchus.io'
+  argocdUrl: 'https://argocd.bacchus.io'
   secret:
     create: false
   notifiers:
