@@ -4,7 +4,7 @@ configs:
   cm:
     admin.enabled: false
     oidc.config: |
-      name: Google Auth
+      name: Bacchus Dex
       issuer: https://auth.bacchus.io/dex
       clientID: bacchus-argocd
       clientSecret: $dex-auth:secret

@@ -32,12 +32,12 @@ apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
 metadata:
   namespace: argo-cd
-  name: dex-secret-key
+  name: dex-auth
 spece:
   vaultAuthRef: default
   type: kv-v2
   mount: secret
-  path: argo-cd/dex-secret/dex-secret-key
+  path: argo-cd/dex-auth
   destination:
     create: true
-    name: dex-secret-key
+    name: dex-auth
