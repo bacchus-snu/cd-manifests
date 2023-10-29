@@ -30,6 +30,11 @@ envVars:
       secretKeyRef:
         name: dex-client-secrets
         key: bacchus-vault
+  - name: DEX_CLIENT_BACCHUS_ARGOCD
+    valueFrom:
+      secretKeyRef:
+        name: dex-client-secrets
+        key: bacchus-argocd
 
 volumes:
   - name: dex-google-secret
@@ -70,6 +75,11 @@ config:
         - https://vault.bacchus.io/ui/vault/auth/oidc/oidc/callback
         - http://localhost:8250/oidc/callback
       secretEnv: DEX_CLIENT_BACCHUS_VAULT
+    - name: ArgoCD
+      id: bacchus-argocd
+      redirectURIs:
+        - https://argocd.bacchus.io/auth/callback
+      secretEnv: DEX_CLIENT_BACCHUS_ARGOCD
 
   connectors:
     - name: Google

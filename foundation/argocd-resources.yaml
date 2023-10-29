@@ -1,0 +1,45 @@
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  namespace: argocd
+  name: argocd-server
+spec:
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: https-bacchus-io
+  hostnames:
+    - argocd.bacchus.io
+  rules:
+    - backendRefs:
+        - name: argocd-server
+          port: 80
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  namespace: argocd
+  name: default
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: vault-secrets-operator
+    serviceAccount: default
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  namespace: argocd
+  name: dex-auth
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: argocd/dex-auth
+  destination:
+    create: true
+    name: dex-auth
+    labels:
+      app.kubernetes.io/part-of: argocd
