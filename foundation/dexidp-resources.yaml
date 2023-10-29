@@ -54,15 +54,3 @@ spec:
     - backendRefs:
         - name: dex
           port: 5556
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  namespace: dexidp
-  name: dex-data
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi

@@ -1,7 +1,3 @@
-# Recreate on deploy, otherwise it hangs due to pvc mount
-strategy:
-  type: Recreate
-
 resources:
   requests:
     cpu: 100m
@@ -36,9 +32,6 @@ envVars:
         key: bacchus-vault
 
 volumes:
-  - name: dex-data
-    persistentVolumeClaim:
-      claimName: dex-data
   - name: dex-google-secret
     secret:
       secretName: dex-google-secret
@@ -47,8 +40,6 @@ volumes:
           path: service-account.json
 
 volumeMounts:
-  - name: dex-data
-    mountPath: /data
   - name: dex-google-secret
     mountPath: /secret
 
@@ -58,9 +49,9 @@ podSecurityContext:
 config:
   issuer: https://auth.bacchus.io/dex
   storage:
-    type: sqlite3
+    type: kubernetes
     config:
-      file: /data/dex.db
+      inCluster: true
 
   staticClients:
     - name: Waiter
