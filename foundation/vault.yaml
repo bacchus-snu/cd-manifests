@@ -12,3 +12,6 @@ server:
 
 ui:
   enabled: true
+
+injector:
+  enabled: false
