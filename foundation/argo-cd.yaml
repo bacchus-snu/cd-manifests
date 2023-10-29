@@ -15,12 +15,6 @@ configs:
     policy.csv: |
       g, regular-members@bacchus.snucse.org, role:admin
     policy.default: role:readonly
-server:
-  ingress:
-    enabled: true
-    ingressClassName: nginx
-    hosts:
-      - argocd.bacchus.io
 notifications:
   argocdUrl: 'https://argocd.bacchus.io'
   secret:

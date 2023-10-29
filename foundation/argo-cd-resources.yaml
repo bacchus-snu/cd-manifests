@@ -1,0 +1,17 @@
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  namespace: argo-cd
+  name: argo-cd-ui
+spec:
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: https-bacchus-io
+  hostnames:
+    - argocd.bacchus.io
+  rules:
+    - backendRefs:
+        - name: argo-cd-ui
+          port: 80
