@@ -33,7 +33,7 @@ kind: VaultStaticSecret
 metadata:
   namespace: argocd
   name: dex-auth
-spece:
+spec:
   vaultAuthRef: default
   type: kv-v2
   mount: secret
