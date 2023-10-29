@@ -78,7 +78,7 @@ config:
     - name: ArgoCD
       id: bacchus-argocd
       redirectURIs:
-        - https://argocd.bacchus.io/api/dex/callback
+        - https://argocd.bacchus.io/auth/callback
       secretEnv: DEX_CLIENT_BACCHUS_ARGOCD
 
   connectors:
