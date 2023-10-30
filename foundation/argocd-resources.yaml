@@ -43,3 +43,20 @@ spec:
     name: dex-auth
     labels:
       app.kubernetes.io/part-of: argocd
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  namespace: argocd
+  name: repo-cd-manifests
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: argocd/repo-cd-manifests
+  destination:
+    create: true
+    name: repo-cd-manifests
+    labels:
+      app.kubernetes.io/part-of: argocd
+      argocd.argoproj.io/secret-type: repository
