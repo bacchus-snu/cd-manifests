@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
         - name: app
-          image: ghcr.io/bacchus-snu/secure-front:e4d447588b9b41a9800597cc0842d2ab7b664ec2
+          image: ghcr.io/bacchus-snu/secure-front:3b34a8b637c3e14126d8584124d9bb791340b90c
           ports:
             - name: http
               containerPort: 8080
