@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: secure-front
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: secure-front
+  name: secure-front
+  labels:
+    app.kubernetes.io/name: secure-front
+    app.kubernetes.io/instance: secure-front
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: secure-front
+      app.kubernetes.io/instance: secure-front
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: secure-front
+        app.kubernetes.io/instance: secure-front
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/bacchus-snu/secure-front:e4d447588b9b41a9800597cc0842d2ab7b664ec2
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          livenessProbe:
+            httpGet:
+              port: http
+          readinessProbe:
+            httpGet:
+              port: http
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+                - ALL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: secure-front
+  name: secure-front
+  labels:
+    app.kubernetes.io/name: secure-front
+    app.kubernetes.io/instance: secure-front
+spec:
+  selector:
+    app.kubernetes.io/name: secure-front
+    app.kubernetes.io/instance: secure-front
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  namespace: secure-front
+  name: secure-front
+spec:
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: https-bacchus-io
+  hostnames:
+    - secure-front.bacchus.io
+  rules:
+    - backendRefs:
+        - name: secure-front
+          port: 80
