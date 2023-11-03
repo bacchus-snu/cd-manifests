@@ -15,7 +15,7 @@ spec:
       targetRevision: 1.15.1
       chart: vault
       helm:
-        values:
+        values: |-
           server:
             resources:
               requests:
