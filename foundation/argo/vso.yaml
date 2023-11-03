@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: vault-secrets-operator
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: infra
+  destination:
+    name: in-cluster
+    namespace: vault-secrets-operator
+  #syncPolicy:
+  #  automated:
+  #    prune: true
+  #    selfHeal: true
+  sources:
+    - repoURL: https://ricoberger.github.io/helm-charts
+      targetRevision: 0.3.4
+      chart: vault-secrets-operator
+      helm:
+        values: |-
+          defaultVaultConnection:
+            enabled: true
+            address: http://vault.vault.svc.cluster.local:8200
