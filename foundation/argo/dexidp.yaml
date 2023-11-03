@@ -10,13 +10,9 @@ spec:
   destination:
     name: in-cluster
     namespace: dexidp
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
   sources:
     - repoURL: https://charts.dexidp.io
-      targetRevision: 2.37.0
+      targetRevision: 0.15.3
       chart: dex
       helm:
         values: |-
