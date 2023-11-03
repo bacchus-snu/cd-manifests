@@ -1,0 +1,119 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: dex
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: infra
+  destination:
+    name: in-cluster
+    namespace: dexidp
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+  sources:
+    - repoURL: https://charts.dexidp.io
+      targetRevision: 2.37.0
+      chart: dex
+      helm:
+        values: |-
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 100m
+              memory: 512Mi
+
+          envVars:
+            - name: GOOGLE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: dex-google-secret
+                  key: GOOGLE_CLIENT_ID
+            - name: GOOGLE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: dex-google-secret
+                  key: GOOGLE_CLIENT_SECRET
+            - name: GOOGLE_SERVICE_ACCOUNT
+              value: /secret/service-account.json
+
+            - name: DEX_CLIENT_BACCHUS_BARTENDER
+              valueFrom:
+                secretKeyRef:
+                  name: dex-client-secrets
+                  key: bacchus-bartender
+            - name: DEX_CLIENT_BACCHUS_VAULT
+              valueFrom:
+                secretKeyRef:
+                  name: dex-client-secrets
+                  key: bacchus-vault
+            - name: DEX_CLIENT_BACCHUS_ARGOCD
+              valueFrom:
+                secretKeyRef:
+                  name: dex-client-secrets
+                  key: bacchus-argocd
+
+          volumes:
+            - name: dex-google-secret
+              secret:
+                secretName: dex-google-secret
+                items:
+                  - key: GOOGLE_SERVICE_ACCOUNT
+                    path: service-account.json
+
+          volumeMounts:
+            - name: dex-google-secret
+              mountPath: /secret
+
+          podSecurityContext:
+            fsGroup: 1337
+
+          config:
+            issuer: https://auth.bacchus.io/dex
+            storage:
+              type: kubernetes
+              config:
+                inCluster: true
+
+            staticClients:
+              - name: Waiter
+                id: bacchus-waiter
+                public: true
+              - name: Bartender
+                id: bacchus-bartender
+                redirectURIs:
+                  - https://fizz.snucse.org:8006
+                  - https://gin.snucse.org:8006
+                  - https://ramos.snucse.org:8006
+                secretEnv: DEX_CLIENT_BACCHUS_BARTENDER
+              - name: Vault
+                id: bacchus-vault
+                redirectURIs:
+                  - https://vault.bacchus.io/ui/vault/auth/oidc/oidc/callback
+                  - http://localhost:8250/oidc/callback
+                secretEnv: DEX_CLIENT_BACCHUS_VAULT
+              - name: ArgoCD
+                id: bacchus-argocd
+                redirectURIs:
+                  - https://argocd.bacchus.io/auth/callback
+                secretEnv: DEX_CLIENT_BACCHUS_ARGOCD
+
+            connectors:
+              - name: Google
+                id: google
+                type: google
+                config:
+                  issuer: https://accounts.google.com
+                  clientID: $GOOGLE_CLIENT_ID
+                  clientSecret: $GOOGLE_CLIENT_SECRET
+                  redirectURI: https://auth.bacchus.io/dex/callback
+                  hostedDomains:
+                    - bacchus.snucse.org
+                  serviceAccountFilePath: $GOOGLE_SERVICE_ACCOUNT
+                  adminEmail: admin@snucse.org
+
