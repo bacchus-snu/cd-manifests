@@ -10,6 +10,10 @@ spec:
   destination:
     name: in-cluster
     namespace: ceph-csi-rbd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
   sources:
     - repoURL: https://ceph.github.io/csi-charts
       targetRevision: 3.9.0

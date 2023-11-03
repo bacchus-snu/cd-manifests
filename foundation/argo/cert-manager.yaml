@@ -10,10 +10,10 @@ spec:
   destination:
     name: in-cluster
     namespace: cert-manager
-  #syncPolicy:
-  #  automated:
-  #    prune: true
-  #    selfHeal: true
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
   sources:
     - repoURL: https://charts.jetstack.io
       targetRevision: 1.13.1

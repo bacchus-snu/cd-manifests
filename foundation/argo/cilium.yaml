@@ -10,10 +10,10 @@ spec:
   destination:
     name: in-cluster
     namespace: cilium-system
-  #syncPolicy:
-  #  automated:
-  #    prune: true
-  #    selfHeal: true
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
   sources:
     - repoURL: https://helm.cilium.io/
       targetRevision: 1.14.3
