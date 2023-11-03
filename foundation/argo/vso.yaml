@@ -15,7 +15,7 @@ spec:
   #    prune: true
   #    selfHeal: true
   sources:
-    - repoURL: https://ricoberger.github.io/helm-charts
+    - repoURL: https://helm.releases.hashicorp.com
       targetRevision: 0.3.4
       chart: vault-secrets-operator
       helm:
