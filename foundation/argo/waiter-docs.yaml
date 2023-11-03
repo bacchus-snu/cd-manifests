@@ -17,7 +17,7 @@ spec:
   source:
     repoURL: ghcr.io/bacchus-snu
     chart: waiter-docs
-    targetRevision: '20231102'
+    targetRevision: '20231103'
     helm:
       values: |-
         resources:
