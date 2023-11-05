@@ -11,32 +11,20 @@ spec:
   destination:
     name: in-cluster
     namespace: vault
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
+  #syncPolicy:
+  #  automated:
+  #    prune: true
+  #    selfHeal: true
   sources:
     - repoURL: https://helm.releases.hashicorp.com
       targetRevision: 0.26.0
       chart: vault
       helm:
-        values: |-
-          server:
-            resources:
-              requests:
-                memory: 256Mi
-                cpu: 250m
-              limits:
-                memory: 256Mi
-                cpu: 250m
-
-            auditStorage:
-              enabled: true
-
-          ui:
-            enabled: true
-
-          injector:
-            enabled: false
-          speaker:
-            tolerateMaster: false
+        valueFiles:
+          - $values/foundation/argo/vault/values.yaml
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: feat/talos
+      ref: values
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: feat/talos
+      path: foundation/argo/vault/resources.yaml
