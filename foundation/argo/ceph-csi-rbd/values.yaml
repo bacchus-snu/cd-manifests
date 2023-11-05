@@ -5,16 +5,16 @@ csiConfig:
       - 10.89.0.12:6789
       - 10.89.0.13:6789
 
-  selinuxMount: false
+selinuxMount: false
 
-  storageClass:
-    create: true
-    name: rbd
-    annotations:
-      storageclass.kubernetes.io/is-default-class: "true"
-    clusterID: 6153aaf2-8844-4257-a269-225933b5fb4a
-    pool: kubernetes
-    imageFeatures: layering,exclusive-lock,object-map,fast-diff,deep-flatten
-    mountOptions:
-      - discard
+storageClass:
+  create: true
+  name: rbd
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+  clusterID: 6153aaf2-8844-4257-a269-225933b5fb4a
+  pool: kubernetes
+  imageFeatures: layering,exclusive-lock,object-map,fast-diff,deep-flatten
+  mountOptions:
+    - discard
 
