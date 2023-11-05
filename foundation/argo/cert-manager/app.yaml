@@ -20,15 +20,6 @@ spec:
       targetRevision: 1.13.1
       chart: cert-manager
       helm:
-        values: |-
-          installCRDs: true
-          enableCertificateOwnerRef: true
-          resources:
-             requests:
-               cpu: 100m
-               memory: 128Mi
-             limits:
-               cpu: 100m
-               memory: 128Mi
-          extraArgs:
-            - --feature-gates=ExperimentalGatewayAPISupport=true
+        valueFiles:
+          - $values/foundation/argo/vault/values.yaml
+
