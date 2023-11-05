@@ -22,4 +22,7 @@ spec:
       helm:
         valueFiles:
           - $values/foundation/argo/argocd/values.yaml
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: feat/talos
+      ref: values
 

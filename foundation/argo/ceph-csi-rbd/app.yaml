@@ -32,4 +32,7 @@ spec:
       helm:
         valueFiles:
           - $values/foundation/argo/ceph-csi-rbd/values.yaml
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: feat/talos
+      ref: values
 
