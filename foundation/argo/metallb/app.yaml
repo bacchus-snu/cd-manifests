@@ -12,9 +12,9 @@ spec:
     name: in-cluster
     namespace: metallb-system
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
+    #automated:
+    #  prune: true
+    #  selfHeal: true
     syncOptions:
       - CreateNamespace=true
     managedNamespaceMetadata:
@@ -36,6 +36,8 @@ spec:
       targetRevision: 0.13.12
       chart: metallb
       helm:
-        values: |-
-          speaker:
-            tolerateMaster: false
+        valueFiles:
+          - $values/foundation/argo/metallb/values.yaml
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: feat/talos
+      ref: values
