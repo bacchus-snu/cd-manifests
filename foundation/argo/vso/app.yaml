@@ -20,7 +20,7 @@ spec:
       targetRevision: 0.3.4
       chart: vault-secrets-operator
       helm:
-        valuesFiles:
+        valueFiles:
           - $values/foundation/argo/vso/values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: feat/talos
