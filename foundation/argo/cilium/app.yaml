@@ -30,12 +30,18 @@ spec:
     - group: ''
       kind: Secret
       name: cilium-ca
+      jsonPointers:
+        - /data
     - group: ''
       kind: Secret
       name: hubble-relay-client-certs
+      jsonPointers:
+        - /data
     - group: ''
       kind: Secret
       name: hubble-server-certs
+      jsonPointers:
+        - /data
   sources:
     - repoURL: https://helm.cilium.io/
       targetRevision: 1.14.3
