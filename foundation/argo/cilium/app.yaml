@@ -25,6 +25,17 @@ spec:
         pod-security.kubernetes.io/warn-version: v1.28
         pod-security.kubernetes.io/audit: privileged
         pod-security.kubernetes.io/audit-version: v1.28
+  ignoreDifferences:
+    # Patched by cilium
+    - group: ''
+      kind: Secret
+      name: cilium-ca
+    - group: ''
+      kind: Secret
+      name: hubble-relay-client-certs
+    - group: ''
+      kind: Secret
+      name: hubble-server-certs
   sources:
     - repoURL: https://helm.cilium.io/
       targetRevision: 1.14.3
