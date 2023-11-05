@@ -21,7 +21,7 @@ spec:
       chart: cert-manager
       helm:
         valueFiles:
-          - $values/foundation/argo/vault/values.yaml
+          - $values/foundation/argo/cert-manager/values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: feat/talos
       ref: values
