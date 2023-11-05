@@ -11,15 +11,17 @@ spec:
   destination:
     name: in-cluster
     namespace: kube-system
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
+  # syncPolicy:
+  #   automated:
+  #     prune: true
+  #     selfHeal: true
   sources:
     - repoURL: https://kubernetes-sigs.github.io/metrics-server/
       targetRevision: 3.11.0
       chart: metrics-server
       helm:
-        values: |-
-          args:
-            - --kubelet-insecure-tls
+        valueFiles:
+          - $values/foundation/argo/metrics-server/values.yaml
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: feat/talos
+      ref: values
