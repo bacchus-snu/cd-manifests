@@ -5,7 +5,7 @@ metadata:
   namespace: argocd
   name: top-level
 spec:
-  project: default
+  project: infra
   destination:
     name: in-cluster
     namespace: argocd

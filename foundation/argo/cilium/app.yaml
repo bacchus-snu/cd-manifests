@@ -27,18 +27,15 @@ spec:
         pod-security.kubernetes.io/audit-version: v1.28
   ignoreDifferences:
     # Patched by cilium
-    - group: ''
-      kind: Secret
+    - kind: Secret
       name: cilium-ca
       jsonPointers:
         - /data
-    - group: ''
-      kind: Secret
+    - kind: Secret
       name: hubble-relay-client-certs
       jsonPointers:
         - /data
-    - group: ''
-      kind: Secret
+    - kind: Secret
       name: hubble-server-certs
       jsonPointers:
         - /data
