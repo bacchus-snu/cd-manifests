@@ -27,4 +27,6 @@ spec:
       ref: values
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: feat/talos
-      path: foundation/argo/vault/resources.yaml
+      path: foundation/argo/vault
+      directory:
+        include: 'resources.yaml'
