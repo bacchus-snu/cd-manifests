@@ -30,24 +30,9 @@ spec:
       targetRevision: 3.9.0
       chart: ceph-csi-rbd
       helm:
-        values: |-
-          csiConfig:
-            - clusterID: 6153aaf2-8844-4257-a269-225933b5fb4a
-              monitors:
-                - 10.89.0.11:6789
-                - 10.89.0.12:6789
-                - 10.89.0.13:6789
-
-          selinuxMount: false
-
-          storageClass:
-            create: true
-            name: rbd
-            annotations:
-              storageclass.kubernetes.io/is-default-class: "true"
-            clusterID: 6153aaf2-8844-4257-a269-225933b5fb4a
-            pool: kubernetes
-            imageFeatures: layering,exclusive-lock,object-map,fast-diff,deep-flatten
-            mountOptions:
-              - discard
+        valueFiles:
+          - $values/foundation/argo/ceph-csi-rbd/values.yaml
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: feat/talos
+      ref: values
 
