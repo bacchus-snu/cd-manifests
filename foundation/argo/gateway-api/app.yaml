@@ -18,5 +18,5 @@ spec:
   sources:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: feat/talos
-      path: foundation/argo/vault
+      path: foundation/argo/gateway-api
       kustomize: {}
