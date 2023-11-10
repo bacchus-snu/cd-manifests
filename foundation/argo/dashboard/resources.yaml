@@ -1,0 +1,43 @@
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  namespace: dashboard
+  name: grafana
+spec:
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: https-bacchus-io
+  hostnames:
+    - dashboard.bacchus.io
+  rules:
+    - backendRefs:
+        - name: dashboard-grafana
+          port: 80
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  namespace: dashboard
+  name: default
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: vault-secrets-operator
+    serviceAccount: default
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  namespace: dashboard
+  name: dex-auth
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: dashboard/grafana/dex-auth
+  destination:
+    create: true
+    name: dex-auth
