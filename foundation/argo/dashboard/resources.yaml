@@ -41,5 +41,3 @@ spec:
   destination:
     create: true
     name: dex-auth
-    labels:
-      app.kubernetes.io/part-of: argocd
