@@ -1,6 +1,13 @@
 prometheus:
   prometheusSpec:
     serviceMonitorSelectorNilUsesHelmValues: false
+    resources:
+      requests:
+        cpu: 1000m
+        memory: 2Gi
+      limits:
+        cpu: 1000m
+        memory: 2Gi
     storageSpec:
       volumeClaimTemplate:
         spec:
