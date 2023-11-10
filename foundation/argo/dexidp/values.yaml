@@ -35,6 +35,11 @@ envVars:
       secretKeyRef:
         name: dex-client-secrets
         key: bacchus-argocd
+  - name: DEX_CLIENT_BACCHUS_GRAFANA
+    valueFrom:
+      secretKeyRef:
+        name: dex-client-secrets
+        key: bacchus-grafana
 
 volumes:
   - name: dex-google-secret
@@ -80,6 +85,11 @@ config:
       redirectURIs:
         - https://argocd.bacchus.io/auth/callback
       secretEnv: DEX_CLIENT_BACCHUS_ARGOCD
+    - name: Grafana
+      id: bacchus-grafana
+      redirectURIs:
+        - https://dashboard.bacchus.io/login/generic_oauth
+      secretEnv: DEX_CLIENT_BACCHUS_GRAFANA
 
   connectors:
     - name: Google
@@ -94,5 +104,3 @@ config:
           - bacchus.snucse.org
         serviceAccountFilePath: $GOOGLE_SERVICE_ACCOUNT
         adminEmail: admin@snucse.org
-
-
