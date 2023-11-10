@@ -1,0 +1,42 @@
+prometheus:
+  prometheusSpec:
+    serviceMonitorSelectorNilUsesHelmValues: false
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 100Gi
+
+grafana:
+  imageRenderer:
+    grafanaProtocol: https
+
+  grafana.ini:
+    server:
+      domain: dashboard.bacchus.io
+      root_url: "https://%(domain)s"
+
+    auth:
+      disable_login_form: true
+
+    auth.generic_oauth:
+      enabled: true
+      allow_sign_up: true
+      client_id: bacchus-grafana
+      client_secret: '$__file{/etc/secrets/dex-auth/secret}'
+      scopes: openid email profile groups
+      api_url: https://auth.bacchus.io/dex/userinfo
+      auth_url: https://auth.bacchus.io/dex/auth
+      token_url: https://auth.bacchus.io/dex/token
+      role_attribute_path: contains(groups[*], 'regular-members@bacchus.snucse.org') && 'Editor' || contains(groups[*], 'member@bacchus.snucse.org') && 'Viewer'
+
+    security:
+      disable_initial_admin_creation: true
+
+  extraSecretMounts:
+    - name: dex-auth
+      secretName: dex-auth
+      mountPath: /etc/secrets/dex-auth
+      readOnly: true
