@@ -17,6 +17,14 @@ spec:
   #     selfHeal: true
     syncOptions:
       - CreateNamespace=true
+    managedNamespaceMetadata:
+      labels:
+        pod-security.kubernetes.io/enforce: privileged
+        pod-security.kubernetes.io/enforce-version: v1.28
+        pod-security.kubernetes.io/warn: privileged
+        pod-security.kubernetes.io/warn-version: v1.28
+        pod-security.kubernetes.io/audit: privileged
+        pod-security.kubernetes.io/audit-version: v1.28
   sources:
     - repoURL: https://prometheus-community.github.io/helm-charts
       targetRevision: 52.1.0
