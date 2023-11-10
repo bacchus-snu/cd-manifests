@@ -16,3 +16,11 @@ configs:
       g, regular-members@bacchus.snucse.org, role:admin
     policy.default: role:readonly
 
+controller:
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 1Gi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
