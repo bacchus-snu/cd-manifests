@@ -1,0 +1,18 @@
+provider: cloudflare
+
+env:
+  - name: CF_API_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: cloudflare
+        key: CF_API_TOKEN
+
+sources:
+  - gateway-httproute
+  
+domainFilters:
+  - snucse.org
+  - bacchus.io
+
+txtOwnerId: waiter
+policy: sync
