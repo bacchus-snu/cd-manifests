@@ -18,4 +18,5 @@ controller:
         cpu: 100m
         memory: 128Mi
       limits:
+        cpu: null
         memory: 128Mi
