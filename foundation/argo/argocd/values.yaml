@@ -16,6 +16,9 @@ configs:
       g, regular-members@bacchus.snucse.org, role:admin
     policy.default: role:readonly
 
+  secret:
+    createSecret: false
+
 controller:
   resources:
     requests:

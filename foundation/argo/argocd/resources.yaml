@@ -79,3 +79,19 @@ spec:
     labels:
       app.kubernetes.io/part-of: argocd
       argocd.argoproj.io/secret-type: repository
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  namespace: argocd
+  name: argocd-secret
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: argocd/argocd-secret
+  destination:
+    create: true
+    name: argocd-secret
+    labels:
+      app.kubernetes.io/part-of: argocd
