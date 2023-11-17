@@ -90,7 +90,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /intern-01/
+            value: /intern-01
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -192,7 +192,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /intern-02/
+            value: /intern-02
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -294,7 +294,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /intern-03/
+            value: /intern-03
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -396,7 +396,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /intern-04/
+            value: /intern-04
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -498,7 +498,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /intern-05/
+            value: /intern-05
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -600,7 +600,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /intern-06/
+            value: /intern-06
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -702,7 +702,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /intern-07/
+            value: /intern-07
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -804,7 +804,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /intern-08/
+            value: /intern-08
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -906,7 +906,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /intern-09/
+            value: /intern-09
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -1008,7 +1008,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /intern-10/
+            value: /intern-10
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -1110,7 +1110,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /intern-11/
+            value: /intern-11
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -1212,7 +1212,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /intern-12/
+            value: /intern-12
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -1314,7 +1314,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /intern-13/
+            value: /intern-13
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -1416,7 +1416,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /intern-14/
+            value: /intern-14
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -1518,7 +1518,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /intern-15/
+            value: /intern-15
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -1620,7 +1620,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /intern-16/
+            value: /intern-16
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -1722,7 +1722,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /intern-17/
+            value: /intern-17
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -1824,7 +1824,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /intern-18/
+            value: /intern-18
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -1926,7 +1926,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /intern-19/
+            value: /intern-19
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -2028,7 +2028,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /intern-20/
+            value: /intern-20
       filters:
         - type: URLRewrite
           urlRewrite:

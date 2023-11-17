@@ -90,7 +90,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /intern-NUM/
+            value: /intern-NUM
       filters:
         - type: URLRewrite
           urlRewrite:
