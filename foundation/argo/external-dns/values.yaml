@@ -9,7 +9,7 @@ env:
 
 sources:
   - gateway-httproute
-  
+
 domainFilters:
   - snucse.org
   - bacchus.io

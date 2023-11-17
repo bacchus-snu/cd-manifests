@@ -27,3 +27,8 @@ spec:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: feat/talos
       ref: values
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: feat/talos
+      path: foundation/argo/external-dns
+      directory:
+        include: 'resources.yaml'
