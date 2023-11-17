@@ -73,3 +73,24 @@ spec:
     - name: http
       port: 80
       targetPort: http
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  namespace: intern-NUM
+  name: intern-NUM-practice
+spec:
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: https-bacchus-io
+  hostnames:
+    - practice.bacchus.io
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /intern-NUM/
+      backendRefs:
+        - name: practice
+          port: 80
