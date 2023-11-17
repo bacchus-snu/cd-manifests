@@ -4,12 +4,12 @@ kind: Namespace
 metadata:
   name: intern-01
   labels:
-    pod-security.kubernetes.io/audit-version=v1.28
-    pod-security.kubernetes.io/audit=baseline
-    pod-security.kubernetes.io/enforce-version=v1.28
-    pod-security.kubernetes.io/enforce=baseline
-    pod-security.kubernetes.io/warn-version=v1.28
-    pod-security.kubernetes.io/warn=baseline
+    pod-security.kubernetes.io/audit-version: v1.28
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/enforce-version: v1.28
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn-version: v1.28
+    pod-security.kubernetes.io/warn: baseline
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -29,12 +29,12 @@ kind: Namespace
 metadata:
   name: intern-02
   labels:
-    pod-security.kubernetes.io/audit-version=v1.28
-    pod-security.kubernetes.io/audit=baseline
-    pod-security.kubernetes.io/enforce-version=v1.28
-    pod-security.kubernetes.io/enforce=baseline
-    pod-security.kubernetes.io/warn-version=v1.28
-    pod-security.kubernetes.io/warn=baseline
+    pod-security.kubernetes.io/audit-version: v1.28
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/enforce-version: v1.28
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn-version: v1.28
+    pod-security.kubernetes.io/warn: baseline
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -54,12 +54,12 @@ kind: Namespace
 metadata:
   name: intern-03
   labels:
-    pod-security.kubernetes.io/audit-version=v1.28
-    pod-security.kubernetes.io/audit=baseline
-    pod-security.kubernetes.io/enforce-version=v1.28
-    pod-security.kubernetes.io/enforce=baseline
-    pod-security.kubernetes.io/warn-version=v1.28
-    pod-security.kubernetes.io/warn=baseline
+    pod-security.kubernetes.io/audit-version: v1.28
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/enforce-version: v1.28
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn-version: v1.28
+    pod-security.kubernetes.io/warn: baseline
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -79,12 +79,12 @@ kind: Namespace
 metadata:
   name: intern-04
   labels:
-    pod-security.kubernetes.io/audit-version=v1.28
-    pod-security.kubernetes.io/audit=baseline
-    pod-security.kubernetes.io/enforce-version=v1.28
-    pod-security.kubernetes.io/enforce=baseline
-    pod-security.kubernetes.io/warn-version=v1.28
-    pod-security.kubernetes.io/warn=baseline
+    pod-security.kubernetes.io/audit-version: v1.28
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/enforce-version: v1.28
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn-version: v1.28
+    pod-security.kubernetes.io/warn: baseline
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -104,12 +104,12 @@ kind: Namespace
 metadata:
   name: intern-05
   labels:
-    pod-security.kubernetes.io/audit-version=v1.28
-    pod-security.kubernetes.io/audit=baseline
-    pod-security.kubernetes.io/enforce-version=v1.28
-    pod-security.kubernetes.io/enforce=baseline
-    pod-security.kubernetes.io/warn-version=v1.28
-    pod-security.kubernetes.io/warn=baseline
+    pod-security.kubernetes.io/audit-version: v1.28
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/enforce-version: v1.28
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn-version: v1.28
+    pod-security.kubernetes.io/warn: baseline
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -129,12 +129,12 @@ kind: Namespace
 metadata:
   name: intern-06
   labels:
-    pod-security.kubernetes.io/audit-version=v1.28
-    pod-security.kubernetes.io/audit=baseline
-    pod-security.kubernetes.io/enforce-version=v1.28
-    pod-security.kubernetes.io/enforce=baseline
-    pod-security.kubernetes.io/warn-version=v1.28
-    pod-security.kubernetes.io/warn=baseline
+    pod-security.kubernetes.io/audit-version: v1.28
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/enforce-version: v1.28
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn-version: v1.28
+    pod-security.kubernetes.io/warn: baseline
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -154,12 +154,12 @@ kind: Namespace
 metadata:
   name: intern-07
   labels:
-    pod-security.kubernetes.io/audit-version=v1.28
-    pod-security.kubernetes.io/audit=baseline
-    pod-security.kubernetes.io/enforce-version=v1.28
-    pod-security.kubernetes.io/enforce=baseline
-    pod-security.kubernetes.io/warn-version=v1.28
-    pod-security.kubernetes.io/warn=baseline
+    pod-security.kubernetes.io/audit-version: v1.28
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/enforce-version: v1.28
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn-version: v1.28
+    pod-security.kubernetes.io/warn: baseline
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -179,12 +179,12 @@ kind: Namespace
 metadata:
   name: intern-08
   labels:
-    pod-security.kubernetes.io/audit-version=v1.28
-    pod-security.kubernetes.io/audit=baseline
-    pod-security.kubernetes.io/enforce-version=v1.28
-    pod-security.kubernetes.io/enforce=baseline
-    pod-security.kubernetes.io/warn-version=v1.28
-    pod-security.kubernetes.io/warn=baseline
+    pod-security.kubernetes.io/audit-version: v1.28
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/enforce-version: v1.28
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn-version: v1.28
+    pod-security.kubernetes.io/warn: baseline
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -204,12 +204,12 @@ kind: Namespace
 metadata:
   name: intern-09
   labels:
-    pod-security.kubernetes.io/audit-version=v1.28
-    pod-security.kubernetes.io/audit=baseline
-    pod-security.kubernetes.io/enforce-version=v1.28
-    pod-security.kubernetes.io/enforce=baseline
-    pod-security.kubernetes.io/warn-version=v1.28
-    pod-security.kubernetes.io/warn=baseline
+    pod-security.kubernetes.io/audit-version: v1.28
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/enforce-version: v1.28
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn-version: v1.28
+    pod-security.kubernetes.io/warn: baseline
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -229,12 +229,12 @@ kind: Namespace
 metadata:
   name: intern-10
   labels:
-    pod-security.kubernetes.io/audit-version=v1.28
-    pod-security.kubernetes.io/audit=baseline
-    pod-security.kubernetes.io/enforce-version=v1.28
-    pod-security.kubernetes.io/enforce=baseline
-    pod-security.kubernetes.io/warn-version=v1.28
-    pod-security.kubernetes.io/warn=baseline
+    pod-security.kubernetes.io/audit-version: v1.28
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/enforce-version: v1.28
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn-version: v1.28
+    pod-security.kubernetes.io/warn: baseline
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -254,12 +254,12 @@ kind: Namespace
 metadata:
   name: intern-11
   labels:
-    pod-security.kubernetes.io/audit-version=v1.28
-    pod-security.kubernetes.io/audit=baseline
-    pod-security.kubernetes.io/enforce-version=v1.28
-    pod-security.kubernetes.io/enforce=baseline
-    pod-security.kubernetes.io/warn-version=v1.28
-    pod-security.kubernetes.io/warn=baseline
+    pod-security.kubernetes.io/audit-version: v1.28
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/enforce-version: v1.28
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn-version: v1.28
+    pod-security.kubernetes.io/warn: baseline
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -279,12 +279,12 @@ kind: Namespace
 metadata:
   name: intern-12
   labels:
-    pod-security.kubernetes.io/audit-version=v1.28
-    pod-security.kubernetes.io/audit=baseline
-    pod-security.kubernetes.io/enforce-version=v1.28
-    pod-security.kubernetes.io/enforce=baseline
-    pod-security.kubernetes.io/warn-version=v1.28
-    pod-security.kubernetes.io/warn=baseline
+    pod-security.kubernetes.io/audit-version: v1.28
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/enforce-version: v1.28
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn-version: v1.28
+    pod-security.kubernetes.io/warn: baseline
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -304,12 +304,12 @@ kind: Namespace
 metadata:
   name: intern-13
   labels:
-    pod-security.kubernetes.io/audit-version=v1.28
-    pod-security.kubernetes.io/audit=baseline
-    pod-security.kubernetes.io/enforce-version=v1.28
-    pod-security.kubernetes.io/enforce=baseline
-    pod-security.kubernetes.io/warn-version=v1.28
-    pod-security.kubernetes.io/warn=baseline
+    pod-security.kubernetes.io/audit-version: v1.28
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/enforce-version: v1.28
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn-version: v1.28
+    pod-security.kubernetes.io/warn: baseline
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -329,12 +329,12 @@ kind: Namespace
 metadata:
   name: intern-14
   labels:
-    pod-security.kubernetes.io/audit-version=v1.28
-    pod-security.kubernetes.io/audit=baseline
-    pod-security.kubernetes.io/enforce-version=v1.28
-    pod-security.kubernetes.io/enforce=baseline
-    pod-security.kubernetes.io/warn-version=v1.28
-    pod-security.kubernetes.io/warn=baseline
+    pod-security.kubernetes.io/audit-version: v1.28
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/enforce-version: v1.28
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn-version: v1.28
+    pod-security.kubernetes.io/warn: baseline
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -354,12 +354,12 @@ kind: Namespace
 metadata:
   name: intern-15
   labels:
-    pod-security.kubernetes.io/audit-version=v1.28
-    pod-security.kubernetes.io/audit=baseline
-    pod-security.kubernetes.io/enforce-version=v1.28
-    pod-security.kubernetes.io/enforce=baseline
-    pod-security.kubernetes.io/warn-version=v1.28
-    pod-security.kubernetes.io/warn=baseline
+    pod-security.kubernetes.io/audit-version: v1.28
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/enforce-version: v1.28
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn-version: v1.28
+    pod-security.kubernetes.io/warn: baseline
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -379,12 +379,12 @@ kind: Namespace
 metadata:
   name: intern-16
   labels:
-    pod-security.kubernetes.io/audit-version=v1.28
-    pod-security.kubernetes.io/audit=baseline
-    pod-security.kubernetes.io/enforce-version=v1.28
-    pod-security.kubernetes.io/enforce=baseline
-    pod-security.kubernetes.io/warn-version=v1.28
-    pod-security.kubernetes.io/warn=baseline
+    pod-security.kubernetes.io/audit-version: v1.28
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/enforce-version: v1.28
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn-version: v1.28
+    pod-security.kubernetes.io/warn: baseline
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -404,12 +404,12 @@ kind: Namespace
 metadata:
   name: intern-17
   labels:
-    pod-security.kubernetes.io/audit-version=v1.28
-    pod-security.kubernetes.io/audit=baseline
-    pod-security.kubernetes.io/enforce-version=v1.28
-    pod-security.kubernetes.io/enforce=baseline
-    pod-security.kubernetes.io/warn-version=v1.28
-    pod-security.kubernetes.io/warn=baseline
+    pod-security.kubernetes.io/audit-version: v1.28
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/enforce-version: v1.28
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn-version: v1.28
+    pod-security.kubernetes.io/warn: baseline
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -429,12 +429,12 @@ kind: Namespace
 metadata:
   name: intern-18
   labels:
-    pod-security.kubernetes.io/audit-version=v1.28
-    pod-security.kubernetes.io/audit=baseline
-    pod-security.kubernetes.io/enforce-version=v1.28
-    pod-security.kubernetes.io/enforce=baseline
-    pod-security.kubernetes.io/warn-version=v1.28
-    pod-security.kubernetes.io/warn=baseline
+    pod-security.kubernetes.io/audit-version: v1.28
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/enforce-version: v1.28
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn-version: v1.28
+    pod-security.kubernetes.io/warn: baseline
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -454,12 +454,12 @@ kind: Namespace
 metadata:
   name: intern-19
   labels:
-    pod-security.kubernetes.io/audit-version=v1.28
-    pod-security.kubernetes.io/audit=baseline
-    pod-security.kubernetes.io/enforce-version=v1.28
-    pod-security.kubernetes.io/enforce=baseline
-    pod-security.kubernetes.io/warn-version=v1.28
-    pod-security.kubernetes.io/warn=baseline
+    pod-security.kubernetes.io/audit-version: v1.28
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/enforce-version: v1.28
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn-version: v1.28
+    pod-security.kubernetes.io/warn: baseline
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -479,12 +479,12 @@ kind: Namespace
 metadata:
   name: intern-20
   labels:
-    pod-security.kubernetes.io/audit-version=v1.28
-    pod-security.kubernetes.io/audit=baseline
-    pod-security.kubernetes.io/enforce-version=v1.28
-    pod-security.kubernetes.io/enforce=baseline
-    pod-security.kubernetes.io/warn-version=v1.28
-    pod-security.kubernetes.io/warn=baseline
+    pod-security.kubernetes.io/audit-version: v1.28
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/enforce-version: v1.28
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn-version: v1.28
+    pod-security.kubernetes.io/warn: baseline
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
