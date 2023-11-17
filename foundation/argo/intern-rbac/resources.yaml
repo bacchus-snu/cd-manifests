@@ -91,6 +91,12 @@ spec:
         - path:
             type: PathPrefix
             value: /intern-01/
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: practice
           port: 80
@@ -187,6 +193,12 @@ spec:
         - path:
             type: PathPrefix
             value: /intern-02/
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: practice
           port: 80
@@ -283,6 +295,12 @@ spec:
         - path:
             type: PathPrefix
             value: /intern-03/
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: practice
           port: 80
@@ -379,6 +397,12 @@ spec:
         - path:
             type: PathPrefix
             value: /intern-04/
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: practice
           port: 80
@@ -475,6 +499,12 @@ spec:
         - path:
             type: PathPrefix
             value: /intern-05/
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: practice
           port: 80
@@ -571,6 +601,12 @@ spec:
         - path:
             type: PathPrefix
             value: /intern-06/
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: practice
           port: 80
@@ -667,6 +703,12 @@ spec:
         - path:
             type: PathPrefix
             value: /intern-07/
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: practice
           port: 80
@@ -763,6 +805,12 @@ spec:
         - path:
             type: PathPrefix
             value: /intern-08/
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: practice
           port: 80
@@ -859,6 +907,12 @@ spec:
         - path:
             type: PathPrefix
             value: /intern-09/
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: practice
           port: 80
@@ -955,6 +1009,12 @@ spec:
         - path:
             type: PathPrefix
             value: /intern-10/
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: practice
           port: 80
@@ -1051,6 +1111,12 @@ spec:
         - path:
             type: PathPrefix
             value: /intern-11/
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: practice
           port: 80
@@ -1147,6 +1213,12 @@ spec:
         - path:
             type: PathPrefix
             value: /intern-12/
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: practice
           port: 80
@@ -1243,6 +1315,12 @@ spec:
         - path:
             type: PathPrefix
             value: /intern-13/
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: practice
           port: 80
@@ -1339,6 +1417,12 @@ spec:
         - path:
             type: PathPrefix
             value: /intern-14/
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: practice
           port: 80
@@ -1435,6 +1519,12 @@ spec:
         - path:
             type: PathPrefix
             value: /intern-15/
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: practice
           port: 80
@@ -1531,6 +1621,12 @@ spec:
         - path:
             type: PathPrefix
             value: /intern-16/
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: practice
           port: 80
@@ -1627,6 +1723,12 @@ spec:
         - path:
             type: PathPrefix
             value: /intern-17/
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: practice
           port: 80
@@ -1723,6 +1825,12 @@ spec:
         - path:
             type: PathPrefix
             value: /intern-18/
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: practice
           port: 80
@@ -1819,6 +1927,12 @@ spec:
         - path:
             type: PathPrefix
             value: /intern-19/
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: practice
           port: 80
@@ -1915,6 +2029,12 @@ spec:
         - path:
             type: PathPrefix
             value: /intern-20/
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: practice
           port: 80

@@ -91,6 +91,12 @@ spec:
         - path:
             type: PathPrefix
             value: /intern-NUM/
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: practice
           port: 80
