@@ -1,0 +1,360 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: intern-01
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: intern-01
+  name: intern-01
+subjects:
+  - kind: Group
+    name: intern-members@bacchus.snucse.org
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: intern-02
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: intern-02
+  name: intern-02
+subjects:
+  - kind: Group
+    name: intern-members@bacchus.snucse.org
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: intern-03
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: intern-03
+  name: intern-03
+subjects:
+  - kind: Group
+    name: intern-members@bacchus.snucse.org
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: intern-04
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: intern-04
+  name: intern-04
+subjects:
+  - kind: Group
+    name: intern-members@bacchus.snucse.org
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: intern-05
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: intern-05
+  name: intern-05
+subjects:
+  - kind: Group
+    name: intern-members@bacchus.snucse.org
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: intern-06
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: intern-06
+  name: intern-06
+subjects:
+  - kind: Group
+    name: intern-members@bacchus.snucse.org
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: intern-07
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: intern-07
+  name: intern-07
+subjects:
+  - kind: Group
+    name: intern-members@bacchus.snucse.org
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: intern-08
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: intern-08
+  name: intern-08
+subjects:
+  - kind: Group
+    name: intern-members@bacchus.snucse.org
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: intern-09
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: intern-09
+  name: intern-09
+subjects:
+  - kind: Group
+    name: intern-members@bacchus.snucse.org
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: intern-10
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: intern-10
+  name: intern-10
+subjects:
+  - kind: Group
+    name: intern-members@bacchus.snucse.org
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: intern-11
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: intern-11
+  name: intern-11
+subjects:
+  - kind: Group
+    name: intern-members@bacchus.snucse.org
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: intern-12
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: intern-12
+  name: intern-12
+subjects:
+  - kind: Group
+    name: intern-members@bacchus.snucse.org
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: intern-13
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: intern-13
+  name: intern-13
+subjects:
+  - kind: Group
+    name: intern-members@bacchus.snucse.org
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: intern-14
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: intern-14
+  name: intern-14
+subjects:
+  - kind: Group
+    name: intern-members@bacchus.snucse.org
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: intern-15
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: intern-15
+  name: intern-15
+subjects:
+  - kind: Group
+    name: intern-members@bacchus.snucse.org
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: intern-16
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: intern-16
+  name: intern-16
+subjects:
+  - kind: Group
+    name: intern-members@bacchus.snucse.org
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: intern-17
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: intern-17
+  name: intern-17
+subjects:
+  - kind: Group
+    name: intern-members@bacchus.snucse.org
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: intern-18
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: intern-18
+  name: intern-18
+subjects:
+  - kind: Group
+    name: intern-members@bacchus.snucse.org
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: intern-19
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: intern-19
+  name: intern-19
+subjects:
+  - kind: Group
+    name: intern-members@bacchus.snucse.org
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: intern-20
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: intern-20
+  name: intern-20
+subjects:
+  - kind: Group
+    name: intern-members@bacchus.snucse.org
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
