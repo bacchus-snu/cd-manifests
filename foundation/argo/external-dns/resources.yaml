@@ -1,0 +1,26 @@
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  namespace: external-dns
+  name: default
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: vault-secrets-operator
+    serviceAccount: default
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  namespace: external-dns
+  name: cloudflare
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: external-dns/cloudflare/secret
+  destination:
+    create: true
+    name: cloudflare
