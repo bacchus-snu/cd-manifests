@@ -1,3 +1,6 @@
+image:
+  tag: v0.14.0
+
 provider: cloudflare
 
 env:
