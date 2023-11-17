@@ -24,6 +24,56 @@ roleRef:
   kind: ClusterRole
   name: edit
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: intern-01
+  name: intern-01
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: intern-01
+      app.kubernetes.io/instance: intern-01
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: intern-01
+        app.kubernetes.io/instance: intern-01
+    spec:
+      containers:
+        - name: app
+          image: nginx:latest
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              port: http
+          livenessProbe:
+            httpGet:
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: intern-01
+  name: intern-01
+spec:
+  selector:
+    app.kubernetes.io/name: intern-01
+    app.kubernetes.io/instance: intern-01
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -48,6 +98,56 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: edit
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: intern-02
+  name: intern-02
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: intern-02
+      app.kubernetes.io/instance: intern-02
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: intern-02
+        app.kubernetes.io/instance: intern-02
+    spec:
+      containers:
+        - name: app
+          image: nginx:latest
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              port: http
+          livenessProbe:
+            httpGet:
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: intern-02
+  name: intern-02
+spec:
+  selector:
+    app.kubernetes.io/name: intern-02
+    app.kubernetes.io/instance: intern-02
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
 ---
 apiVersion: v1
 kind: Namespace
@@ -74,6 +174,56 @@ roleRef:
   kind: ClusterRole
   name: edit
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: intern-03
+  name: intern-03
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: intern-03
+      app.kubernetes.io/instance: intern-03
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: intern-03
+        app.kubernetes.io/instance: intern-03
+    spec:
+      containers:
+        - name: app
+          image: nginx:latest
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              port: http
+          livenessProbe:
+            httpGet:
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: intern-03
+  name: intern-03
+spec:
+  selector:
+    app.kubernetes.io/name: intern-03
+    app.kubernetes.io/instance: intern-03
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -98,6 +248,56 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: edit
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: intern-04
+  name: intern-04
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: intern-04
+      app.kubernetes.io/instance: intern-04
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: intern-04
+        app.kubernetes.io/instance: intern-04
+    spec:
+      containers:
+        - name: app
+          image: nginx:latest
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              port: http
+          livenessProbe:
+            httpGet:
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: intern-04
+  name: intern-04
+spec:
+  selector:
+    app.kubernetes.io/name: intern-04
+    app.kubernetes.io/instance: intern-04
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
 ---
 apiVersion: v1
 kind: Namespace
@@ -124,6 +324,56 @@ roleRef:
   kind: ClusterRole
   name: edit
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: intern-05
+  name: intern-05
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: intern-05
+      app.kubernetes.io/instance: intern-05
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: intern-05
+        app.kubernetes.io/instance: intern-05
+    spec:
+      containers:
+        - name: app
+          image: nginx:latest
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              port: http
+          livenessProbe:
+            httpGet:
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: intern-05
+  name: intern-05
+spec:
+  selector:
+    app.kubernetes.io/name: intern-05
+    app.kubernetes.io/instance: intern-05
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -148,6 +398,56 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: edit
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: intern-06
+  name: intern-06
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: intern-06
+      app.kubernetes.io/instance: intern-06
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: intern-06
+        app.kubernetes.io/instance: intern-06
+    spec:
+      containers:
+        - name: app
+          image: nginx:latest
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              port: http
+          livenessProbe:
+            httpGet:
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: intern-06
+  name: intern-06
+spec:
+  selector:
+    app.kubernetes.io/name: intern-06
+    app.kubernetes.io/instance: intern-06
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
 ---
 apiVersion: v1
 kind: Namespace
@@ -174,6 +474,56 @@ roleRef:
   kind: ClusterRole
   name: edit
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: intern-07
+  name: intern-07
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: intern-07
+      app.kubernetes.io/instance: intern-07
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: intern-07
+        app.kubernetes.io/instance: intern-07
+    spec:
+      containers:
+        - name: app
+          image: nginx:latest
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              port: http
+          livenessProbe:
+            httpGet:
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: intern-07
+  name: intern-07
+spec:
+  selector:
+    app.kubernetes.io/name: intern-07
+    app.kubernetes.io/instance: intern-07
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -198,6 +548,56 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: edit
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: intern-08
+  name: intern-08
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: intern-08
+      app.kubernetes.io/instance: intern-08
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: intern-08
+        app.kubernetes.io/instance: intern-08
+    spec:
+      containers:
+        - name: app
+          image: nginx:latest
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              port: http
+          livenessProbe:
+            httpGet:
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: intern-08
+  name: intern-08
+spec:
+  selector:
+    app.kubernetes.io/name: intern-08
+    app.kubernetes.io/instance: intern-08
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
 ---
 apiVersion: v1
 kind: Namespace
@@ -224,6 +624,56 @@ roleRef:
   kind: ClusterRole
   name: edit
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: intern-09
+  name: intern-09
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: intern-09
+      app.kubernetes.io/instance: intern-09
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: intern-09
+        app.kubernetes.io/instance: intern-09
+    spec:
+      containers:
+        - name: app
+          image: nginx:latest
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              port: http
+          livenessProbe:
+            httpGet:
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: intern-09
+  name: intern-09
+spec:
+  selector:
+    app.kubernetes.io/name: intern-09
+    app.kubernetes.io/instance: intern-09
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -248,6 +698,56 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: edit
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: intern-10
+  name: intern-10
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: intern-10
+      app.kubernetes.io/instance: intern-10
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: intern-10
+        app.kubernetes.io/instance: intern-10
+    spec:
+      containers:
+        - name: app
+          image: nginx:latest
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              port: http
+          livenessProbe:
+            httpGet:
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: intern-10
+  name: intern-10
+spec:
+  selector:
+    app.kubernetes.io/name: intern-10
+    app.kubernetes.io/instance: intern-10
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
 ---
 apiVersion: v1
 kind: Namespace
@@ -274,6 +774,56 @@ roleRef:
   kind: ClusterRole
   name: edit
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: intern-11
+  name: intern-11
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: intern-11
+      app.kubernetes.io/instance: intern-11
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: intern-11
+        app.kubernetes.io/instance: intern-11
+    spec:
+      containers:
+        - name: app
+          image: nginx:latest
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              port: http
+          livenessProbe:
+            httpGet:
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: intern-11
+  name: intern-11
+spec:
+  selector:
+    app.kubernetes.io/name: intern-11
+    app.kubernetes.io/instance: intern-11
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -298,6 +848,56 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: edit
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: intern-12
+  name: intern-12
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: intern-12
+      app.kubernetes.io/instance: intern-12
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: intern-12
+        app.kubernetes.io/instance: intern-12
+    spec:
+      containers:
+        - name: app
+          image: nginx:latest
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              port: http
+          livenessProbe:
+            httpGet:
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: intern-12
+  name: intern-12
+spec:
+  selector:
+    app.kubernetes.io/name: intern-12
+    app.kubernetes.io/instance: intern-12
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
 ---
 apiVersion: v1
 kind: Namespace
@@ -324,6 +924,56 @@ roleRef:
   kind: ClusterRole
   name: edit
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: intern-13
+  name: intern-13
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: intern-13
+      app.kubernetes.io/instance: intern-13
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: intern-13
+        app.kubernetes.io/instance: intern-13
+    spec:
+      containers:
+        - name: app
+          image: nginx:latest
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              port: http
+          livenessProbe:
+            httpGet:
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: intern-13
+  name: intern-13
+spec:
+  selector:
+    app.kubernetes.io/name: intern-13
+    app.kubernetes.io/instance: intern-13
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -348,6 +998,56 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: edit
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: intern-14
+  name: intern-14
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: intern-14
+      app.kubernetes.io/instance: intern-14
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: intern-14
+        app.kubernetes.io/instance: intern-14
+    spec:
+      containers:
+        - name: app
+          image: nginx:latest
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              port: http
+          livenessProbe:
+            httpGet:
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: intern-14
+  name: intern-14
+spec:
+  selector:
+    app.kubernetes.io/name: intern-14
+    app.kubernetes.io/instance: intern-14
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
 ---
 apiVersion: v1
 kind: Namespace
@@ -374,6 +1074,56 @@ roleRef:
   kind: ClusterRole
   name: edit
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: intern-15
+  name: intern-15
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: intern-15
+      app.kubernetes.io/instance: intern-15
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: intern-15
+        app.kubernetes.io/instance: intern-15
+    spec:
+      containers:
+        - name: app
+          image: nginx:latest
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              port: http
+          livenessProbe:
+            httpGet:
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: intern-15
+  name: intern-15
+spec:
+  selector:
+    app.kubernetes.io/name: intern-15
+    app.kubernetes.io/instance: intern-15
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -398,6 +1148,56 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: edit
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: intern-16
+  name: intern-16
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: intern-16
+      app.kubernetes.io/instance: intern-16
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: intern-16
+        app.kubernetes.io/instance: intern-16
+    spec:
+      containers:
+        - name: app
+          image: nginx:latest
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              port: http
+          livenessProbe:
+            httpGet:
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: intern-16
+  name: intern-16
+spec:
+  selector:
+    app.kubernetes.io/name: intern-16
+    app.kubernetes.io/instance: intern-16
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
 ---
 apiVersion: v1
 kind: Namespace
@@ -424,6 +1224,56 @@ roleRef:
   kind: ClusterRole
   name: edit
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: intern-17
+  name: intern-17
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: intern-17
+      app.kubernetes.io/instance: intern-17
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: intern-17
+        app.kubernetes.io/instance: intern-17
+    spec:
+      containers:
+        - name: app
+          image: nginx:latest
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              port: http
+          livenessProbe:
+            httpGet:
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: intern-17
+  name: intern-17
+spec:
+  selector:
+    app.kubernetes.io/name: intern-17
+    app.kubernetes.io/instance: intern-17
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -448,6 +1298,56 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: edit
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: intern-18
+  name: intern-18
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: intern-18
+      app.kubernetes.io/instance: intern-18
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: intern-18
+        app.kubernetes.io/instance: intern-18
+    spec:
+      containers:
+        - name: app
+          image: nginx:latest
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              port: http
+          livenessProbe:
+            httpGet:
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: intern-18
+  name: intern-18
+spec:
+  selector:
+    app.kubernetes.io/name: intern-18
+    app.kubernetes.io/instance: intern-18
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
 ---
 apiVersion: v1
 kind: Namespace
@@ -474,6 +1374,56 @@ roleRef:
   kind: ClusterRole
   name: edit
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: intern-19
+  name: intern-19
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: intern-19
+      app.kubernetes.io/instance: intern-19
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: intern-19
+        app.kubernetes.io/instance: intern-19
+    spec:
+      containers:
+        - name: app
+          image: nginx:latest
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              port: http
+          livenessProbe:
+            httpGet:
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: intern-19
+  name: intern-19
+spec:
+  selector:
+    app.kubernetes.io/name: intern-19
+    app.kubernetes.io/instance: intern-19
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -498,3 +1448,53 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: edit
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: intern-20
+  name: intern-20
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: intern-20
+      app.kubernetes.io/instance: intern-20
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: intern-20
+        app.kubernetes.io/instance: intern-20
+    spec:
+      containers:
+        - name: app
+          image: nginx:latest
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              port: http
+          livenessProbe:
+            httpGet:
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: intern-20
+  name: intern-20
+spec:
+  selector:
+    app.kubernetes.io/name: intern-20
+    app.kubernetes.io/instance: intern-20
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

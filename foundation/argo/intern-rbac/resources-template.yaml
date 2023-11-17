@@ -23,3 +23,53 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: edit
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: intern-NUM
+  name: intern-NUM
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: intern-NUM
+      app.kubernetes.io/instance: intern-NUM
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: intern-NUM
+        app.kubernetes.io/instance: intern-NUM
+    spec:
+      containers:
+        - name: app
+          image: nginx:latest
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              port: http
+          livenessProbe:
+            httpGet:
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: intern-NUM
+  name: intern-NUM
+spec:
+  selector:
+    app.kubernetes.io/name: intern-NUM
+    app.kubernetes.io/instance: intern-NUM
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
