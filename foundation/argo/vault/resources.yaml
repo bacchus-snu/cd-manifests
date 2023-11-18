@@ -15,3 +15,87 @@ spec:
     - backendRefs:
         - name: vault-ui
           port: 8200
+
+# snapshot vault volumes every day
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: vault
+  name: vault-snapshots
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: vault
+  name: vault-snapshots
+rules:
+  - apiGroups:
+      - snapshot.storage.k8s.io
+    resources:
+      - volumesnapshots
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: vault
+  name: vault-snapshots
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: vault-snapshots
+subjects:
+  - kind: ServiceAccount
+    name: vault-snapshots
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  namespace: vault
+  name: vault-snapshots
+spec:
+  schedule: '@daily'
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: vault-snapshots
+          restartPolicy: Never
+          containers:
+            - name: app
+              image: bitnami/kubectl:latest
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                runAsNonRoot: true
+                runAsUser: 1000
+                seccompProfile:
+                  type: RuntimeDefault
+              command:
+                - /bin/sh
+                - -c
+                - |
+                    kubectl apply -f- <<EOF
+                      apiVersion: snapshot.storage.k8s.io/v1
+                      kind: VolumeSnapshot
+                      metadata:
+                        name: data-vault-0-$(date +%s)
+                      spec:
+                        volumeSnapshotClassName: rbd
+                        source:
+                          persistentVolumeClaimName: data-vault-0
+                    EOF
