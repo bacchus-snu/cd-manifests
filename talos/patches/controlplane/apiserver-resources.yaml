@@ -1,0 +1,7 @@
+# adjust apiserver resource requests
+cluster:
+  apiServer:
+    resources:
+      requests:
+        cpu: 200m
+        memory: 2Gi
