@@ -90,6 +90,9 @@ config:
       redirectURIs:
         - https://dashboard.bacchus.io/login/generic_oauth
       secretEnv: DEX_CLIENT_BACCHUS_GRAFANA
+    - name: VPN Manager
+      id: bacchus-vpn
+      public: true
 
   connectors:
     - name: Google
