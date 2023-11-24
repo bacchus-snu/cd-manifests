@@ -40,6 +40,11 @@ envVars:
       secretKeyRef:
         name: dex-client-secrets
         key: bacchus-grafana
+  - name: DEX_CLIENT_BACCHUS_VPN
+    valueFrom:
+      secretKeyRef:
+        name: dex-client-secrets
+        key: bacchus-vpn
 
 volumes:
   - name: dex-google-secret
@@ -92,7 +97,9 @@ config:
       secretEnv: DEX_CLIENT_BACCHUS_GRAFANA
     - name: VPN Manager
       id: bacchus-vpn
-      public: true
+      redirectURIs:
+        - https://vpn.bacchus.io/oidc/callback
+      secretEnv: DEX_CLIENT_BACCHUS_VPN
 
   connectors:
     - name: Google
