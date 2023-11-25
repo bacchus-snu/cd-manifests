@@ -41,3 +41,8 @@ spec:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: feat/talos
       ref: values
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: feat/talos
+      path: foundation/argo/metallb
+      directory:
+        include: 'resources.yaml'
