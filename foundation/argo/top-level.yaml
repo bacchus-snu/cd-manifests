@@ -11,7 +11,7 @@ spec:
     namespace: argocd
   source:
     repoURL: https://github.com/bacchus-snu/cd-manifests.git
-    targetRevision: feat/talos
+    targetRevision: main
     path: foundation/argo
     directory:
       recurse: true

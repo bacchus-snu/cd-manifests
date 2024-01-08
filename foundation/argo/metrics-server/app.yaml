@@ -23,5 +23,5 @@ spec:
         valueFiles:
           - $values/foundation/argo/metrics-server/values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
-      targetRevision: feat/talos
+      targetRevision: main
       ref: values

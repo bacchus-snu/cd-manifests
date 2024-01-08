@@ -23,10 +23,10 @@ spec:
         valueFiles:
           - $values/foundation/argo/cert-manager/values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
-      targetRevision: feat/talos
+      targetRevision: main
       ref: values
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
-      targetRevision: feat/talos
+      targetRevision: main
       path: foundation/argo/cert-manager
       directory:
         include: 'resources.yaml'

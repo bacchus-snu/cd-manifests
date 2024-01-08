@@ -39,10 +39,10 @@ spec:
         valueFiles:
           - $values/foundation/argo/metallb/values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
-      targetRevision: feat/talos
+      targetRevision: main
       ref: values
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
-      targetRevision: feat/talos
+      targetRevision: main
       path: foundation/argo/metallb
       directory:
         include: 'resources.yaml'
