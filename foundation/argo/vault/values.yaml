@@ -1,0 +1,19 @@
+server:
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 200m
+    limits:
+      memory: 128Mi
+
+  auditStorage:
+    enabled: true
+
+ui:
+  enabled: true
+
+injector:
+  enabled: false
+speaker:
+  tolerateMaster: false
+

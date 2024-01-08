@@ -1,0 +1,23 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: bacchus-rbac
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: infra
+  destination:
+    name: in-cluster
+    namespace: default
+  # syncPolicy:
+  #   automated:
+  #     prune: true
+  #     selfHeal: true
+  sources:
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: feat/talos
+      path: foundation/argo/bacchus-rbac
+      directory:
+        include: 'resources.yaml'

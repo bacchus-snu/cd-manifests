@@ -1,0 +1,32 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: vault
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: infra
+  destination:
+    name: in-cluster
+    namespace: vault
+  #syncPolicy:
+  #  automated:
+  #    prune: true
+  #    selfHeal: true
+  sources:
+    - repoURL: https://helm.releases.hashicorp.com
+      targetRevision: 0.27.0
+      chart: vault
+      helm:
+        valueFiles:
+          - $values/foundation/argo/vault/values.yaml
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: feat/talos
+      ref: values
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: feat/talos
+      path: foundation/argo/vault
+      directory:
+        include: 'resources.yaml'

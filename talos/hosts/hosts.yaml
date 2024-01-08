@@ -1,0 +1,23 @@
+# interface must match enx[MAC ADDRESS]
+
+controlplane:
+  control-1:
+    interface: enx9aea0ef06d43
+    address: 10.89.0.21/16
+  control-2:
+    interface: enx9ebf2990e5d4
+    address: 10.89.0.22/16
+  control-3:
+    interface: enx8a317cf31c42
+    address: 10.89.0.23/16
+
+worker:
+  worker-1:
+    interface: enx6edbed80f447
+    address: 10.89.0.24/16
+  worker-2:
+    interface: enx5ac57943830d
+    address: 10.89.0.25/16
+  worker-3:
+    interface: enx8e9f9470adf5
+    address: 10.89.0.26/16

@@ -1,0 +1,56 @@
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  namespace: dexidp
+  name: default
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: vault-secrets-operator
+    serviceAccount: default
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  namespace: dexidp
+  name: dex-google-secret
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: dexidp/dex-google-secret
+  destination:
+    create: true
+    name: dex-google-secret
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  namespace: dexidp
+  name: dex-client-secrets
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: dexidp/dex-client-secrets
+  destination:
+    create: true
+    name: dex-client-secrets
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  namespace: dexidp
+  name: dexidp
+spec:
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: https-bacchus-io
+  hostnames:
+    - auth.bacchus.io
+  rules:
+    - backendRefs:
+        - name: dex
+          port: 5556

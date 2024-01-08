@@ -1,0 +1,32 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: waiter-docs
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    name: in-cluster
+    namespace: waiter-docs
+  # syncPolicy:
+  #   automated:
+  #     prune: true
+  #     selfHeal: true
+  sources:
+    - repoURL: ghcr.io/bacchus-snu
+      targetRevision: '20231117'
+      chart: waiter-docs
+      helm:
+        valueFiles:
+          - $values/foundation/argo/waiter-docs/values.yaml
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: feat/talos
+      ref: values
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: feat/talos
+      path: foundation/argo/waiter-docs
+      directory:
+        include: 'resources.yaml'

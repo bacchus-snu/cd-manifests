@@ -1,0 +1,73 @@
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  namespace: waiter-docs
+  name: waiter-docs-secure
+spec:
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: https-bacchus-io
+  hostnames:
+    - secure-front.bacchus.io
+  rules:
+    - backendRefs:
+        - name: waiter-docs
+          port: 80
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            # remove Server header
+            remove:
+              - Server
+            set:
+              # apply extremely strict CSP
+              - name: Content-Security-Policy
+                value: "default-src 'none'; style-src 'self'; font-src 'self';"
+              # no caching due to bullshit restrictions
+              - name: Cache-Control
+                value: no-cache
+    # Ensure we return 404 for tested URL
+    - matches:
+        - path:
+            type: Exact
+            value: /index.html/
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplaceFullPath
+              replaceFullPath: /nonexistentpath
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            # remove Server header
+            remove:
+              - Server
+            set:
+              # apply extremely strict CSP
+              - name: Content-Security-Policy
+                value: "default-src 'none'; style-src 'self'; font-src 'self';"
+              # no caching due to bullshit restrictions
+              - name: Cache-Control
+                value: no-cache
+      backendRefs:
+        - name: waiter-docs
+          port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  namespace: waiter-docs
+  name: waiter-docs
+spec:
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: https-bacchus-io
+  hostnames:
+    - waiter.bacchus.io
+  rules:
+    - backendRefs:
+        - name: waiter-docs
+          port: 80

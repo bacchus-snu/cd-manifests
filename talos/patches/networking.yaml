@@ -1,0 +1,14 @@
+machine:
+  network:
+    interfaces:
+      - # addresses configured per-machine
+        routes:
+          - network: 0.0.0.0/0
+            gateway: 10.89.0.1
+        mtu: 9000
+        dhcp: false
+    nameservers:
+      - 10.89.0.1
+  time:
+    servers:
+      - time.cloudflare.com

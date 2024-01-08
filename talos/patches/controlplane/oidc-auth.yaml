@@ -1,0 +1,9 @@
+# Use in-cluster dex to authenticate
+cluster:
+  apiServer:
+    extraArgs:
+      oidc-issuer-url: https://auth.bacchus.io/dex
+      oidc-client-id: bacchus-waiter
+      oidc-username-claim: email
+      oidc-groups-claim: groups
+
