@@ -27,7 +27,7 @@ spec:
         pod-security.kubernetes.io/audit-version: v1.28
   sources:
     - repoURL: https://prometheus-community.github.io/helm-charts
-      targetRevision: 54.1.0
+      targetRevision: 55.8.1
       chart: kube-prometheus-stack
       helm:
         valueFiles:
