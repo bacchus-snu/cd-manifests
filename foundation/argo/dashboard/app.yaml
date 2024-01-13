@@ -27,7 +27,9 @@ spec:
         pod-security.kubernetes.io/audit-version: v1.28
   sources:
     - repoURL: https://prometheus-community.github.io/helm-charts
-      targetRevision: 55.8.1
+      # targetRevision: 55.8.1
+      # suspend until grafana.assertNoLeakedSecrets issue be fixed
+      targetRevision: 54.1.0
       chart: kube-prometheus-stack
       helm:
         valueFiles:
