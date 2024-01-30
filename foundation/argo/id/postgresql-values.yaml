@@ -1,4 +1,5 @@
 auth:
+  enablePostgresUser: false
   username: id
   database: id
   existingSecret: id-db-creds
