@@ -1,80 +1,57 @@
 ---
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  namespace: id
-  name: id-front
-  labels:
-    app.kubernetes.io/name: id-front
-    app.kubernetes.io/instance: id-front
-spec:
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: id-front
-      app.kubernetes.io/instance: id-front
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: id-front
-        app.kubernetes.io/instance: id-front
-    spec:
-      containers:
-        - name: app
-          image: ghcr.io/bacchus-snu/bacchus-id/front:20231005-0f039c9
-          ports:
-            - name: http
-              containerPort: 3000
-          resources:
-            requests:
-              cpu: 100m
-              memory: 512Mi
-            limits:
-              cpu: 100m
-              memory: 512Mi
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-            #readOnlyRootFilesystem: true
-            runAsNonRoot: true
-            runAsUser: 1000
-            seccompProfile:
-              type: RuntimeDefault
----
-apiVersion: v1
-kind: Service
-metadata:
-  namespace: id
-  name: id-front
-  labels:
-    app.kubernetes.io/name: id-front
-    app.kubernetes.io/instance: id-front
-spec:
-  selector:
-    app.kubernetes.io/name: id-front
-    app.kubernetes.io/instance: id-front
-  ports:
-    - name: http
-      port: 80
-      targetPort: http
----
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: HTTPRoute
 metadata:
-  labels:
-    app.kubernetes.io/instance: id-front
-    app.kubernetes.io/name: id-front
-  name: id-front
   namespace: id
+  name: id
 spec:
-  hostnames:
-    - id.snucse.org
   parentRefs:
-    - name: web-gateway
-      namespace: cilium-system
+    - namespace: cilium-system
+      name: web-gateway
       sectionName: https-snucse-org
+  hostnames:
+    - id-test.snucse.org
   rules:
+    # default route to frontend
     - backendRefs:
         - name: id-front
           port: 80
+    # backend routes
+    - backendRefs:
+        - name: id-core
+          port: 80
+      matches:
+        - path:
+            type: PathPrefix
+            value: /api
+        - path:
+            type: PathPrefix
+            value: /o
+        - path:
+            type: Exact
+            value: /Authentication/Login.aspx
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  namespace: id
+  name: default
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: vault-secrets-operator
+    serviceAccount: default
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: id-db-creds
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: id/db/creds
+  destination:
+    create: true
+    name: id-db-creds

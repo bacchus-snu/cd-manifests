@@ -19,5 +19,19 @@ spec:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       path: foundation/argo/id
-      directory:
-        include: 'resources.yaml'
+      kustomize: {}
+    - repoURL: registry-1.docker.io/bitnamicharts
+      targetRevision: 18.9.1
+      chart: redis
+      helm:
+        valueFiles:
+          - $values/foundation/argo/argocd/redis-values.yaml
+    - repoURL: registry-1.docker.io/bitnamicharts
+      targetRevision: 16.1.0
+      chart: postgresql
+      helm:
+        valueFiles:
+          - $values/foundation/argo/argocd/postgresql-values.yaml
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: main
+      ref: values

@@ -1,0 +1,10 @@
+auth:
+  username: id
+  database: id
+  existingSecret: id-db-creds
+  secretKeys:
+    userPasswordKey: password
+
+primary:
+  initdb:
+    scriptsConfigMap: id-db-schema
