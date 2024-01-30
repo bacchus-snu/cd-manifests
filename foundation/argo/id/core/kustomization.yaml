@@ -1,8 +1,8 @@
 resources:
-- deployment.yaml
-- service.yaml
-- serviceaccount.yaml
-- vaultsecret.yaml
+  - deployment.yaml
+  - service.yaml
+  - serviceaccount.yaml
+  - vaultsecret.yaml
 
 labels:
   - pairs:
@@ -13,6 +13,6 @@ labels:
     includeSelectors: true
 
 images:
-- name: id-core
-  newName: ghcr.io/bacchus-snu/bacchus-id/core
-  newTag: 20230928-3a8fb42
+  - name: id-core
+    newName: ghcr.io/bacchus-snu/bacchus-id/core
+    newTag: 20230928-3a8fb42

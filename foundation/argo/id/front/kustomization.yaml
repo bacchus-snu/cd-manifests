@@ -1,7 +1,7 @@
 resources:
-- deployment.yaml
-- service.yaml
-- serviceaccount.yaml
+  - deployment.yaml
+  - service.yaml
+  - serviceaccount.yaml
 
 labels:
   - pairs:
@@ -12,6 +12,6 @@ labels:
     includeSelectors: true
 
 images:
-- name: id-front
-  newName: ghcr.io/bacchus-snu/bacchus-id/front
-  newTag: 20230928-5adb7f3
+  - name: id-front
+    newName: ghcr.io/bacchus-snu/bacchus-id/front
+    newTag: 20230928-5adb7f3

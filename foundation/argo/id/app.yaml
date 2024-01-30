@@ -25,13 +25,13 @@ spec:
       chart: redis
       helm:
         valueFiles:
-          - $values/foundation/argo/argocd/redis-values.yaml
+          - $values/foundation/argo/id/redis-values.yaml
     - repoURL: registry-1.docker.io/bitnamicharts
-      targetRevision: 16.1.0
+      targetRevision: 13.4.3
       chart: postgresql
       helm:
         valueFiles:
-          - $values/foundation/argo/argocd/postgresql-values.yaml
+          - $values/foundation/argo/id/postgresql-values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       ref: values
