@@ -60,6 +60,9 @@ kind: HTTPRoute
 metadata:
   namespace: waiter-docs
   name: waiter-docs
+  annotations:
+    # waiter.bacchus.io record is managed in tf
+    external-dns.alpha.kubernetes.io/exclude: 'true'
 spec:
   parentRefs:
     - namespace: cilium-system

@@ -17,5 +17,8 @@ domainFilters:
   - snucse.org
   - bacchus.io
 
+extraArgs:
+  - --annotation-filter=external-dns.alpha.kubernetes.io/exclude notin (true)
+
 txtOwnerId: waiter
 policy: sync
