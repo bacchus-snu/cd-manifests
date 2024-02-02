@@ -25,4 +25,3 @@ hubble:
 # enable gateway
 gatewayAPI:
   enabled: true
-

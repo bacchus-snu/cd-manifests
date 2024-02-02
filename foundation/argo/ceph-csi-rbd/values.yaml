@@ -17,4 +17,3 @@ storageClass:
   imageFeatures: layering,exclusive-lock,object-map,fast-diff,deep-flatten
   mountOptions:
     - discard
-

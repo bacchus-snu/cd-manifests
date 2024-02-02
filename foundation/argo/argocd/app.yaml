@@ -30,4 +30,3 @@ spec:
       path: foundation/argo/argocd
       directory:
         include: 'resources.yaml'
-
