@@ -114,5 +114,5 @@ config:
         hostedDomains:
           - bacchus.snucse.org
         serviceAccountFilePath: $GOOGLE_SERVICE_ACCOUNT
-        domainAdminEmail:
+        domainToAdminEmail:
           '*': admin@snucse.org
