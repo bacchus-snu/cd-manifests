@@ -67,6 +67,8 @@ config:
     type: kubernetes
     config:
       inCluster: true
+  oauth2:
+    skipApprovalScreen: true
 
   staticClients:
     - name: Waiter
