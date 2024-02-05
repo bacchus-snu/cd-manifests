@@ -37,7 +37,12 @@ grafana:
       api_url: https://auth.bacchus.io/dex/userinfo
       auth_url: https://auth.bacchus.io/dex/auth
       token_url: https://auth.bacchus.io/dex/token
-      role_attribute_path: contains(groups[*], 'regular-members@bacchus.snucse.org') && 'Editor' || contains(groups[*], 'member@bacchus.snucse.org') && 'Viewer'
+      # dex does not include indirect groups, we must enumerate every group
+      role_attribute_path: |
+        contains(groups[*], 'regular-members@bacchus.snucse.org') && 'Editor' ||
+        contains(groups[*], 'intern-members@bacchus.snucse.org') && 'Viewer' ||
+        contains(groups[*], 'suspended-members@bacchus.snucse.org') && 'Viewer' ||
+        contains(groups[*], 'alumni-members@bacchus.snucse.org') && 'Viewer'
 
     security:
       disable_initial_admin_creation: true
