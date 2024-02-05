@@ -21,7 +21,17 @@ hubble:
     enabled: true
   ui:
     enabled: true
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
 
 # enable gateway
 gatewayAPI:
   enabled: true
+
+# enable monitoring
+prometheus:
+  enabled: true
+  serviceMonitor:
+    enabled: true
