@@ -43,6 +43,7 @@ endif
 ifndef NODE
 	$(error NODE is undefined)
 endif
+	yq -e '.$(ROLE).$(CONFIG).address == "$(NODE)/16"' hosts/hosts.yaml &>/dev/null
 
 ifeq ($(ROLE),controlplane)
 CONFIG_ROLE := $(CONFIG_CONTROLPLANE)
