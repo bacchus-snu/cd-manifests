@@ -40,7 +40,7 @@ grafana:
       token_url: https://auth.bacchus.io/dex/token
       # dex does not include indirect groups, we must enumerate every group
       role_attribute_path: >
-        contains(groups[*], 'regular-members@bacchus.snucse.org') && 'Editor' ||
+        contains(groups[*], 'regular-members@bacchus.snucse.org') && 'Admin' ||
         contains(groups[*], 'intern-members@bacchus.snucse.org') && 'Viewer' ||
         contains(groups[*], 'suspended-members@bacchus.snucse.org') && 'Viewer' ||
         contains(groups[*], 'alumni-members@bacchus.snucse.org') && 'Viewer'
