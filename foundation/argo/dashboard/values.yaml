@@ -16,6 +16,7 @@ prometheus:
           resources:
             requests:
               storage: 100Gi
+    retention: 30d
 
 grafana:
   imageRenderer:
