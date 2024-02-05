@@ -48,6 +48,9 @@ grafana:
     security:
       disable_initial_admin_creation: true
 
+    public_dashboards:
+      enabled: true
+
   extraSecretMounts:
     - name: dex-auth
       secretName: dex-auth
