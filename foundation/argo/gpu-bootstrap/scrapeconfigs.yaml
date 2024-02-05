@@ -1,0 +1,45 @@
+---
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  namespace: gpu-bootstrap
+  name: gpu-kube-state-metrics
+spec:
+  metricsPath: /kube-state/metrics
+  staticConfigs:
+    - labels:
+        job: gpu-kube-state-metrics
+      targets:
+        - bentley.snucse.org:30080
+        - ferrari.snucse.org:30080
+---
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  namespace: gpu-bootstrap
+  name: gpu-node-exporter
+spec:
+  metricsPath: /node-exporter/metrics
+  staticConfigs:
+    # use the same label as the in-cluster node-expoter, as node-exporter only
+    # has node-level metrics and thus the metrics cannot collide with
+    # in-cluster nodes
+    - labels:
+        job: node-exporter
+      targets:
+        - bentley.snucse.org:30080
+        - ferrari.snucse.org:30080
+---
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  namespace: gpu-bootstrap
+  name: gpu-dcgm-exporter
+spec:
+  metricsPath: /dcgm-exporter/metrics
+  staticConfigs:
+    - labels:
+        job: gpu-dcgm-exporter
+      targets:
+        - bentley.snucse.org:30080
+        - ferrari.snucse.org:30080

@@ -1,0 +1,11 @@
+resources:
+  - scrapeconfigs.yaml
+
+configMapGenerator:
+  - name: gpu-monitoring-dashboard
+    files:
+      - gpu-monitoring-dashboard.json
+    options:
+      disableNameSuffixHash: true
+      labels:
+        grafana_dashboard: '1'
