@@ -22,7 +22,12 @@ hubble:
   ui:
     enabled: true
   metrics:
-    enabled: true
+    enabled:
+      - dns
+      - drop
+      - flow
+      - httpV2
+      - tcp
     serviceMonitor:
       enabled: true
 
@@ -35,3 +40,4 @@ prometheus:
   enabled: true
   serviceMonitor:
     enabled: true
+    trustCRDsExist: true
