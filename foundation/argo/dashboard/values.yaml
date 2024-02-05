@@ -1,6 +1,7 @@
 prometheus:
   prometheusSpec:
     serviceMonitorSelectorNilUsesHelmValues: false
+    scrapeConfigSelectorNilUsesHelmValues: false
     resources:
       requests:
         cpu: 1000m
