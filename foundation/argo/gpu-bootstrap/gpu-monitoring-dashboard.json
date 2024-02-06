@@ -2822,7 +2822,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(DCGM_FI_DEV_GPU_UTIL{job=\"gpu-dcgm-exporter\", instance=~\"$instance\"}) by (namespace)",
+          "expr": "sum(DCGM_FI_DEV_GPU_UTIL{job=\"gpu-dcgm-exporter\", instance=~\"$instance\", namespace!=\"\"}) by (namespace)",
           "instant": false,
           "legendFormat": "{{namespace}}",
           "range": true,
@@ -3092,6 +3092,6 @@
   "timezone": "",
   "title": "SNUCSE GPU Service",
   "uid": "add7ee94-d375-4a26-b7df-405efd14e014",
-  "version": 4,
+  "version": 6,
   "weekStart": ""
 }
