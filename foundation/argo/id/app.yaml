@@ -21,7 +21,7 @@ spec:
       path: foundation/argo/id
       kustomize: {}
     - repoURL: registry-1.docker.io/bitnamicharts
-      targetRevision: 18.9.1
+      targetRevision: 18.12.1
       chart: redis
       helm:
         valueFiles:
