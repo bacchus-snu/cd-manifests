@@ -27,7 +27,7 @@ spec:
         pod-security.kubernetes.io/audit-version: v1.28
   sources:
     - repoURL: https://ceph.github.io/csi-charts
-      targetRevision: 3.9.0
+      targetRevision: 3.10.2
       chart: ceph-csi-rbd
       helm:
         valueFiles:
