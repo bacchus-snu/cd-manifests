@@ -17,7 +17,7 @@ spec:
   #    selfHeal: true
   sources:
     - repoURL: https://charts.dexidp.io
-      targetRevision: 0.15.3
+      targetRevision: 0.16.0
       chart: dex
       helm:
         valueFiles:
