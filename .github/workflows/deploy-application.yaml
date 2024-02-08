@@ -98,7 +98,7 @@ jobs:
           ref: main
           token: ${{ steps.app-details.outputs.token }}
 
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       - run: pip install -r scripts/requirements.txt
