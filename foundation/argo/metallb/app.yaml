@@ -33,7 +33,7 @@ spec:
         - /spec/conversion/webhook/clientConfig/caBundle
   sources:
     - repoURL: https://metallb.github.io/metallb
-      targetRevision: 0.13.12
+      targetRevision: 0.14.3
       chart: metallb
       helm:
         valueFiles:
