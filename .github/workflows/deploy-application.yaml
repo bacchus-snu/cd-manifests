@@ -37,7 +37,7 @@ jobs:
       - name: Install script dependencies
         run: npm install @octokit/request @octokit/rest @octokit/auth-app
       - name: Fetch app details
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         id: app-details
         env:
           APP_ID: ${{ secrets.app-id }}
