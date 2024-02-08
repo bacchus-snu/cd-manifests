@@ -22,7 +22,7 @@ configs:
 controller:
   resources:
     requests:
-      cpu: 10m
+      cpu: 200m
       memory: 1Gi
     limits:
       memory: 1Gi
