@@ -56,7 +56,8 @@
               }
             ]
           },
-          "unit": "dtdurations"
+          "unit": "dtdurations",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -79,9 +80,11 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "10.1.5",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -127,7 +130,8 @@
               }
             ]
           },
-          "unit": "percentunit"
+          "unit": "percentunit",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -150,9 +154,11 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "10.1.5",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -198,7 +204,8 @@
               }
             ]
           },
-          "unit": "percentunit"
+          "unit": "percentunit",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -221,9 +228,11 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "10.1.5",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -269,7 +278,8 @@
               }
             ]
           },
-          "unit": "percentunit"
+          "unit": "percentunit",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -292,9 +302,11 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "10.1.5",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -340,7 +352,8 @@
               }
             ]
           },
-          "unit": "percentunit"
+          "unit": "percentunit",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -363,9 +376,11 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "10.1.5",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -411,7 +426,8 @@
               }
             ]
           },
-          "unit": "percent"
+          "unit": "percent",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -434,9 +450,11 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "10.1.5",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -474,7 +492,8 @@
               }
             ]
           },
-          "unit": "none"
+          "unit": "none",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -497,9 +516,11 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "10.1.5",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -549,7 +570,8 @@
                 "value": 32
               }
             ]
-          }
+          },
+          "unitScale": true
         },
         "overrides": []
       },
@@ -572,9 +594,11 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "10.1.5",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -624,7 +648,8 @@
               }
             ]
           },
-          "unit": "bytes"
+          "unit": "bytes",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -647,9 +672,11 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "10.1.5",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -695,7 +722,8 @@
                 "value": 4
               }
             ]
-          }
+          },
+          "unitScale": true
         },
         "overrides": []
       },
@@ -718,9 +746,11 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "10.1.5",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -749,6 +779,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -794,7 +825,8 @@
               }
             ]
           },
-          "unit": "percentunit"
+          "unit": "percentunit",
+          "unitScale": true
         },
         "overrides": [
           {
@@ -874,6 +906,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -918,7 +951,8 @@
               }
             ]
           },
-          "unit": "bytes"
+          "unit": "bytes",
+          "unitScale": true
         },
         "overrides": [
           {
@@ -1024,6 +1058,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1068,7 +1103,8 @@
               }
             ]
           },
-          "unit": "percentunit"
+          "unit": "percentunit",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -1132,6 +1168,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1176,7 +1213,8 @@
               }
             ]
           },
-          "unit": "binBps"
+          "unit": "binBps",
+          "unitScale": true
         },
         "overrides": [
           {
@@ -1253,6 +1291,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1297,7 +1336,8 @@
               }
             ]
           },
-          "unit": "watt"
+          "unit": "watt",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -1348,6 +1388,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1392,7 +1433,8 @@
               }
             ]
           },
-          "unit": "celsius"
+          "unit": "celsius",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -1443,6 +1485,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1487,7 +1530,8 @@
               }
             ]
           },
-          "unit": "percent"
+          "unit": "percent",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -1538,6 +1582,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1582,7 +1627,8 @@
               }
             ]
           },
-          "unit": "watt"
+          "unit": "watt",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -1634,6 +1680,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1678,7 +1725,8 @@
               }
             ]
           },
-          "unit": "celsius"
+          "unit": "celsius",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -1742,6 +1790,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1785,7 +1834,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unitScale": true
         },
         "overrides": [
           {
@@ -1905,6 +1955,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1949,7 +2000,8 @@
               }
             ]
           },
-          "unit": "bytes"
+          "unit": "bytes",
+          "unitScale": true
         },
         "overrides": [
           {
@@ -2068,6 +2120,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -2111,7 +2164,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unitScale": true
         },
         "overrides": [
           {
@@ -2251,7 +2305,8 @@
               }
             ]
           },
-          "unit": "dtdurations"
+          "unit": "dtdurations",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -2280,7 +2335,7 @@
           }
         ]
       },
-      "pluginVersion": "10.1.5",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -2381,7 +2436,8 @@
               }
             ]
           },
-          "unit": "dtdurations"
+          "unit": "dtdurations",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -2411,7 +2467,7 @@
           }
         ]
       },
-      "pluginVersion": "10.1.5",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -2483,7 +2539,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unitScale": true
         },
         "overrides": [
           {
@@ -2572,7 +2629,7 @@
           }
         ]
       },
-      "pluginVersion": "10.1.5",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -2748,6 +2805,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -2792,7 +2850,8 @@
               }
             ]
           },
-          "unit": "percent"
+          "unit": "none",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -2822,14 +2881,14 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(DCGM_FI_DEV_GPU_UTIL{job=\"gpu-dcgm-exporter\", instance=~\"$instance\", namespace!=\"\"}) by (namespace)",
+          "expr": "sum(\n    sum(kube_pod_container_resource_requests{resource=\"nvidia_com_gpu\"}) by (namespace, pod)\n        * on (namespace, pod)\n    sum(kube_pod_status_phase{phase=\"Running\", job=\"gpu-kube-state-metrics\"}) by (namespace, pod)\n) by (namespace)\n    -\n(count(DCGM_FI_DEV_GPU_UTIL{namespace!=\"\"} > 10) by (namespace))\n    or\nsum(\n    sum(kube_pod_container_resource_requests{resource=\"nvidia_com_gpu\"}) by (namespace, pod)\n        * on (namespace, pod)\n    sum(kube_pod_status_phase{phase=\"Running\", job=\"gpu-kube-state-metrics\"}) by (namespace, pod)\n) by (namespace)",
           "instant": false,
           "legendFormat": "{{namespace}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Actual GPU Utilization by Namespace",
+      "title": "Wasted GPUs",
       "type": "timeseries"
     },
     {
@@ -2866,7 +2925,8 @@
               }
             ]
           },
-          "unit": "dtdurations"
+          "unit": "dtdurations",
+          "unitScale": true
         },
         "overrides": [
           {
@@ -2935,7 +2995,7 @@
           }
         ]
       },
-      "pluginVersion": "10.1.5",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -2944,7 +3004,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "(sum_over_time(sum(\n    kube_pod_status_phase{job=\"gpu-kube-state-metrics\", instance=~\"$instance\", phase=\"Running\"}\n        * on (namespace, pod)\n    sum(kube_pod_container_resource_requests{job=\"gpu-kube-state-metrics\", instance=~\"$instance\", resource=\"nvidia_com_gpu\"}) by (namespace, pod)\n) by (namespace)[24h:1m])\n    -\nsum_over_time(sum(DCGM_FI_DEV_GPU_UTIL{job=\"gpu-dcgm-exporter\", instance=~\"$instance\"}) by (namespace)[24h:1m])/100)\n* 60",
+          "expr": "sum_over_time((sum(\n    sum(kube_pod_container_resource_requests{resource=\"nvidia_com_gpu\"}) by (namespace, pod)\n        * on (namespace, pod)\n    sum(kube_pod_status_phase{phase=\"Running\", job=\"gpu-kube-state-metrics\"}) by (namespace, pod)\n) by (namespace)\n    -\n(count(DCGM_FI_DEV_GPU_UTIL{namespace!=\"\"} > 10) by (namespace))\n    or\nsum(\n    sum(kube_pod_container_resource_requests{resource=\"nvidia_com_gpu\"}) by (namespace, pod)\n        * on (namespace, pod)\n    sum(kube_pod_status_phase{phase=\"Running\", job=\"gpu-kube-state-metrics\"}) by (namespace, pod)\n) by (namespace))[24h:1m]) * 60",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -2958,7 +3018,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "(sum_over_time(sum(\n    kube_pod_status_phase{job=\"gpu-kube-state-metrics\", instance=~\"$instance\", phase=\"Running\"}\n        * on (namespace, pod)\n    sum(kube_pod_container_resource_requests{job=\"gpu-kube-state-metrics\", instance=~\"$instance\", resource=\"nvidia_com_gpu\"}) by (namespace, pod)\n) by (namespace)[1w:1m])\n    -\nsum_over_time(sum(DCGM_FI_DEV_GPU_UTIL{job=\"gpu-dcgm-exporter\", instance=~\"$instance\"}) by (namespace)[1w:1m])/100)\n* 60",
+          "expr": "sum_over_time((sum(\n    sum(kube_pod_container_resource_requests{resource=\"nvidia_com_gpu\"}) by (namespace, pod)\n        * on (namespace, pod)\n    sum(kube_pod_status_phase{phase=\"Running\", job=\"gpu-kube-state-metrics\"}) by (namespace, pod)\n) by (namespace)\n    -\n(count(DCGM_FI_DEV_GPU_UTIL{namespace!=\"\"} > 10) by (namespace))\n    or\nsum(\n    sum(kube_pod_container_resource_requests{resource=\"nvidia_com_gpu\"}) by (namespace, pod)\n        * on (namespace, pod)\n    sum(kube_pod_status_phase{phase=\"Running\", job=\"gpu-kube-state-metrics\"}) by (namespace, pod)\n) by (namespace))[1w:1m]) * 60",
           "format": "table",
           "hide": false,
           "instant": true,
@@ -2973,7 +3033,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "(sum_over_time(sum(\n    kube_pod_status_phase{job=\"gpu-kube-state-metrics\", instance=~\"$instance\", phase=\"Running\"}\n        * on (namespace, pod)\n    sum(kube_pod_container_resource_requests{job=\"gpu-kube-state-metrics\", instance=~\"$instance\", resource=\"nvidia_com_gpu\"}) by (namespace, pod)\n) by (namespace)[30d:1m])\n    -\nsum_over_time(sum(DCGM_FI_DEV_GPU_UTIL{job=\"gpu-dcgm-exporter\", instance=~\"$instance\"}) by (namespace)[30d:1m])/100)\n* 60",
+          "expr": "sum_over_time((sum(\n    sum(kube_pod_container_resource_requests{resource=\"nvidia_com_gpu\"}) by (namespace, pod)\n        * on (namespace, pod)\n    sum(kube_pod_status_phase{phase=\"Running\", job=\"gpu-kube-state-metrics\"}) by (namespace, pod)\n) by (namespace)\n    -\n(count(DCGM_FI_DEV_GPU_UTIL{namespace!=\"\"} > 10) by (namespace))\n    or\nsum(\n    sum(kube_pod_container_resource_requests{resource=\"nvidia_com_gpu\"}) by (namespace, pod)\n        * on (namespace, pod)\n    sum(kube_pod_status_phase{phase=\"Running\", job=\"gpu-kube-state-metrics\"}) by (namespace, pod)\n) by (namespace))[30d:1m]) * 60",
           "format": "table",
           "hide": false,
           "instant": true,
@@ -2988,7 +3048,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "1 -\nsum_over_time(sum(DCGM_FI_DEV_GPU_UTIL{job=\"gpu-dcgm-exporter\", instance=~\"$instance\"}) by (namespace)[1w:1m])/100\n    /\nsum_over_time(sum(\n    kube_pod_status_phase{job=\"gpu-kube-state-metrics\", instance=~\"$instance\", phase=\"Running\"}\n        * on (namespace, pod)\n    sum(kube_pod_container_resource_requests{job=\"gpu-kube-state-metrics\", instance=~\"$instance\", resource=\"nvidia_com_gpu\"}) by (namespace, pod)\n) by (namespace)[1w:1m])",
+          "expr": "1 -\nsum_over_time(count(DCGM_FI_DEV_GPU_UTIL{namespace!=\"\"} > 10) by (namespace)[1w:1m])\n    /\nsum_over_time(sum(\n    sum(kube_pod_container_resource_requests{resource=\"nvidia_com_gpu\"}) by (namespace, pod)\n        * on (namespace, pod)\n    sum(kube_pod_status_phase{phase=\"Running\", job=\"gpu-kube-state-metrics\"}) by (namespace, pod)\n) by (namespace)[1w:1m])",
           "format": "table",
           "hide": false,
           "instant": true,
@@ -3030,8 +3090,7 @@
     }
   ],
   "refresh": "1m",
-  "schemaVersion": 38,
-  "style": "dark",
+  "schemaVersion": 39,
   "tags": [],
   "templating": {
     "list": [
@@ -3092,6 +3151,6 @@
   "timezone": "",
   "title": "SNUCSE GPU Service",
   "uid": "add7ee94-d375-4a26-b7df-405efd14e014",
-  "version": 6,
+  "version": 1,
   "weekStart": ""
 }
