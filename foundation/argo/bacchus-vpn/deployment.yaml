@@ -14,6 +14,34 @@ spec:
             - sysctl -w net.ipv4.ip_forward=1
           securityContext:
             privileged: true
+        - name: envoy-patch
+          image: bitnami/kubectl:latest
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          command:
+            # patch cilium-managed envoyconfig to remove grpc_web filter
+            - /bin/bash
+            - -c
+            - |
+                set -x
+                first_filter=$(kubectl get \
+                  -n cilium-system \
+                  ciliumenvoyconfigs.cilium.io cilium-gateway-web-gateway \
+                  -ojsonpath='{$.spec.resources[0].filterChains[0].filters[0].typedConfig.httpFilters[0].name}')
+                [[ "$first_filter" = "envoy.filters.http.grpc_web" ]] || exit 0
+                kubectl patch \
+                  -n cilium-system \
+                  --patch-file patch.json \
+                  --type=json \
+                  ciliumenvoyconfigs.cilium.io/cilium-gateway-web-gateway \
+                  -p '[{"op":"remove","path":"/spec/resources/0/filterChains/0/filters/0/typedConfig/httpFilters/0"},{"op":"remove","path":"/spec/resources/0/filterChains/1/filters/0/typedConfig/httpFilters/0"}]'
       containers:
         - name: app
           image: wg-access-server # replaced by kustomize
@@ -34,6 +62,13 @@ spec:
               readOnly: true
             - name: data
               mountPath: /data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 100m
+              memory: 256Mi
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -46,6 +81,7 @@ spec:
             #runAsUser: 1000
             seccompProfile:
               type: RuntimeDefault
+      serviceAccountName: bacchus-vpn
       volumes:
         - name: tun
           hostPath:

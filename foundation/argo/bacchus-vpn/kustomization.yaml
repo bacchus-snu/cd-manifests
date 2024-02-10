@@ -3,6 +3,7 @@ resources:
   - httproute.yaml
   - ipaddresspool.yaml
   - persistentvolumeclaim.yaml
+  - rbac.yaml
   - secret.yaml
   - service.yaml
 

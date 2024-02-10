@@ -1,5 +1,22 @@
+---
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: HTTPRoute
+metadata:
+  name: bacchus-vpn
+spec:
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: https-bacchus-io
+  hostnames:
+    - vpn.bacchus.io
+  rules:
+    - backendRefs:
+        - name: bacchus-vpn-ui
+          port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: GRPCRoute
 metadata:
   name: bacchus-vpn
 spec:
