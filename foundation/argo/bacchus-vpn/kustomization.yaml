@@ -1,0 +1,18 @@
+resources:
+  - deployment.yaml
+  - httproute.yaml
+  - ipaddresspool.yaml
+  - persistentvolumeclaim.yaml
+  - secret.yaml
+  - service.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: wg-access-server
+      app.kubernetes.io/instance: bacchus-vpn
+    includeSelectors: true
+
+images:
+  - name: wg-access-server
+    newName: ghcr.io/freifunkmuc/wg-access-server
+    newTag: v0.11.0

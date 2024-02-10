@@ -45,6 +45,11 @@ envVars:
       secretKeyRef:
         name: dex-client-secrets
         key: bacchus-howto
+  - name: DEX_CLIENT_BACCHUS_VPN
+    valueFrom:
+      secretKeyRef:
+        name: dex-client-secrets
+        key: bacchus-vpn
 
 volumes:
   - name: dex-google-secret
@@ -103,6 +108,11 @@ config:
         - https://howto.bacchus.io/oauth2/callback
         - https://howto-test.bacchus.io/oauth2/callback
       secretEnv: DEX_CLIENT_BACCHUS_HOWTO
+    - name: Bacchus VPN
+      id: bacchus-vpn
+      redirectURIs:
+        - https://vpn.bacchus.io/callback
+      secretEnv: DEX_CLIENT_BACCHUS_VPN
 
   connectors:
     - name: Google
