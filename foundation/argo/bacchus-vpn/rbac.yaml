@@ -9,6 +9,7 @@ rules:
     resources:
       - ciliumenvoyconfigs
     verbs:
+      - get
       - patch
     resourceNames:
       - cilium-gateway-web-gateway

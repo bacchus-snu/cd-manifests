@@ -30,7 +30,7 @@ spec:
             - /bin/bash
             - -c
             - |
-                set -x
+                set -eux
                 first_filter=$(kubectl get \
                   -n cilium-system \
                   ciliumenvoyconfigs.cilium.io cilium-gateway-web-gateway \
@@ -38,7 +38,6 @@ spec:
                 [[ "$first_filter" = "envoy.filters.http.grpc_web" ]] || exit 0
                 kubectl patch \
                   -n cilium-system \
-                  --patch-file patch.json \
                   --type=json \
                   ciliumenvoyconfigs.cilium.io/cilium-gateway-web-gateway \
                   -p '[{"op":"remove","path":"/spec/resources/0/filterChains/0/filters/0/typedConfig/httpFilters/0"},{"op":"remove","path":"/spec/resources/0/filterChains/1/filters/0/typedConfig/httpFilters/0"}]'
