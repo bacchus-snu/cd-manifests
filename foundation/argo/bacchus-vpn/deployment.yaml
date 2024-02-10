@@ -61,6 +61,12 @@ spec:
               readOnly: true
             - name: data
               mountPath: /data
+          readinessProbe:
+            httpGet:
+              port: http
+          livenessProbe:
+            httpGet:
+              port: http
           resources:
             requests:
               cpu: 100m
@@ -76,8 +82,8 @@ spec:
               drop:
                 - ALL
             readOnlyRootFilesystem: true
-            #runAsNonRoot: true
-            #runAsUser: 1000
+            runAsNonRoot: true
+            runAsUser: 1000
             seccompProfile:
               type: RuntimeDefault
       serviceAccountName: bacchus-vpn
