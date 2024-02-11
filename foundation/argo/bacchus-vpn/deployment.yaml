@@ -16,6 +16,7 @@ spec:
             privileged: true
         - name: envoy-patch
           image: bitnami/kubectl:latest
+          restartPolicy: Always # sidecar
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -30,17 +31,20 @@ spec:
             - /bin/bash
             - -c
             - |
-                set -eux
-                first_filter=$(kubectl get \
-                  -n cilium-system \
-                  ciliumenvoyconfigs.cilium.io cilium-gateway-web-gateway \
-                  -ojsonpath='{$.spec.resources[0].filterChains[0].filters[0].typedConfig.httpFilters[0].name}')
-                [[ "$first_filter" = "envoy.filters.http.grpc_web" ]] || exit 0
-                kubectl patch \
-                  -n cilium-system \
-                  --type=json \
-                  ciliumenvoyconfigs.cilium.io/cilium-gateway-web-gateway \
-                  -p '[{"op":"remove","path":"/spec/resources/0/filterChains/0/filters/0/typedConfig/httpFilters/0"},{"op":"remove","path":"/spec/resources/0/filterChains/1/filters/0/typedConfig/httpFilters/0"}]'
+                set -eu
+                while true; do
+                  sleep 10
+                  first_filter=$(kubectl get \
+                    -n cilium-system \
+                    ciliumenvoyconfigs.cilium.io cilium-gateway-web-gateway \
+                    -ojsonpath='{$.spec.resources[0].filterChains[0].filters[0].typedConfig.httpFilters[0].name}')
+                  [[ "$first_filter" = "envoy.filters.http.grpc_web" ]] || continue
+                  kubectl patch \
+                    -n cilium-system \
+                    --type=json \
+                    ciliumenvoyconfigs.cilium.io/cilium-gateway-web-gateway \
+                    -p '[{"op":"remove","path":"/spec/resources/0/filterChains/0/filters/0/typedConfig/httpFilters/0"},{"op":"remove","path":"/spec/resources/0/filterChains/1/filters/0/typedConfig/httpFilters/0"}]'
+                done
       containers:
         - name: app
           image: wg-access-server # replaced by kustomize
