@@ -6,7 +6,7 @@ spec:
   serviceName: bacchus-vpn-headless
   volumeClaimTemplates:
     - metadata:
-        name: bacchus-vpn
+        name: bacchus-vpn-data
       spec:
         accessModes:
           - ReadWriteOncePod
@@ -73,7 +73,7 @@ spec:
               subPath: config.yaml
               mountPath: /config.yaml
               readOnly: true
-            - name: data
+            - name: bacchus-vpn-data
               mountPath: /data
           readinessProbe:
             httpGet:

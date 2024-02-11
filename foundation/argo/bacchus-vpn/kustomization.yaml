@@ -1,7 +1,7 @@
 resources:
   - statefulset.yaml
   - httproute.yaml
-  - ipaddresspool.yaml
+  #- ipaddresspool.yaml
   - rbac.yaml
   - secret.yaml
   - service.yaml
