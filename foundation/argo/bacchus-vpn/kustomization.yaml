@@ -1,8 +1,7 @@
 resources:
-  - deployment.yaml
+  - statefulset.yaml
   - httproute.yaml
   - ipaddresspool.yaml
-  - persistentvolumeclaim.yaml
   - rbac.yaml
   - secret.yaml
   - service.yaml

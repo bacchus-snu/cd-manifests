@@ -1,8 +1,18 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: bacchus-vpn
 spec:
+  serviceName: bacchus-vpn-headless
+  volumeClaimTemplates:
+    - metadata:
+        name: bacchus-vpn
+      spec:
+        accessModes:
+          - ReadWriteOncePod
+        resources:
+          requests:
+            storage: 1Gi
   template:
     spec:
       initContainers:
@@ -68,9 +78,11 @@ spec:
           readinessProbe:
             httpGet:
               port: http
+              path: /health
           livenessProbe:
             httpGet:
               port: http
+              path: /health
           resources:
             requests:
               cpu: 100m
@@ -97,6 +109,3 @@ spec:
         - name: config
           secret:
             secretName: bacchus-vpn-config
-        - name: data
-          persistentVolumeClaim:
-            claimName: bacchus-vpn-data
