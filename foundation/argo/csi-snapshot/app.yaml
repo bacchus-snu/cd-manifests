@@ -17,10 +17,10 @@ spec:
   #    selfHeal: true
   sources:
     - repoURL: https://github.com/kubernetes-csi/external-snapshotter.git
-      targetRevision: v7.0.0
+      targetRevision: v7.0.1
       path: client/config/crd
       kustomize: {}
     - repoURL: https://github.com/kubernetes-csi/external-snapshotter.git
-      targetRevision: v7.0.0
+      targetRevision: v7.0.1
       path: deploy/kubernetes/snapshot-controller
       kustomize: {}
