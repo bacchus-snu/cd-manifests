@@ -36,13 +36,6 @@ spec:
     - name: http
       protocol: HTTP
       port: 80
-        # Upstream bug, *all* listeners have to accept routes
-        # ref:
-        # - https://github.com/cilium/cilium/issues/28186
-        # - https://github.com/cilium/cilium/pull/29115
-      allowedRoutes:
-        namespaces:
-          from: All
     - name: https-snucse-org
       protocol: HTTPS
       port: 443
