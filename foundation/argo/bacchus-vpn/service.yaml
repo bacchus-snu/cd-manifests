@@ -25,7 +25,7 @@ kind: Service
 metadata:
   name: bacchus-vpn
   annotations:
-    metallb.universe.tf/loadBalancerIPs: 10.89.0.31
+    lbipam.cilium.io/ips: 10.89.0.31
 spec:
   type: LoadBalancer
   ports:
