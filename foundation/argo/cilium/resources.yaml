@@ -17,8 +17,6 @@ spec:
     matchExpressions:
       - key: node-role.kubernetes.io/control-plane
         operator: Exists
-  interfaces:
-    - ^enx.*
   loadBalancerIPs: true
 ---
 apiVersion: gateway.networking.k8s.io/v1beta1
