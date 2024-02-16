@@ -31,6 +31,16 @@ hubble:
     serviceMonitor:
       enabled: true
 
+# enable l2 announcements
+l2announcements:
+  enabled: true
+
+# l2 announcements lead to higher qps
+# ref: https://docs.cilium.io/en/latest/network/l2-announcements/
+k8sClientRateLimit:
+  qps: 10
+  burst: 20
+
 # enable gateway
 gatewayAPI:
   enabled: true
