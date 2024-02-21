@@ -17,7 +17,7 @@ spec:
   #     selfHeal: true
   sources:
     - repoURL: https://helm.releases.hashicorp.com
-      targetRevision: 0.5.0
+      targetRevision: 0.5.1
       chart: vault-secrets-operator
       helm:
         valueFiles:
