@@ -10,6 +10,9 @@ metadata:
     lbipam.cilium.io/ips: 10.89.0.32
 spec:
   type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: lab-vpn
+    app.kubernetes.io/interface: lab-vpn
   ports:
     - name: wireguard
       protocol: UDP
