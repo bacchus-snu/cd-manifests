@@ -1,0 +1,32 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: lab-vpn
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    name: in-cluster
+    namespace: lab-vpn
+  syncPolicy:
+    # automated:
+    #   prune: true
+    #   selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    managedNamespaceMetadata:
+      labels:
+        pod-security.kubernetes.io/enforce: privileged
+        pod-security.kubernetes.io/enforce-version: v1.29
+        pod-security.kubernetes.io/warn: privileged
+        pod-security.kubernetes.io/warn-version: v1.29
+        pod-security.kubernetes.io/audit: privileged
+        pod-security.kubernetes.io/audit-version: v1.29
+  sources:
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: main
+      path: foundation/argo/lab-vpn
+      kustomize: {}
