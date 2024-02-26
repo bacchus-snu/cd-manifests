@@ -1,4 +1,4 @@
-# ref: https://www.talos.dev/v1.5/kubernetes-guides/network/deploying-cilium/
+# ref: https://www.talos.dev/v1.6/kubernetes-guides/network/deploying-cilium/
 ipam:
   mode: kubernetes
 cgroup:
@@ -15,22 +15,6 @@ kubeProxyReplacement: true
 k8sServiceHost: localhost
 k8sServicePort: 7445
 
-# enable hubble
-hubble:
-  relay:
-    enabled: true
-  ui:
-    enabled: true
-  metrics:
-    enabled:
-      - dns
-      - drop
-      - flow
-      - httpV2
-      - tcp
-    serviceMonitor:
-      enabled: true
-
 # enable l2 announcements
 l2announcements:
   enabled: true
@@ -44,10 +28,3 @@ k8sClientRateLimit:
 # enable gateway
 gatewayAPI:
   enabled: true
-
-# enable monitoring
-prometheus:
-  enabled: true
-  serviceMonitor:
-    enabled: true
-    trustCRDsExist: true
