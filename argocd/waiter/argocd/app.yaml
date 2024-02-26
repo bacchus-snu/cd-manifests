@@ -1,0 +1,32 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: infra
+  destination:
+    name: in-cluster
+    namespace: argocd
+  # syncPolicy:
+  #   automated:
+  #     prune: true
+  #     selfHeal: true
+  sources:
+    - repoURL: https://argoproj.github.io/argo-helm
+      targetRevision: 6.4.0
+      chart: argo-cd
+      helm:
+        valueFiles:
+          - $values/argocd/waiter/argocd/values.yaml
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: main
+      ref: values
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: main
+      path: argocd/waiter/argocd
+      directory:
+        include: 'resources.yaml'

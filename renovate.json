@@ -1,7 +1,7 @@
 {
-	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
-	"extends": ["config:recommended"],
-	"argocd": {
-		"fileMatch": ["foundation/argo/.*/app.yaml"]
-	}
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "argocd": {
+    "fileMatch": ["argocd/.*/app.yaml"]
+  }
 }
