@@ -41,3 +41,21 @@ spec:
   destination:
     create: true
     name: dex-auth
+---
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  namespace: dashboard
+  name: bartender-node-exporter
+spec:
+  metricsPath: /metrics
+  staticConfigs:
+    # use the same label as the in-cluster node-expoter, as node-exporter only
+    # has node-level metrics and thus the metrics cannot collide with
+    # in-cluster nodes
+    - labels:
+        job: node-exporter
+      targets:
+        - fizz.snucse.org:9100
+        - gin.snucse.org:9100
+        - ramos.snucse.org:9100
