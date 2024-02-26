@@ -18,20 +18,20 @@ spec:
   sources:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
-      path: foundation/argo/id
+      path: argocd/waiter/id
       kustomize: {}
     - repoURL: registry-1.docker.io/bitnamicharts
       targetRevision: 18.16.1
       chart: redis
       helm:
         valueFiles:
-          - $values/foundation/argo/id/redis-values.yaml
+          - $values/argocd/waiter/id/redis-values.yaml
     - repoURL: registry-1.docker.io/bitnamicharts
       targetRevision: 14.2.3
       chart: postgresql
       helm:
         valueFiles:
-          - $values/foundation/argo/id/postgresql-values.yaml
+          - $values/argocd/waiter/id/postgresql-values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       ref: values

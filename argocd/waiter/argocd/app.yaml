@@ -21,12 +21,12 @@ spec:
       chart: argo-cd
       helm:
         valueFiles:
-          - $values/foundation/argo/argocd/values.yaml
+          - $values/argocd/waiter/argocd/values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       ref: values
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
-      path: foundation/argo/argocd
+      path: argocd/waiter/argocd
       directory:
         include: 'resources.yaml'

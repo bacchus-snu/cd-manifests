@@ -28,5 +28,5 @@ spec:
   sources:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
-      path: foundation/argo/bacchus-vpn
+      path: argocd/waiter/bacchus-vpn
       kustomize: {}

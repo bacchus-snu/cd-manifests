@@ -45,12 +45,12 @@ spec:
       chart: cilium
       helm:
         valueFiles:
-          - $values/foundation/argo/cilium/values.yaml
+          - $values/argocd/waiter/cilium/values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       ref: values
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
-      path: foundation/argo/cilium
+      path: argocd/waiter/cilium
       directory:
         include: 'resources.yaml'

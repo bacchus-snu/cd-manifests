@@ -21,12 +21,12 @@ spec:
       chart: dex
       helm:
         valueFiles:
-          - $values/foundation/argo/dexidp/values.yaml
+          - $values/argocd/waiter/dexidp/values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       ref: values
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
-      path: foundation/argo/dexidp
+      path: argocd/waiter/dexidp
       directory:
         include: 'resources.yaml'

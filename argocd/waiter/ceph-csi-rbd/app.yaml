@@ -31,12 +31,12 @@ spec:
       chart: ceph-csi-rbd
       helm:
         valueFiles:
-          - $values/foundation/argo/ceph-csi-rbd/values.yaml
+          - $values/argocd/waiter/ceph-csi-rbd/values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       ref: values
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
-      path: foundation/argo/ceph-csi-rbd
+      path: argocd/waiter/ceph-csi-rbd
       directory:
         include: 'resources.yaml'

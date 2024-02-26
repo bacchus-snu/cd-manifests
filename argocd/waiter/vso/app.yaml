@@ -21,7 +21,7 @@ spec:
       chart: vault-secrets-operator
       helm:
         valueFiles:
-          - $values/foundation/argo/vso/values.yaml
+          - $values/argocd/waiter/vso/values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       ref: values

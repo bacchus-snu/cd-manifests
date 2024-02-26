@@ -21,7 +21,7 @@ spec:
       chart: metrics-server
       helm:
         valueFiles:
-          - $values/foundation/argo/metrics-server/values.yaml
+          - $values/argocd/waiter/metrics-server/values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       ref: values

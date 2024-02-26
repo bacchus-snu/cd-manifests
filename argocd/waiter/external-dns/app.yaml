@@ -23,12 +23,12 @@ spec:
       chart: external-dns
       helm:
         valueFiles:
-          - $values/foundation/argo/external-dns/values.yaml
+          - $values/argocd/waiter/external-dns/values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       ref: values
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
-      path: foundation/argo/external-dns
+      path: argocd/waiter/external-dns
       directory:
         include: 'resources.yaml'

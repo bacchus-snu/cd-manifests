@@ -33,12 +33,12 @@ spec:
       chart: kube-prometheus-stack
       helm:
         valueFiles:
-          - $values/foundation/argo/dashboard/values.yaml
+          - $values/argocd/waiter/dashboard/values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       ref: values
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
-      path: foundation/argo/dashboard
+      path: argocd/waiter/dashboard
       directory:
         include: 'resources.yaml'

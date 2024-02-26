@@ -12,7 +12,7 @@ spec:
   source:
     repoURL: https://github.com/bacchus-snu/cd-manifests.git
     targetRevision: main
-    path: foundation/argo
+    path: argocd/waiter
     directory:
       recurse: true
       include: '*/app.yaml'
