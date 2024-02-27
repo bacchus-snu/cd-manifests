@@ -17,6 +17,8 @@ spec:
   #     selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      # CRDs are too large for client-side apply
+      - ServerSideApply=true
     managedNamespaceMetadata:
       labels:
         pod-security.kubernetes.io/enforce: privileged
