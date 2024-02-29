@@ -10,7 +10,7 @@ spec:
       name: web-gateway
       sectionName: https-snucse-org
   hostnames:
-    - id-test.snucse.org
+    - id.snucse.org
   rules:
     # default route to frontend
     - backendRefs:
