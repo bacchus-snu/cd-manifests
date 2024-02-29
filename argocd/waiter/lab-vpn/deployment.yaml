@@ -28,7 +28,7 @@ spec:
             privileged: true
       containers:
         - name: app
-          image: ghcr.io/bacchus-snu/lab-vpn:latest
+          image: ghcr.io/bacchus-snu/lab-vpn:master@sha256:38876c845d270b2c3d1957db122f4647ebb8f77de48bccf4902372f78014e99f
           command:
             - sh
             - -c
