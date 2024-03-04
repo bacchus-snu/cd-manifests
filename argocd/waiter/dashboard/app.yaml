@@ -31,7 +31,7 @@ spec:
     - repoURL: https://prometheus-community.github.io/helm-charts
       # targetRevision: 55.8.1
       # suspend until grafana.assertNoLeakedSecrets be fixed
-      targetRevision: 56.20.1
+      targetRevision: 56.21.0
       chart: kube-prometheus-stack
       helm:
         valueFiles:
