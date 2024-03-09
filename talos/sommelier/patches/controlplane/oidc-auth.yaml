@@ -1,0 +1,11 @@
+# Use in-cluster dex to authenticate
+cluster:
+  apiServer:
+    extraArgs:
+      oidc-issuer-url: https://id.snucse.org/o
+      oidc-client-id: kubernetes-oidc
+      oidc-username-claim: username
+      oidc-groups-claim: groups
+      oidc-username-prefix: "id:"
+      oidc-groups-prefix: "id:"
+

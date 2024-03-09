@@ -1,0 +1,15 @@
+# disable CNI during installation, and disable kube-proxy
+# cilim itself is installed & managed separately
+# initially installed manually during bootstrap, later handed off to Argo CD
+# ref: https://www.talos.dev/v1.5/kubernetes-guides/network/deploying-cilium/
+cluster:
+  network:
+    cni:
+      name: none
+  proxy:
+    disabled: true
+machine:
+  features:
+    kubePrism:
+      enabled: true
+      port: 7445

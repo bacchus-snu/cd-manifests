@@ -1,0 +1,10 @@
+# enable Talos API access from within the cluster
+machine:
+  features:
+    kubernetesTalosAPIAccess:
+      enabled: true
+      allowedRoles:
+        - os:reader
+        - os:etcd:backup
+      allowedKubernetesNamespaces:
+        - default

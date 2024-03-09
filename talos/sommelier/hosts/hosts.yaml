@@ -1,0 +1,13 @@
+# interface must match enx[MAC ADDRESS]
+
+controlplane:
+  control-1:
+    interface: enxbc2411e6bd12
+    address: 10.91.0.11/16
+  control-2:
+    interface: enxbc2411189d3c
+    address: 10.91.0.12/16
+  control-3:
+    interface: enxbc24119b1f47
+    address: 10.91.0.13/16
+worker: {}
