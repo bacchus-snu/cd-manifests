@@ -1,0 +1,39 @@
+# Argocd-related  configurations
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  namespace: argocd
+  name: sommelier
+spec:
+  destinations:
+    - name: in-cluster
+      namespace: '*'
+      server: https://kubernetes.default.svc
+    - name: sommelier
+      namespace: '*'
+      server: https://sommelier.snucse.org:6443
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  sourceRepos:
+    - '*'
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  namespace: argocd
+  name: argocd-clusters-sommelier
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: argocd/clusters/sommelier
+  destination:
+    create: true
+    name: argocd-clusters-sommelier
+    labels:
+      argocd.argoproj.io/secret-type: cluster

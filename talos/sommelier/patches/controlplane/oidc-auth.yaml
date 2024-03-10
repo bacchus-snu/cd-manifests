@@ -8,4 +8,4 @@ cluster:
       oidc-groups-claim: groups
       oidc-username-prefix: "id:"
       oidc-groups-prefix: "id:"
-
+      oidc-signing-algs: 'RS256,ES256'

@@ -1,0 +1,12 @@
+# values used for manual preflight during upgrades
+# ref: https://docs.cilium.io/en/stable/operations/upgrade/
+
+preflight:
+  enabled: true
+agent: false
+
+operator:
+  enabled: false
+
+k8sServiceHost: sommelier.snucse.org
+k8sServicePort: 6443

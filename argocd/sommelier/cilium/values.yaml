@@ -1,0 +1,16 @@
+# ref: https://www.talos.dev/v1.6/kubernetes-guides/network/deploying-cilium/
+ipam:
+  mode: kubernetes
+cgroup:
+  autoMount:
+    enabled: false
+  hostRoot: /sys/fs/cgroup
+securityContext:
+  capabilities:
+    cleanCiliumState: [NET_ADMIN,SYS_ADMIN,SYS_RESOURCE]
+    ciliumAgent: [CHOWN,KILL,NET_ADMIN,NET_RAW,IPC_LOCK,SYS_ADMIN,SYS_RESOURCE,DAC_OVERRIDE,FOWNER,SETGID,SETUID]
+
+# replace kube-proxy
+kubeProxyReplacement: true
+k8sServiceHost: sommelier.snucse.org
+k8sServicePort: 6443

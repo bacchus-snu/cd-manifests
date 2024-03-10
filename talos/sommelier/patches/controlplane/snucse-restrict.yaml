@@ -1,0 +1,6 @@
+cluster:
+    apiServer:
+      extraArgs:
+        enable-admission-plugins: PodNodeSelector
+      admissionControl:
+        - name: PodNodeSelector

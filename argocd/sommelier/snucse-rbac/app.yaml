@@ -1,0 +1,23 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: sommelier-snucse-rbac
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: infra
+  destination:
+    name: sommelier
+    namespace: default
+  # syncPolicy:
+  #   automated:
+  #     prune: true
+  #     selfHeal: true
+  sources:
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: main
+      path: argocd/sommelier/snucse-rbac
+      directory:
+        include: 'resources.yaml'
