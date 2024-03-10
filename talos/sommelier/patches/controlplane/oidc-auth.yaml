@@ -1,4 +1,4 @@
-# Use in-cluster dex to authenticate
+# Use snucse-id to authenticate
 cluster:
   apiServer:
     extraArgs:
@@ -9,3 +9,45 @@ cluster:
       oidc-username-prefix: "id:"
       oidc-groups-prefix: "id:"
       oidc-signing-algs: 'RS256,ES256'
+
+    # once https://github.com/kubernetes/kubernetes/commit/39e1c9108c0802024ebb01ad2286b2f09f63798e
+    # lands, uncomment to allow both bacchus-dex and snucse-id
+    #extraArgs:
+    #  authentication-config: /auth-config/config.yaml
+    #  feature-gates: StructuredAuthenticationConfiguration=true
+    #extraVolumes:
+    #  - hostPath: /var/run/snucse-auth
+    #    mountPath: /auth-config
+    #    readonly: true
+
+machine:
+  files:
+    - path: /var/run/snucse-auth/config.yaml
+      permissions: 0o644
+      op: create
+      content: |
+        apiVersion: apiserver.config.k8s.io/v1alpha1
+        kind: AuthenticationConfiguration
+        jwt:
+          - issuer:
+              url: https://id.snucse.org/o
+              audiences:
+                - kubernetes-oidc
+            claimMappings:
+              username:
+                claim: username
+                prefix: 'id:'
+              groups:
+                claim: groups
+                prefix: 'id:'
+#          - issuer:
+#              url: https://auth.bacchus.io/dex
+#              audiences:
+#                - bacchus-waiter
+#            claimMappings:
+#              username:
+#                claim: email
+#                prefix: 'bacchus:'
+#              groups:
+#                claim: groups
+#                prefix: 'bacchus:'

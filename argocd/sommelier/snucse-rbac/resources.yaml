@@ -23,8 +23,6 @@ subjects:
     name: id:undergraduate
   - kind: Group
     name: id:graduate
-  - kind: Group
-    name: id:bacchus
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
