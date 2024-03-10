@@ -7,7 +7,7 @@ all: $(WORKERS) $(CONTROLPLANES)
 
 .PHONY: clean
 clean:
-	rm -rf worker controlplane
+	rm -rf worker/*.yaml controlplane/*.yaml
 
 controlplane/%.yaml: $(HOSTS)
 	mkdir -p controlplane

@@ -64,6 +64,7 @@ apply: check-apply-env hosts/$(ROLE)/$(CONFIG).yaml $(CONFIG_TALOSCONFIG) $(CONF
 		talosctl apply-config \
 		--file $(CONFIG_ROLE) \
 		--config-patch @hosts/$(ROLE)/$(CONFIG).yaml \
+		$(foreach patch,$(wildcard hosts/$(ROLE)/$(CONFIG)/*.yaml),--config-patch @$(patch)) \
 		--nodes $(NODE)
 
 .PHONY: apply-insecure
@@ -71,6 +72,7 @@ apply-insecure: check-apply-env hosts/$(ROLE)/$(CONFIG).yaml $(CONFIG_ROLE)
 	talosctl apply-config \
 		--file $(CONFIG_ROLE) \
 		--config-patch @hosts/$(ROLE)/$(CONFIG).yaml \
+		$(foreach patch,$(wildcard hosts/$(ROLE)/$(CONFIG)/*.yaml),--config-patch @$(patch)) \
 		--insecure --nodes $(NODE)
 
 .PHONY: clean

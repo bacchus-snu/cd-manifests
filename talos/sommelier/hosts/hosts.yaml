@@ -10,4 +10,7 @@ controlplane:
   control-3:
     interface: enxbc24119b1f47
     address: 10.91.0.13/16
-worker: {}
+worker:
+  ford:
+    interface: eno1
+    address: 10.91.0.14/16
