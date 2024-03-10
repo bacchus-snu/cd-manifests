@@ -37,25 +37,6 @@ spec:
   sourceRepos:
     - '*'
 ---
-apiVersion: argoproj.io/v1alpha1
-kind: AppProject
-metadata:
-  namespace: argocd
-  name: sommelier
-spec:
-  destinations:
-    - name: sommelier
-      namespace: '*'
-      server: https://sommelier.snuce.org:6443
-  clusterResourceWhitelist:
-    - group: '*'
-      kind: '*'
-  namespaceResourceWhitelist:
-    - group: '*'
-      kind: '*'
-  sourceRepos:
-    - '*'
----
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: HTTPRoute
 metadata:
