@@ -1,8 +1,9 @@
+# looser restrictions, as regular users will be accessing our cluster
 cluster:
   apiServer:
+    extraArgs:
     admissionControl:
-      - name: PodSecurity # Name is the name of the admission controller.
-        # Configuration is an embedded configuration object to be used as the plugin's
+      - name: PodSecurity
         configuration:
           apiVersion: pod-security.admission.config.k8s.io/v1alpha1
           defaults:
