@@ -19,4 +19,5 @@ spec:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       path: argocd/waiter/sommelier-bootstrap
-      kustomize: {}
+      directory:
+        include: 'resources.yaml'
