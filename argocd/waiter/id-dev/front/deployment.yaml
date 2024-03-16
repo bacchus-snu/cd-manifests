@@ -1,0 +1,38 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: id-front
+spec:
+  template:
+    spec:
+      containers:
+        - name: app
+          image: id-front # replaced by kustomize
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: HOST
+              value: 0.0.0.0
+            - name: PORT
+              value: '3000'
+            - name: API_BASE
+              value: http://id-core.id.svc.cluster.local
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 100m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+      serviceAccountName: id-front

@@ -1,0 +1,18 @@
+resources:
+  - deployment.yaml
+  - service.yaml
+  - serviceaccount.yaml
+  - vaultsecret.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: id-core
+      app.kubernetes.io/instance: id-core
+      app.kubernetes.io/part-of: id-dev
+      app.kubernetes.io/component: backend
+    includeSelectors: true
+
+images:
+  - name: id-core
+    newName: ghcr.io/bacchus-snu/bacchus-id/core
+    newTag: 20230928-3a8fb42
