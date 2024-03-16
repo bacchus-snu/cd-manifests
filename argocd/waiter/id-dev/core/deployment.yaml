@@ -1,0 +1,40 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: id-core
+spec:
+  template:
+    spec:
+      containers:
+        - name: app
+          image: id-core # replaced by kustomize
+          ports:
+            - name: http
+              containerPort: 50080
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.json
+              subPath: config.json
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 100m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+      serviceAccountName: id-core
+      volumes:
+        - name: config
+          secret:
+            secretName: id-core-config

@@ -1,0 +1,37 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: id-dev
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    name: in-cluster
+    namespace: id-dev
+  #syncPolicy:
+  #  automated:
+  #    prune: true
+  #    selfHeal: true
+  sources:
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: main
+      path: argocd/waiter/id-dev
+      kustomize: {}
+    - repoURL: registry-1.docker.io/bitnamicharts
+      targetRevision: 18.19.2
+      chart: redis
+      helm:
+        valueFiles:
+          - $values/argocd/waiter/id-dev/redis-values.yaml
+    - repoURL: registry-1.docker.io/bitnamicharts
+      targetRevision: 14.3.3
+      chart: postgresql
+      helm:
+        valueFiles:
+          - $values/argocd/waiter/id-dev/postgresql-values.yaml
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: main
+      ref: values

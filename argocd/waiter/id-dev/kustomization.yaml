@@ -1,0 +1,11 @@
+resources:
+  - core
+  - front
+  - resources.yaml
+
+configMapGenerator:
+  - name: id-dev-db-schema
+    files:
+      - https://raw.githubusercontent.com/bacchus-snu/id/20f0180dd0ef6a3895c3b677d9694136fe1c9725/schema.sql
+    options:
+      disableNameSuffixHash: true

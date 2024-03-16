@@ -1,0 +1,17 @@
+resources:
+  - deployment.yaml
+  - service.yaml
+  - serviceaccount.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: id-front
+      app.kubernetes.io/instance: id-front
+      app.kubernetes.io/part-of: id-dev
+      app.kubernetes.io/component: frontend
+    includeSelectors: true
+
+images:
+  - name: id-front
+    newName: ghcr.io/bacchus-snu/bacchus-id/front
+    newTag: 20230928-5adb7f3
