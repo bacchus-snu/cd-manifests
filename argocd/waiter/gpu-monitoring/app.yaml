@@ -19,6 +19,6 @@ spec:
       - CreateNamespace=true
   sources:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
-      targetRevision: feat/gpu-monitoring
+      targetRevision: main
       path: argocd/waiter/gpu-monitoring
       kustomize: {}
