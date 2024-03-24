@@ -31,3 +31,5 @@ spec:
                 value: /etc/k0s/containerd.toml
               - name: CONTAINERD_SOCKET
                 value: /run/k0s/containerd.sock
+          # also need to manually patch dcgm-exporter DS to add env
+          # DCGM_EXPORTER_KUBERNETES_GPU_ID_TYPE=uid
