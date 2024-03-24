@@ -13,3 +13,16 @@ metadata:
   annotations:
     kubernetes.io/service-account.name: waiter-bootstrap
 type: kubernetes.io/service-account-token
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: waiter-bootstrap
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: waiter-bootstrap
+    namespace: default
