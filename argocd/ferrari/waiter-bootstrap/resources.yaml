@@ -1,0 +1,15 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: default
+  name: waiter-bootstrap
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  namespace: default
+  name: waiter-bootstrap
+  annotations:
+    kubernetes.io/service-account.name: waiter-bootstrap
+type: kubernetes.io/service-account-token

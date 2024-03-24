@@ -1,0 +1,57 @@
+# Argocd-related  configurations
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  namespace: argocd
+  name: ferrari
+spec:
+  destinations:
+    - name: in-cluster
+      namespace: '*'
+      server: https://kubernetes.default.svc
+    - name: ferrari
+      namespace: '*'
+      server: https://ferrari.snucse.org:6443
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  sourceRepos:
+    - '*'
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  namespace: argocd
+  name: argocd-clusters-ferrari
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: argocd/clusters/ferrari
+  destination:
+    create: true
+    name: argocd-clusters-ferrari
+    labels:
+      argocd.argoproj.io/secret-type: cluster
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: ferrari-top-level
+spec:
+  project: ferrari
+  destination:
+    name: in-cluster
+    namespace: argocd
+  source:
+    repoURL: https://github.com/bacchus-snu/cd-manifests.git
+    targetRevision: main
+    path: argocd/ferrari
+    directory:
+      recurse: true
+      include: '*/app.yaml'
