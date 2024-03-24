@@ -37,3 +37,21 @@ spec:
     name: argocd-clusters-sommelier
     labels:
       argocd.argoproj.io/secret-type: cluster
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: sommelier-top-level
+spec:
+  project: sommelier
+  destination:
+    name: in-cluster
+    namespace: argocd
+  source:
+    repoURL: https://github.com/bacchus-snu/cd-manifests.git
+    targetRevision: main
+    path: argocd/sommelier
+    directory:
+      recurse: true
+      include: '*/app.yaml'

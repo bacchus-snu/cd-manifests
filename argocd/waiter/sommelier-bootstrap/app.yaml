@@ -11,10 +11,12 @@ spec:
   destination:
     name: in-cluster
     namespace: sommelier-bootstrap
-  #syncPolicy:
-  #  automated:
-  #    prune: true
-  #    selfHeal: true
+  syncPolicy:
+    #automated:
+    #  prune: true
+    #  selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
   sources:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
