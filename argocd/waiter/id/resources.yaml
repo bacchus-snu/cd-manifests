@@ -8,7 +8,6 @@ spec:
   parentRefs:
     - namespace: cilium-system
       name: web-gateway
-      sectionName: https-snucse-org
   hostnames:
     - id.snucse.org
   rules:

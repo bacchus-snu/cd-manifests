@@ -8,7 +8,6 @@ spec:
   parentRefs:
     - namespace: cilium-system
       name: web-gateway
-      sectionName: https-bacchus-io
   hostnames:
     - secure-front.bacchus.io
   rules:
@@ -67,7 +66,6 @@ spec:
   parentRefs:
     - namespace: cilium-system
       name: web-gateway
-      sectionName: https-bacchus-io
   hostnames:
     - waiter.bacchus.io
   rules:
