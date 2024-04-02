@@ -23,15 +23,6 @@ spec:
         pod-security.kubernetes.io/audit: baseline
         pod-security.kubernetes.io/audit-version: v1.29
   sources:
-    - repoURL: ghcr.io/bacchus-snu
-      targetRevision: '20231117'
-      chart: cse-proxy
-      helm:
-        valueFiles:
-          - $values/argocd/waiter/cse-proxy/values.yaml
-    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
-      targetRevision: main
-      ref: values
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       path: argocd/waiter/cse-proxy
