@@ -11,6 +11,9 @@ spec:
     - namespace: cilium-system
       name: web-gateway
       sectionName: https-cse
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: http
   hostnames:
     - cse.snu.ac.kr
   rules:
@@ -28,6 +31,9 @@ spec:
     - namespace: cilium-system
       name: web-gateway
       sectionName: https-bacchus-io
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: http
   hostnames:
     - csereal-prod.bacchus.io
   rules:
