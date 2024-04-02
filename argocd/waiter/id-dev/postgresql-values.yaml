@@ -9,6 +9,3 @@ auth:
 primary:
   initdb:
     scriptsConfigMap: id-dev-db-schema
-
-backup:
-  enabled: true
