@@ -20,6 +20,33 @@ spec:
         operator: Exists
   loadBalancerIPs: true
 ---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  namespace: cilium-system
+  name: default
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: vault-secrets-operator
+    serviceAccount: default
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  namespace: cilium-system
+  name: web-gateway-cse-cert
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: cilium-system/web-gateway-cse-cert
+  destination:
+    create: true
+    name: web-gateway-cse-cert
+    type: kubernetes.io/tls
+---
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: Gateway
 metadata:
@@ -37,6 +64,9 @@ spec:
     - name: http
       protocol: HTTP
       port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
     - name: https-snucse-org
       protocol: HTTPS
       port: 443
@@ -57,6 +87,16 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
+    - name: https-cse
+      protocol: HTTPS
+      port: 443
+      hostname: 'cse.snu.ac.kr'
+      tls:
+        certificateRefs:
+          - name: web-gateway-cse-cert
+      allowedRoutes:
+        namespaces:
+          from: All
 ---
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: HTTPRoute
@@ -66,6 +106,7 @@ metadata:
 spec:
   parentRefs:
     - name: web-gateway
+      sectionName: http
   rules:
     - filters:
         - type: RequestRedirect

@@ -36,7 +36,11 @@ spec:
     privateKeySecretRef:
       name: letsencrypt-prod
     solvers:
-      - dns01:
+      - selector:
+          dnsZones:
+            - bacchus.io
+            - snucse.org
+        dns01:
           cloudflare:
             apiTokenSecretRef:
               name: cert-manager-cloudflare
