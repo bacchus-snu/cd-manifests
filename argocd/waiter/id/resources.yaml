@@ -55,3 +55,83 @@ spec:
   destination:
     create: true
     name: id-db-creds
+
+# snapshot id volumes every day
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: id-snapshots
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: id-snapshots
+rules:
+  - apiGroups:
+      - snapshot.storage.k8s.io
+    resources:
+      - volumesnapshots
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: id-snapshots
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: id-snapshots
+subjects:
+  - kind: ServiceAccount
+    name: id-snapshots
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: id-snapshots
+spec:
+  schedule: '@daily'
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: id-snapshots
+          restartPolicy: Never
+          containers:
+            - name: app
+              image: bitnami/kubectl:latest
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                runAsNonRoot: true
+                runAsUser: 1000
+                seccompProfile:
+                  type: RuntimeDefault
+              command:
+                - /bin/sh
+                - -c
+                - |
+                    kubectl apply -f- <<EOF
+                      apiVersion: snapshot.storage.k8s.io/v1
+                      kind: VolumeSnapshot
+                      metadata:
+                        name: data-id-postgresql-0-$(date +%s)
+                      spec:
+                        volumeSnapshotClassName: rbd
+                        source:
+                          persistentVolumeClaimName: data-id-postgresql-0
+                    EOF
