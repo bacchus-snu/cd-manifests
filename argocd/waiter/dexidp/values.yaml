@@ -40,11 +40,6 @@ envVars:
       secretKeyRef:
         name: dex-client-secrets
         key: bacchus-grafana
-  - name: DEX_CLIENT_BACCHUS_HOWTO
-    valueFrom:
-      secretKeyRef:
-        name: dex-client-secrets
-        key: bacchus-howto
   - name: DEX_CLIENT_BACCHUS_VPN
     valueFrom:
       secretKeyRef:
@@ -102,12 +97,6 @@ config:
       redirectURIs:
         - https://dashboard.bacchus.io/login/generic_oauth
       secretEnv: DEX_CLIENT_BACCHUS_GRAFANA
-    - name: Bacchus howto
-      id: bacchus-howto
-      redirectURIs:
-        - https://howto.bacchus.io/oauth2/callback
-        - https://howto-test.bacchus.io/oauth2/callback
-      secretEnv: DEX_CLIENT_BACCHUS_HOWTO
     - name: Bacchus VPN
       id: bacchus-vpn
       redirectURIs:
