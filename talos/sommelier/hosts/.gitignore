@@ -1,2 +1,2 @@
-controlplane
-worker
+controlplane/*.yaml
+worker/*.yaml
