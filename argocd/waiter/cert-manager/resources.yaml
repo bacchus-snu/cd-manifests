@@ -45,3 +45,12 @@ spec:
             apiTokenSecretRef:
               name: cert-manager-cloudflare
               key: token
+      - selector:
+          dnsZones:
+            - cse.snu.ac.kr
+        http01:
+          gatewayHTTPRoute:
+            parentRefs:
+              - namespace: cilium-system
+                name: web-gateway
+            serviceType: ClusterIP
