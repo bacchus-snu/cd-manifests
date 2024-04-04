@@ -12,9 +12,6 @@ spec:
     name: sommelier
     namespace: cilium-system
   syncPolicy:
-    #automated:
-    #  prune: true
-    #  selfHeal: true
     syncOptions:
       - CreateNamespace=true
     managedNamespaceMetadata:
