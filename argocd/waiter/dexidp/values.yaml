@@ -1,3 +1,19 @@
+replicaCount: 2
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+topologySpreadConstraints:
+  - labelSelector:
+      app.kubernetes.io/name: dex
+      app.kubernetes.io/instance: dex
+    matchLabelKeys:
+      - pod-template-hash
+    topologyKey: kubernetes.io/hostname
+    maxSkew: 1
+    whenUnsatisfiable: DoNotSchedule
+
 resources:
   requests:
     cpu: 100m

@@ -11,10 +11,9 @@ spec:
   destination:
     name: in-cluster
     namespace: dexidp
-  #syncPolicy:
-  #  automated:
-  #    prune: true
-  #    selfHeal: true
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
   sources:
     - repoURL: https://charts.dexidp.io
       targetRevision: 0.17.0
