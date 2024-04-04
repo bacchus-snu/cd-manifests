@@ -96,6 +96,7 @@ spec:
           args:
             - caddy
             - reverse-proxy
+            - --access-log
             - --from=http://cse.snu.ac.kr:8080
             - --to=https://cse.snu.ac.kr
           ports:
@@ -148,6 +149,7 @@ spec:
           args:
             - caddy
             - reverse-proxy
+            - --access-log
             - --from=http://csereal-prod.bacchus.io:8080
             - --to=http://csereal-prod.bacchus.io
           ports:
