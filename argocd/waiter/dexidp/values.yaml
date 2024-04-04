@@ -6,8 +6,9 @@ podDisruptionBudget:
 
 topologySpreadConstraints:
   - labelSelector:
-      app.kubernetes.io/name: dex
-      app.kubernetes.io/instance: dex
+      matchLabels:
+        app.kubernetes.io/name: dex
+        app.kubernetes.io/instance: dex
     matchLabelKeys:
       - pod-template-hash
     topologyKey: kubernetes.io/hostname
