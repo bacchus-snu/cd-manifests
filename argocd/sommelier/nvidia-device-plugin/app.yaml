@@ -32,6 +32,8 @@ spec:
       helm:
         values: |
           runtimeClassName: nvidia
+          nodeSelector:
+            accelerator: nvidia-gpu
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       path: argocd/sommelier/nvidia-device-plugin
