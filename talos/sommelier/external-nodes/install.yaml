@@ -1,0 +1,59 @@
+- name: Join cluster
+  hosts: all
+  remote_user: bacchus
+  become: true
+  tasks:
+    - name: Install kubernetes release key
+      ansible.builtin.shell:
+        creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+        cmd: curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+    - name: Add kubernetes apt repo
+      ansible.builtin.apt_repository:
+        repo: 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /'
+    - name: Install kubelet
+      ansible.builtin.apt:
+        name: kubelet=1.29.*
+    - name: Hold kubelet
+      ansible.builtin.dpkg_selections:
+        name: kubelet
+        selection: hold
+    - name: Install kubeadm
+      ansible.builtin.apt:
+        name: kubeadm=1.29.*
+    - name: Hold kubeadm
+      ansible.builtin.dpkg_selections:
+        name: kubeadm
+        selection: hold
+    - name: Install containerd
+      ansible.builtin.apt:
+        name: containerd
+
+    - name: Install bootstrap kubeconfig
+      ansible.builtin.copy:
+        src: bootstrap-kubelet.conf
+        dest: /etc/kubernetes/bootstrap-kubelet.conf
+        mode: '0600'
+    - name: Install kubelet kubeconfig
+      ansible.builtin.copy:
+        src: kubelet.conf
+        dest: /etc/kubernetes/kubelet.conf
+        mode: '0600'
+    - name: Create pki dir
+      ansible.builtin.file:
+        dest: /etc/kubernetes/pki/
+        state: directory
+        mode: '1755'
+    - name: Install ca cert
+      ansible.builtin.copy:
+        src: ca.crt
+        dest: /etc/kubernetes/pki/ca.crt
+        mode: '0644'
+    - name: Install kubelet config
+      ansible.builtin.copy:
+        src: kubelet.yaml
+        dest: /var/lib/kubelet/config.yaml
+        mode: '0644'
+    - name: Start kubelet
+      ansible.builtin.systemd_service:
+        name: kubelet
+        state: started
