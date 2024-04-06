@@ -2,8 +2,10 @@
 ipam:
   mode: kubernetes
 cgroup:
-  autoMount:
-    enabled: false
+  # non-talos hosts require autoMount
+  # fortunately, it doesn't break anything
+  #autoMount:
+  #  enabled: true
   hostRoot: /sys/fs/cgroup
 securityContext:
   capabilities:
