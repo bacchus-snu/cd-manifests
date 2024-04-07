@@ -50,23 +50,6 @@ spec:
     - name: http
       port: 80
       targetPort: 8080
-    - name: https-alt
-      port: 443
-      targetPort: 8443
----
-apiVersion: v1
-kind: Service
-metadata:
-  namespace: cse-proxy
-  name: cse-proxy
-spec:
-  selector:
-    app.kubernetes.io/name: cse-proxy
-    app.kubernetes.io/instance: cse-proxy
-  ports:
-    - name: http
-      port: 80
-      targetPort: 8080
     - name: https
       port: 443
       targetPort: 8443
@@ -90,7 +73,7 @@ spec:
     spec:
       hostAliases:
         - hostnames:
-            - csereal-prod.bacchus.io
+            - cse.snu.ac.kr
           ip: 10.91.1.1
       containers:
         - name: app-http
