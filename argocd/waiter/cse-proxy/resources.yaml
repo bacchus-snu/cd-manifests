@@ -15,7 +15,7 @@ spec:
     - cse.snu.ac.kr
   rules:
     - backendRefs:
-        - name: cse-proxy-csereal-prod
+        - name: cse-proxy-cse
           port: 443
 ---
 apiVersion: gateway.networking.k8s.io/v1beta1
@@ -34,7 +34,7 @@ spec:
     - cse.snu.ac.kr
   rules:
     - backendRefs:
-        - name: cse-proxy-csereal-prod
+        - name: cse-proxy-cse
           port: 80
 ---
 apiVersion: gateway.networking.k8s.io/v1beta1
@@ -84,6 +84,9 @@ spec:
     - name: http
       port: 80
       targetPort: 8080
+    - name: https-alt
+      port: 443
+      targetPort: 8443
 ---
 apiVersion: v1
 kind: Service
@@ -123,15 +126,50 @@ spec:
         - hostnames:
             - cse.snu.ac.kr
           ip: 147.46.242.104
+        - hostnames:
+            - csereal-prod.bacchus.io
+          ip: 10.91.1.1
       containers:
-        - name: cse
+        - name: cse-https
           image: 'caddy:2-alpine'
           args:
             - caddy
             - reverse-proxy
             - --access-log
-            - --from=http://cse.snu.ac.kr:8080
-            - --to=https://cse.snu.ac.kr
+            - --change-host-header
+            - --from=:8443
+            - --to=https://csereal-prod.bacchus.io
+          ports:
+            - name: http
+              containerPort: 8443
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              port: 8443
+          readinessProbe:
+            httpGet:
+              port: 8443
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+        - name: cse-http
+          image: 'caddy:2-alpine'
+          args:
+            - caddy
+            - reverse-proxy
+            - --access-log
+            - --change-host-header
+            - --from=:8080
+            - --to=http://csereal-prod.bacchus.io
           ports:
             - name: http
               containerPort: 8080
