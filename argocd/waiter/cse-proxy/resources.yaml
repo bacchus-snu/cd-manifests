@@ -3,7 +3,26 @@ apiVersion: gateway.networking.k8s.io/v1beta1
 kind: HTTPRoute
 metadata:
   namespace: cse-proxy
-  name: cse-proxy-cse
+  name: cse-proxy-http
+  annotations:
+    external-dns.alpha.kubernetes.io/exclude: 'true'
+spec:
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: http
+  hostnames:
+    - cse.snu.ac.kr
+  rules:
+    - backendRefs:
+        - name: cse-proxy
+          port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  namespace: cse-proxy
+  name: cse-proxy
   annotations:
     external-dns.alpha.kubernetes.io/exclude: 'true'
 spec:
@@ -15,71 +34,18 @@ spec:
     - cse.snu.ac.kr
   rules:
     - backendRefs:
-        - name: cse-proxy-cse
+        - name: cse-proxy
           port: 443
----
-apiVersion: gateway.networking.k8s.io/v1beta1
-kind: HTTPRoute
-metadata:
-  namespace: cse-proxy
-  name: cse-proxy-cse-http
-  annotations:
-    external-dns.alpha.kubernetes.io/exclude: 'true'
-spec:
-  parentRefs:
-    - namespace: cilium-system
-      name: web-gateway
-      sectionName: http
-  hostnames:
-    - cse.snu.ac.kr
-  rules:
-    - backendRefs:
-        - name: cse-proxy-cse
-          port: 80
----
-apiVersion: gateway.networking.k8s.io/v1beta1
-kind: HTTPRoute
-metadata:
-  namespace: cse-proxy
-  name: cse-proxy-csereal-prod
-spec:
-  parentRefs:
-    - namespace: cilium-system
-      name: web-gateway
-      sectionName: https-bacchus-io
-  hostnames:
-    - csereal-prod.bacchus.io
-  rules:
-    - backendRefs:
-        - name: cse-proxy-csereal-prod
-          port: 443
----
-apiVersion: gateway.networking.k8s.io/v1beta1
-kind: HTTPRoute
-metadata:
-  namespace: cse-proxy
-  name: cse-proxy-csereal-prod-http
-spec:
-  parentRefs:
-    - namespace: cilium-system
-      name: web-gateway
-      sectionName: http
-  hostnames:
-    - csereal-prod.bacchus.io
-  rules:
-    - backendRefs:
-        - name: cse-proxy-csereal-prod
-          port: 80
 ---
 apiVersion: v1
 kind: Service
 metadata:
   namespace: cse-proxy
-  name: cse-proxy-cse
+  name: cse-proxy
 spec:
   selector:
     app.kubernetes.io/name: cse-proxy
-    app.kubernetes.io/instance: cse-proxy-cse
+    app.kubernetes.io/instance: cse-proxy
   ports:
     - name: http
       port: 80
@@ -92,16 +58,16 @@ apiVersion: v1
 kind: Service
 metadata:
   namespace: cse-proxy
-  name: cse-proxy-csereal-prod
+  name: cse-proxy
 spec:
   selector:
     app.kubernetes.io/name: cse-proxy
-    app.kubernetes.io/instance: cse-proxy-csereal-prod
+    app.kubernetes.io/instance: cse-proxy
   ports:
     - name: http
       port: 80
       targetPort: 8080
-    - name: https-alt
+    - name: https
       port: 443
       targetPort: 8443
 ---
@@ -109,106 +75,18 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   namespace: cse-proxy
-  name: cse-proxy-cse
+  name: cse-proxy
 spec:
   replicas: 2
   selector:
     matchLabels:
       app.kubernetes.io/name: cse-proxy
-      app.kubernetes.io/instance: cse-proxy-cse
+      app.kubernetes.io/instance: cse-proxy
   template:
     metadata:
       labels:
         app.kubernetes.io/name: cse-proxy
-        app.kubernetes.io/instance: cse-proxy-cse
-    spec:
-      hostAliases:
-        - hostnames:
-            - cse.snu.ac.kr
-          ip: 147.46.242.104
-        - hostnames:
-            - csereal-prod.bacchus.io
-          ip: 10.91.1.1
-      containers:
-        - name: cse-https
-          image: 'caddy:2-alpine'
-          args:
-            - caddy
-            - reverse-proxy
-            - --access-log
-            - --change-host-header
-            - --from=:8443
-            - --to=https://csereal-prod.bacchus.io
-          ports:
-            - name: http
-              containerPort: 8443
-          resources:
-            requests:
-              cpu: 100m
-              memory: 128Mi
-            limits:
-              cpu: 100m
-              memory: 128Mi
-          livenessProbe:
-            httpGet:
-              port: 8443
-          readinessProbe:
-            httpGet:
-              port: 8443
-          securityContext:
-            allowPrivilegeEscalation: false
-            runAsNonRoot: true
-            runAsUser: 1000
-            seccompProfile:
-              type: RuntimeDefault
-        - name: cse-http
-          image: 'caddy:2-alpine'
-          args:
-            - caddy
-            - reverse-proxy
-            - --access-log
-            - --change-host-header
-            - --from=:8080
-            - --to=http://csereal-prod.bacchus.io
-          ports:
-            - name: http
-              containerPort: 8080
-          resources:
-            requests:
-              cpu: 100m
-              memory: 128Mi
-            limits:
-              cpu: 100m
-              memory: 128Mi
-          livenessProbe:
-            httpGet:
-              port: 8080
-          readinessProbe:
-            httpGet:
-              port: 8080
-          securityContext:
-            allowPrivilegeEscalation: false
-            runAsNonRoot: true
-            runAsUser: 1000
-            seccompProfile:
-              type: RuntimeDefault
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  namespace: cse-proxy
-  name: cse-proxy-csereal-prod
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: cse-proxy
-      app.kubernetes.io/instance: cse-proxy-csereal-prod
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: cse-proxy
-        app.kubernetes.io/instance: cse-proxy-csereal-prod
+        app.kubernetes.io/instance: cse-proxy
     spec:
       hostAliases:
         - hostnames:
@@ -222,8 +100,8 @@ spec:
             - reverse-proxy
             - --access-log
             - --change-host-header
-            - --from=http://csereal-prod.bacchus.io:8080
-            - --to=http://csereal-prod.bacchus.io
+            - --from=:8080
+            - --to=http://cse.snu.ac.kr
           ports:
             - name: http
               containerPort: 8080
@@ -251,10 +129,10 @@ spec:
           args:
             - caddy
             - reverse-proxy
-            - --change-host-header
             - --access-log
-            - --from=http://csereal-prod.bacchus.io:8443
-            - --to=https://csereal-prod.bacchus.io
+            - --change-host-header
+            - --from=:8443
+            - --to=https://cse.snu.ac.kr
           ports:
             - name: http
               containerPort: 8443
