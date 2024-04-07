@@ -39,7 +39,7 @@ spec:
       port: 80
       allowedRoutes:
         namespaces:
-          from: Same
+          from: All
     - name: https-snucse-org
       protocol: HTTPS
       port: 443
