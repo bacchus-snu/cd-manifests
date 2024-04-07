@@ -11,6 +11,22 @@ spec:
     - namespace: cilium-system
       name: web-gateway
       sectionName: https-cse
+  hostnames:
+    - cse.snu.ac.kr
+  rules:
+    - backendRefs:
+        - name: cse-proxy-csereal-prod
+          port: 443
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  namespace: cse-proxy
+  name: cse-proxy-cse-http
+  annotations:
+    external-dns.alpha.kubernetes.io/exclude: 'true'
+spec:
+  parentRefs:
     - namespace: cilium-system
       name: web-gateway
       sectionName: http
@@ -18,7 +34,7 @@ spec:
     - cse.snu.ac.kr
   rules:
     - backendRefs:
-        - name: cse-proxy-cse
+        - name: cse-proxy-csereal-prod
           port: 80
 ---
 apiVersion: gateway.networking.k8s.io/v1beta1
