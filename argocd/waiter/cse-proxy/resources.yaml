@@ -31,6 +31,20 @@ spec:
     - namespace: cilium-system
       name: web-gateway
       sectionName: https-bacchus-io
+  hostnames:
+    - csereal-prod.bacchus.io
+  rules:
+    - backendRefs:
+        - name: cse-proxy-csereal-prod
+          port: 443
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  namespace: cse-proxy
+  name: cse-proxy-csereal-prod-http
+spec:
+  parentRefs:
     - namespace: cilium-system
       name: web-gateway
       sectionName: http
@@ -68,6 +82,9 @@ spec:
     - name: http
       port: 80
       targetPort: 8080
+    - name: https-alt
+      port: 443
+      targetPort: 8443
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -144,12 +161,13 @@ spec:
             - csereal-prod.bacchus.io
           ip: 10.91.1.1
       containers:
-        - name: app
+        - name: app-http
           image: 'caddy:2-alpine'
           args:
             - caddy
             - reverse-proxy
             - --access-log
+            - --change-host-header
             - --from=http://csereal-prod.bacchus.io:8080
             - --to=http://csereal-prod.bacchus.io
           ports:
@@ -168,6 +186,37 @@ spec:
           readinessProbe:
             httpGet:
               port: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+        - name: app-https
+          image: 'caddy:2-alpine'
+          args:
+            - caddy
+            - reverse-proxy
+            - --change-host-header
+            - --access-log
+            - --from=http://csereal-prod.bacchus.io:8443
+            - --to=https://csereal-prod.bacchus.io
+          ports:
+            - name: http
+              containerPort: 8443
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              port: 8443
+          readinessProbe:
+            httpGet:
+              port: 8443
           securityContext:
             allowPrivilegeEscalation: false
             runAsNonRoot: true
