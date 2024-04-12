@@ -38,7 +38,7 @@ spec:
         - /data
   sources:
     - repoURL: https://helm.cilium.io/
-      targetRevision: 1.15.3
+      targetRevision: 1.15.4
       chart: cilium
       helm:
         valueFiles:
