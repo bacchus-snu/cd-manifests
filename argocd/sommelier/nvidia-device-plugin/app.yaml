@@ -29,6 +29,8 @@ spec:
       helm:
         values: |
           runtimeClassName: nvidia
+          gfd:
+            enabled: true
           # strictly follow resource request/limits
           compatWithCPUManager: true
           deviceListStrategy: volume-mounts
