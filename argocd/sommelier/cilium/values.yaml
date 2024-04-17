@@ -13,6 +13,8 @@ securityContext:
     ciliumAgent: [CHOWN,KILL,NET_ADMIN,NET_RAW,IPC_LOCK,SYS_ADMIN,SYS_RESOURCE,DAC_OVERRIDE,FOWNER,SETGID,SETUID]
 
 operator:
+  nodeSelector:
+    node-role.kubernetes.io/control-plane: ''
   podDisruptionBudget:
     enabled: true
     minAvailable: 1
