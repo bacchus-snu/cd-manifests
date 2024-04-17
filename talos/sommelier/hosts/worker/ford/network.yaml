@@ -16,5 +16,5 @@
 - op: add
   path: /machine/network/interfaces/1
   value:
-    interface: enp134s0f2
+    interface: enp134s0f0
     ignore: true
