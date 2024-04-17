@@ -3,14 +3,14 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   namespace: argocd
-  name: sommelier-nvidia-device-plugin
+  name: sommelier-gpu-feature-discovery
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: sommelier
   destination:
     name: sommelier
-    namespace: nvidia-device-plugin
+    namespace: gpu-feature-discovery
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
@@ -23,17 +23,9 @@ spec:
         pod-security.kubernetes.io/audit: privileged
         pod-security.kubernetes.io/audit-version: v1.29
   sources:
-    - repoURL: https://nvidia.github.io/k8s-device-plugin
-      targetRevision: 0.15.0
-      chart: nvidia-device-plugin
+    - repoURL: https://nvidia.github.io/gpu-feature-discovery
+      targetRevision: 0.8.2
+      chart: gpu-feature-discovery
       helm:
         values: |
           runtimeClassName: nvidia
-          # strictly follow resource request/limits
-          compatWithCPUManager: true
-          deviceListStrategy: volume-mounts
-    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
-      targetRevision: main
-      path: argocd/sommelier/nvidia-device-plugin
-      directory:
-        include: 'resources.yaml'
