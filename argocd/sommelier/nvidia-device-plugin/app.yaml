@@ -12,9 +12,6 @@ spec:
     name: sommelier
     namespace: nvidia-device-plugin
   syncPolicy:
-    #automated:
-    #  prune: true
-    #  selfHeal: true
     syncOptions:
       - CreateNamespace=true
     managedNamespaceMetadata:
@@ -34,6 +31,9 @@ spec:
           runtimeClassName: nvidia
           nodeSelector:
             accelerator: nvidia-gpu
+          # strictly follow resource request/limits
+          compatWithCPUManager: true
+          deviceListStrategy: volume-mounts
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       path: argocd/sommelier/nvidia-device-plugin
