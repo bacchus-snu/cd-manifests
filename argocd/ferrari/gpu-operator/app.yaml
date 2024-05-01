@@ -19,7 +19,7 @@ spec:
       - CreateNamespace=true
   sources:
     - repoURL: https://helm.ngc.nvidia.com/nvidia
-      targetRevision: 23.3.2
+      targetRevision: v24.3.0
       chart: gpu-operator
       helm:
         values: |
