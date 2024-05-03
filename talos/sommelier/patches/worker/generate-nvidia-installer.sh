@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ref: https://www.talos.dev/v1.6/talos-guides/install/boot-assets/
+# ref: https://www.talos.dev/v1.7/talos-guides/install/boot-assets/
 
 img_id=$(curl -fsSL --data-binary @- https://factory.talos.dev/schematics <<EOF | jq -r .id
 customization:
@@ -16,5 +16,5 @@ EOF
 cat <<EOF > nvidia-installer.yaml
 machine:
   install:
-    image: factory.talos.dev/installer/${img_id}:v1.6.5
+    image: factory.talos.dev/installer/${img_id}:v1.7.1
 EOF

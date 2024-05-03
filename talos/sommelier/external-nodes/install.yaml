@@ -6,20 +6,28 @@
     - name: Install kubernetes release key
       ansible.builtin.shell:
         creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-        cmd: curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+        cmd: curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
     - name: Add kubernetes apt repo
       ansible.builtin.apt_repository:
-        repo: 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /'
+        repo: 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /'
+    - name: Unhold kubelet
+      ansible.builtin.dpkg_selections:
+        name: kubelet
+        selection: install
     - name: Install kubelet
       ansible.builtin.apt:
-        name: kubelet=1.29.*
+        name: kubelet=1.30.*
     - name: Hold kubelet
       ansible.builtin.dpkg_selections:
         name: kubelet
         selection: hold
+    - name: Unhold kubeadm
+      ansible.builtin.dpkg_selections:
+        name: kubeadm
+        selection: install
     - name: Install kubeadm
       ansible.builtin.apt:
-        name: kubeadm=1.29.*
+        name: kubeadm=1.30.*
     - name: Hold kubeadm
       ansible.builtin.dpkg_selections:
         name: kubeadm
