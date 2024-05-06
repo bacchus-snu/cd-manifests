@@ -29,7 +29,7 @@ spec:
         valueFiles:
           - $values/argocd/waiter/id/redis-values.yaml
     - repoURL: registry-1.docker.io/bitnamicharts
-      targetRevision: 15.2.8
+      targetRevision: 15.2.9
       chart: postgresql
       helm:
         valueFiles:
