@@ -1,0 +1,5 @@
+machine:
+  disks:
+    - device: /dev/disk/by-id/md-uuid-f30134a3:eccae349:bff42ae9:fbea1f7d
+      partitions:
+        - mountpoint: /var/data

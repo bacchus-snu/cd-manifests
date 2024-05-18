@@ -1,0 +1,16 @@
+engines:
+  local:
+    lvm:
+      enabled: false
+    zfs:
+      enabled: false
+  replicated:
+    mayastor:
+      enabled: false
+
+localpv-provisioner:
+  # schedule provisioners on control-plane nodes
+  localpv:
+    tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists

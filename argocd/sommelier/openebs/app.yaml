@@ -1,0 +1,34 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: sommelier-openebs
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: sommelier
+  destination:
+    name: sommelier
+    namespace: openebs
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+    managedNamespaceMetadata:
+      labels:
+        pod-security.kubernetes.io/enforce: privileged
+        pod-security.kubernetes.io/enforce-version: v1.29
+        pod-security.kubernetes.io/warn: privileged
+        pod-security.kubernetes.io/warn-version: v1.29
+        pod-security.kubernetes.io/audit: privileged
+        pod-security.kubernetes.io/audit-version: v1.29
+  sources:
+    - repoURL: https://openebs.github.io/openebs
+      targetRevision: 4.0.1
+      chart: openebs
+      helm:
+        valueFiles:
+          - $values/argocd/sommelier/openebs/values.yaml
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: main
+      ref: values

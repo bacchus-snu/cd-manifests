@@ -7,9 +7,11 @@ img_id=$(curl -fsSL --data-binary @- https://factory.talos.dev/schematics <<EOF 
 customization:
   systemExtensions:
     officialExtensions:
+      - siderolabs/amd-ucode
       - siderolabs/intel-ucode
-      - siderolabs/nvidia-container-toolkit
+      - siderolabs/mdadm
       - siderolabs/nonfree-kmod-nvidia
+      - siderolabs/nvidia-container-toolkit
 EOF
 )
 
