@@ -10,8 +10,6 @@ engines:
 
 localpv-provisioner:
   hostpathClass:
-    xfsQuota:
-      enabled: true
     ext4Quota:
       enabled: true
   localpv:
