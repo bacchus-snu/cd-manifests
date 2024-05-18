@@ -9,8 +9,9 @@ engines:
       enabled: false
 
 localpv-provisioner:
-  # schedule provisioners on control-plane nodes
   localpv:
+    basePath: /var/data
+    # schedule provisioners on control-plane nodes
     tolerations:
       - key: node-role.kubernetes.io/control-plane
         operator: Exists
