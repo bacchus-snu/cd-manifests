@@ -10,7 +10,7 @@ engines:
 
 localpv-provisioner:
   hostpathClass:
-    ext4Quota:
+    xfsQuota:
       enabled: true
   localpv:
     basePath: /var/data
