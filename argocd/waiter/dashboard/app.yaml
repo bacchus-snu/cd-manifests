@@ -4,8 +4,6 @@ kind: Application
 metadata:
   namespace: argocd
   name: dashboard
-  annotations:
-    argocd.argoproj.io/compare-options: ServerSideDiff=true
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -14,9 +12,6 @@ spec:
     name: in-cluster
     namespace: dashboard
   syncPolicy:
-  #   automated:
-  #     prune: true
-  #     selfHeal: true
     syncOptions:
       - CreateNamespace=true
       # CRDs are too large for client-side apply
