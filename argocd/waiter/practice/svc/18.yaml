@@ -17,8 +17,8 @@ spec:
   rules:
   - matches:
     - path:
-      type: PathPrefix
-      value: "/intern-18"
+        type: PathPrefix
+        value: "/intern-18"
     backendRefs:
     - name: nginx
       namespace: intern-18
