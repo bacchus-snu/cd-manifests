@@ -23,6 +23,12 @@ spec:
     - name: nginx
       namespace: intern-15
       port: 80
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: "/"
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
