@@ -29,7 +29,7 @@ spec:
         type: PathPrefix
         value: "/intern-10"
     backendRefs:
-    - name: nginx
+    - name: practice
       namespace: intern-10
       port: 80
     filters:
