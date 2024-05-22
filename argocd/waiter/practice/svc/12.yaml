@@ -15,8 +15,13 @@ spec:
     name: web-gateway
     namespace: cilium-system
   rules:
-  - backendRefs:
+  - matches:
+    - path:
+      type: PathPrefix
+      value: "/intern-12"
+    backendRefs:
     - name: nginx
+      namespace: intern-12
       port: 80
 ---
 apiVersion: rbac.authorization.k8s.io/v1
