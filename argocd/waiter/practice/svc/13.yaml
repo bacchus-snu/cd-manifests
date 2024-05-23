@@ -29,7 +29,7 @@ spec:
         type: PathPrefix
         value: "/intern-13"
     backendRefs:
-    - name: intern-13
+    - name: practice
       port: 80
     filters:
     - type: URLRewrite
