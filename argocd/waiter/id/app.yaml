@@ -23,7 +23,7 @@ spec:
       path: argocd/waiter/id
       kustomize: {}
     - repoURL: registry-1.docker.io/bitnamicharts
-      targetRevision: 19.4.0
+      targetRevision: 19.5.0
       chart: redis
       helm:
         valueFiles:
