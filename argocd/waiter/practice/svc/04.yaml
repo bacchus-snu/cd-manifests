@@ -42,10 +42,10 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: intern-04
-  namespace: default
+  namespace: intern-04
 subjects:
 - kind: Group
-  name: intern-members@bacchus.io
+  name: intern-members@bacchus.snucse.org
 roleRef:
   kind: ClusterRole
   name: edit
