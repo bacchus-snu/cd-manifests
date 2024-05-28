@@ -2,23 +2,12 @@
 cluster:
   apiServer:
     extraArgs:
-      oidc-issuer-url: https://id.snucse.org/o
-      oidc-client-id: kubernetes-oidc
-      oidc-username-claim: username
-      oidc-groups-claim: groups
-      oidc-username-prefix: "id:"
-      oidc-groups-prefix: "id:"
-      oidc-signing-algs: 'RS256,ES256'
-
-    # once https://github.com/kubernetes/kubernetes/commit/39e1c9108c0802024ebb01ad2286b2f09f63798e
-    # lands, uncomment to allow both bacchus-dex and snucse-id
-    #extraArgs:
-    #  authentication-config: /auth-config/config.yaml
-    #  feature-gates: StructuredAuthenticationConfiguration=true
-    #extraVolumes:
-    #  - hostPath: /var/run/snucse-auth
-    #    mountPath: /auth-config
-    #    readonly: true
+      authentication-config: /auth-config/config.yaml
+      feature-gates: StructuredAuthenticationConfiguration=true
+    extraVolumes:
+      - hostPath: /var/run/snucse-auth
+        mountPath: /auth-config
+        readonly: true
 
 machine:
   files:
@@ -40,14 +29,14 @@ machine:
               groups:
                 claim: groups
                 prefix: 'id:'
-#          - issuer:
-#              url: https://auth.bacchus.io/dex
-#              audiences:
-#                - bacchus-waiter
-#            claimMappings:
-#              username:
-#                claim: email
-#                prefix: 'bacchus:'
-#              groups:
-#                claim: groups
-#                prefix: 'bacchus:'
+          - issuer:
+              url: https://auth.bacchus.io/dex
+              audiences:
+                - bacchus-waiter
+            claimMappings:
+              username:
+                claim: email
+                prefix: 'bacchus:'
+              groups:
+                claim: groups
+                prefix: 'bacchus:'
