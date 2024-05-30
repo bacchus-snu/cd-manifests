@@ -24,7 +24,5 @@ spec:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       path: argocd/sommelier/bacchus-sgs
-      kustomize: {}
-    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
-      targetRevision: main
-      ref: values
+      directory:
+        include: 'resources.yaml'
