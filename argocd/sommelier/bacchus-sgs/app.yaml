@@ -20,6 +20,8 @@ spec:
     - group: sgs.snucse.org
       kind: WorkspaceSet
       name: sgs
+      jsonPointers:
+        - /metadata/annotations
   sources:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
