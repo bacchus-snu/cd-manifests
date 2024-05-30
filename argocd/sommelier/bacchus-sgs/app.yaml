@@ -1,0 +1,30 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: sommelier-bacchus-sgs
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: sommelier
+  destination:
+    name: sommelier
+    namespace: bacchus-sgs
+  syncPolicy:
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true
+  ignoreDifferences:
+    - group: sgs.snucse.org
+      kind: WorkspaceSet
+      name: sgs
+  sources:
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: main
+      path: argocd/sommelier/bacchus-sgs
+      kustomize: {}
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: main
+      ref: values
