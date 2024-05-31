@@ -1,0 +1,7 @@
+auth:
+  enablePostgresUser: false
+  username: bacchus-sgs
+  database: bacchus-sgs
+  existingSecret: bacchus-sgs-db-creds
+  secretKeys:
+    userPasswordKey: password

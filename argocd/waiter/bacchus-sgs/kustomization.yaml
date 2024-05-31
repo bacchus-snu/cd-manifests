@@ -1,0 +1,14 @@
+resources:
+  - resources.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: bacchus-sgs
+      app.kubernetes.io/instance: bacchus-sgs
+    includeSelectors: true
+
+images:
+  - name: bacchus-sgs
+    newName: ghcr.io/nevivurn/sgs
+    digest: sha256:dd364ecf6dc350e8397c1752c7272de8f850c75e3ba06151f8a4e51c47e8a7f1
+    #newTag: master

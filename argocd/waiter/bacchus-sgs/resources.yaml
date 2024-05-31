@@ -1,0 +1,134 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bacchus-sgs
+spec:
+  template:
+    spec:
+      volumes:
+        - name: kubeconfig
+          secret:
+            defaultMode: 0o400
+            secretName: bacchus-sgs-sommelier-creds
+      securityContext:
+        fsGroup: 1337
+      containers:
+        - name: app
+          image: bacchus-sgs
+          volumeMounts:
+            - name: kubeconfig
+              subPath: kubeconfig
+              mountPath: /kubeconfig
+              readOnly: true
+          env:
+            - name: KUBECONFIG
+              value: /kubeconfig
+            - name: SGS_WORKER_APPLY
+              value: 'true'
+          envFrom:
+            - secretRef:
+                name: bacchus-sgs-config
+          ports:
+            - name: http
+              containerPort: 8080
+          livenessProbe:
+            httpGet:
+              port: http
+              path: /healthz
+          readinessProbe:
+            httpGet:
+              port: http
+              path: /healthz
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bacchus-sgs
+spec:
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  name: bacchus-sgs
+spec:
+  hostnames:
+    - sgs.snucse.org
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: https-snucse-org
+  rules:
+    - backendRefs:
+        - name: bacchus-sgs
+          port: 80
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: default
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: vault-secrets-operator
+    serviceAccount: default
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: bacchus-sgs-sommelier-creds
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: bacchus-sgs/sommelier-creds
+  destination:
+    create: true
+    name: bacchus-sgs-sommelier-creds
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: bacchus-sgs-db-creds
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: bacchus-sgs/db-creds
+  destination:
+    create: true
+    name: bacchus-sgs-db-creds
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: bacchus-sgs-config
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: bacchus-sgs/config
+  destination:
+    create: true
+    name: bacchus-sgs-config
