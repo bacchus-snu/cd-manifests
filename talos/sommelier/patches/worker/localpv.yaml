@@ -1,0 +1,10 @@
+# Need to bind-mount data into kublet
+# ref: https://openebs.io/docs/user-guides/local-storage-user-guide/local-pv-hostpath/hostpath-installation
+machine:
+  kubelet:
+    extraMounts:
+      - source: /var/data
+        destination: /var/data
+        type: bind
+        options:
+          - bind
