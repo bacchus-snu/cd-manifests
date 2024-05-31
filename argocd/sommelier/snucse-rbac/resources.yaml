@@ -9,6 +9,7 @@ rules:
     resources:
       - namespaces
       - nodes
+      - persistentvolumes
       - pods # for "allocated resources" listing in `k describe no`
     verbs:
       - get
