@@ -45,3 +45,6 @@ spec:
             enabled: false
           nodeSelector:
             accelerator: nvidia-gpu
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      targetRevision: 4.34.0
+      chart: prometheus-node-exporter
