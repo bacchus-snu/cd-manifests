@@ -18,6 +18,9 @@ spec:
     limits:
       cpu: 1000m
       memory: 2Gi
+  enableFeatures:
+    - auto-gomaxprocs
+    - auto-gomemlimit
   # TODO: increase before release
   retention: 24h
   securityContext:
