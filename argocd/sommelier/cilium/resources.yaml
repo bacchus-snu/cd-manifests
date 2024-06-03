@@ -1,0 +1,22 @@
+---
+apiVersion: cilium.io/v2alpha1
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: http-proxy
+spec:
+  blocks:
+    - cidr: 10.91.0.20/32
+---
+apiVersion: cilium.io/v2alpha1
+kind: CiliumL2AnnouncementPolicy
+metadata:
+  name: http-proxy
+spec:
+  nodeSelector:
+    matchExpressions:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+  serviceSelector:
+    matchLabels:
+      io.kubernetes.service.namespace: http-proxy
+  loadBalancerIPs: true

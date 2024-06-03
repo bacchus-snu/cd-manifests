@@ -1,0 +1,8 @@
+resources:
+  - resources.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: http-proxy
+      app.kubernetes.io/instance: http-proxy
+    includeSelectors: true
