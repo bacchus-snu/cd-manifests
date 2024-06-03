@@ -3,22 +3,6 @@
 
 preflight:
   enabled: true
-  tolerations:
-    # ensure preflight on GPU nodes as well
-    - key: nvidia.com/gpu
-      effect: NoSchedule
-    # restore defaults
-    - key: node.kubernetes.io/not-ready
-      effect: NoSchedule
-    - key: node-role.kubernetes.io/master
-      effect: NoSchedule
-    - key: node-role.kubernetes.io/control-plane
-      effect: NoSchedule
-    - key: node.cloudprovider.kubernetes.io/uninitialized
-      effect: NoSchedule
-      value: "true"
-    - key: CriticalAddonsOnly
-      operator: Exists
 agent: false
 
 operator:

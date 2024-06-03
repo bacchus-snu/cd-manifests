@@ -16,6 +16,14 @@ spec:
       - ApplyOutOfSyncOnly=true
       - CreateNamespace=true
       - RespectIgnoreDifferences=true
+    managedNamespaceMetadata:
+      labels:
+        pod-security.kubernetes.io/enforce: privileged
+        pod-security.kubernetes.io/enforce-version: v1.30
+        pod-security.kubernetes.io/warn: privileged
+        pod-security.kubernetes.io/warn-version: v1.30
+        pod-security.kubernetes.io/audit: privileged
+        pod-security.kubernetes.io/audit-version: v1.30
   ignoreDifferences:
     - group: sgs.snucse.org
       kind: WorkspaceSet
@@ -28,3 +36,12 @@ spec:
       path: argocd/sommelier/bacchus-sgs
       directory:
         include: 'resources.yaml'
+    - repoURL: https://nvidia.github.io/dcgm-exporter/helm-charts
+      targetRevision: 3.4.2
+      chart: dcgm-exporter
+      helm:
+        values: |
+          serviceMonitor:
+            enabled: false
+          nodeSelector:
+            accelerator: nvidia-gpu
