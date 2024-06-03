@@ -47,6 +47,8 @@ kind: ScrapeConfig
 metadata:
   namespace: dashboard
   name: bartender-node-exporter
+  labels:
+    release: dashboard
 spec:
   metricsPath: /metrics
   staticConfigs:

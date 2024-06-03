@@ -4,6 +4,8 @@ kind: ScrapeConfig
 metadata:
   namespace: gpu-monitoring
   name: gpu-kube-state-metrics
+  labels:
+    release: dashboard
 spec:
   metricsPath: /kube-state/metrics
   staticConfigs:
@@ -18,6 +20,8 @@ kind: ScrapeConfig
 metadata:
   namespace: gpu-monitoring
   name: gpu-node-exporter
+  labels:
+    release: dashboard
 spec:
   metricsPath: /node-exporter/metrics
   staticConfigs:
@@ -35,6 +39,8 @@ kind: ScrapeConfig
 metadata:
   namespace: gpu-monitoring
   name: gpu-dcgm-exporter
+  labels:
+    release: dashboard
 spec:
   metricsPath: /dcgm-exporter/metrics
   staticConfigs:
