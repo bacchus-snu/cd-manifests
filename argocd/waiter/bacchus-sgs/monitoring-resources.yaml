@@ -114,6 +114,36 @@ apiVersion: monitoring.coreos.com/v1alpha1
 kind: ScrapeConfig
 metadata:
   namespace: bacchus-sgs
+  name: bacchus-sgs-kube-state-metrics
+spec:
+  kubernetesSDConfigs:
+    - apiServer: https://sommelier.snucse.org:6443
+      tlsConfig:
+        ca:
+          secret:
+            name: bacchus-sgs-sommelier-creds
+            key: ca.crt
+      authorization:
+        credentials:
+          name: bacchus-sgs-sommelier-creds
+          key: token
+      role: endpoints
+  proxyUrl: http://10.91.0.20:3128
+  relabelings:
+    - action: keep
+      sourceLabels:
+        - __meta_kubernetes_service_labelpresent_app_kubernetes_io_name
+        - __meta_kubernetes_service_label_app_kubernetes_io_name
+        - __meta_kubernetes_endpoint_port_name
+      regex: true;kube-state-metrics;http
+    - action: replace
+      targetLabel: job
+      replacement: kube-state-metrics
+---
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  namespace: bacchus-sgs
   name: bacchus-sgs-dcgm-exporter
 spec:
   kubernetesSDConfigs:
