@@ -1,0 +1,144 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  namespace: bacchus-sgs
+  name: bacchus-sgs-prometheus
+spec:
+  scrapeInterval: 1m
+  evaluationInterval: 1m
+  scrapeConfigSelector:
+    matchLabels:
+      app.kubernetes.io/name: bacchus-sgs
+      app.kubernetes.io/instance: bacchus-sgs
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 2Gi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+  # TODO: increase before release
+  retention: 24h
+  securityContext:
+    fsGroup: 2000
+    runAsGroup: 2000
+    runAsNonRoot: true
+    runAsUser: 1000
+    seccompProfile:
+      type: RuntimeDefault
+  storage:
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+          - ReadWriteOncePod
+        resources:
+          requests:
+            storage: 100Gi
+---
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  namespace: bacchus-sgs
+  name: bacchus-sgs-kubelet
+spec:
+  kubernetesSDConfigs:
+    - apiServer: https://sommelier.snucse.org:6443
+      tlsConfig:
+        ca:
+          secret:
+            name: bacchus-sgs-sommelier-creds
+            key: ca.crt
+      authorization:
+        credentials:
+          name: bacchus-sgs-sommelier-creds
+          key: token
+      role: node
+  scheme: HTTPS
+  tlsConfig:
+    ca:
+      secret:
+        name: bacchus-sgs-sommelier-creds
+        key: ca.crt
+    # NOTE: sketchy af
+    insecureSkipVerify: true
+  authorization:
+    type: Bearer
+    credentials:
+      name: bacchus-sgs-sommelier-creds
+      key: token
+  metricsPath: /metrics/resource
+  relabelings:
+    - action: replace
+      sourceLabels:
+        - instance
+      targetLabel: node
+    - action: replace
+      targetLabel: job
+      replacement: kubelet
+---
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  namespace: bacchus-sgs
+  name: bacchus-sgs-node-exporter
+spec:
+  kubernetesSDConfigs:
+    - apiServer: https://sommelier.snucse.org:6443
+      tlsConfig:
+        ca:
+          secret:
+            name: bacchus-sgs-sommelier-creds
+            key: ca.crt
+      authorization:
+        credentials:
+          name: bacchus-sgs-sommelier-creds
+          key: token
+      role: endpoints
+  proxyUrl: http://10.91.0.20:3128
+  relabelings:
+    - action: keep
+      sourceLabels:
+        - __meta_kubernetes_service_labelpresent_app_kubernetes_io_name
+        - __meta_kubernetes_service_label_app_kubernetes_io_name
+        - __meta_kubernetes_endpoint_port_name
+      regex: true;prometheus-node-exporter;metrics
+    - sourceLabels:
+        - __meta_kubernetes_pod_node_name
+      targetLabel: node
+    - action: replace
+      targetLabel: job
+      replacement: node-exporter
+---
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  namespace: bacchus-sgs
+  name: bacchus-sgs-dcgm-exporter
+spec:
+  kubernetesSDConfigs:
+    - apiServer: https://sommelier.snucse.org:6443
+      tlsConfig:
+        ca:
+          secret:
+            name: bacchus-sgs-sommelier-creds
+            key: ca.crt
+      authorization:
+        credentials:
+          name: bacchus-sgs-sommelier-creds
+          key: token
+      role: endpoints
+  proxyUrl: http://10.91.0.20:3128
+  relabelings:
+    - action: keep
+      sourceLabels:
+        - __meta_kubernetes_service_labelpresent_app_kubernetes_io_name
+        - __meta_kubernetes_service_label_app_kubernetes_io_name
+        - __meta_kubernetes_endpoint_port_name
+      regex: true;dcgm-exporter;metrics
+    - sourceLabels:
+        - __meta_kubernetes_pod_node_name
+      targetLabel: node
+    - action: replace
+      targetLabel: job
+      replacement: dcgm-exporter
