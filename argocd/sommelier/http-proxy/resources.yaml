@@ -87,6 +87,10 @@ spec:
   policyTypes:
     - Egress
   egress:
+    # node-exporter
+    - ports:
+        - port: 9100
+    # all other exporters
     - to:
         - namespaceSelector:
             matchLabels:
