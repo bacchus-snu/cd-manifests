@@ -87,9 +87,11 @@ spec:
   policyTypes:
     - Egress
   egress:
-    # node-exporter
     - ports:
+        # node-exporter
         - port: 9100
+        # kubelet
+        - port: 10250
     # all other exporters
     - to:
         - namespaceSelector:

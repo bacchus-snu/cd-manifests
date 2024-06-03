@@ -68,6 +68,7 @@ rules:
     resources:
       - endpoints
       - nodes
+      - nodes/metrics
       - pods
       - services
     verbs:
@@ -75,7 +76,7 @@ rules:
       - get
       - watch
   - nonResourceURLs:
-      - /metrics/resource
+      - /metrics
     verbs:
       - get
 ---
