@@ -67,8 +67,9 @@ rules:
       - ''
     resources:
       - endpoints
-      - services
+      - nodes
       - pods
+      - services
     verbs:
       - list
       - get
