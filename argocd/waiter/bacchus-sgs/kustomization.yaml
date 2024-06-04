@@ -11,5 +11,5 @@ labels:
 images:
   - name: bacchus-sgs
     newName: ghcr.io/nevivurn/sgs
-    digest: sha256:dd364ecf6dc350e8397c1752c7272de8f850c75e3ba06151f8a4e51c47e8a7f1
+    digest: sha256:537ad2903fc9848bba05bded34ec4b9d6531f7a5964d0f7266fcf3304840630c
     #newTag: master
