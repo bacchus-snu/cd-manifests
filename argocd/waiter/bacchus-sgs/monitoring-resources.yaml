@@ -11,6 +11,10 @@ spec:
     matchLabels:
       app.kubernetes.io/name: bacchus-sgs
       app.kubernetes.io/instance: bacchus-sgs
+  ruleSelector:
+    matchLabels:
+      app.kubernetes.io/name: bacchus-sgs
+      app.kubernetes.io/instance: bacchus-sgs
   resources:
     requests:
       cpu: 1000m
@@ -98,6 +102,9 @@ spec:
           name: bacchus-sgs-sommelier-creds
           key: token
       role: endpoints
+      namespaces:
+        names:
+          - bacchus-sgs
   proxyUrl: http://10.91.0.20:3128
   relabelings:
     - action: keep
@@ -131,6 +138,9 @@ spec:
           name: bacchus-sgs-sommelier-creds
           key: token
       role: endpoints
+      namespaces:
+        names:
+          - bacchus-sgs
   proxyUrl: http://10.91.0.20:3128
   relabelings:
     - action: keep
@@ -161,6 +171,9 @@ spec:
           name: bacchus-sgs-sommelier-creds
           key: token
       role: endpoints
+      namespaces:
+        names:
+          - bacchus-sgs
   proxyUrl: http://10.91.0.20:3128
   relabelings:
     - action: keep
