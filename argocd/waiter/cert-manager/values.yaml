@@ -8,4 +8,4 @@ resources:
     cpu: 100m
     memory: 128Mi
 extraArgs:
-  - --feature-gates=ExperimentalGatewayAPISupport=true
+  - --enable-gateway-api
