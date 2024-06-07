@@ -1,10 +1,10 @@
 server:
   resources:
     requests:
-      memory: 128Mi
-      cpu: 200m
+      memory: 512Mi
+      cpu: 1
     limits:
-      memory: 128Mi
+      memory: 512Mi
 
   auditStorage:
     enabled: true
