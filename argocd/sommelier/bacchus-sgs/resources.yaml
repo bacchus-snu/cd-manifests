@@ -46,6 +46,8 @@ rules:
       - limitranges
       - namespaces
       - resourcequotas
+      - secret
+      - serviceaccounts
     verbs:
       - list
       - get

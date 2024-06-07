@@ -7,12 +7,34 @@ spec:
   template:
     spec:
       volumes:
-        - name: kubeconfig
+        - name: kubeconfig-secret
           secret:
-            defaultMode: 0o400
             secretName: bacchus-sgs-sommelier-creds
+        - name:  kubeconfig
+          emptyDir: {}
       securityContext:
         fsGroup: 1337
+      initContainers:
+        - name: secret-chown
+          image: busybox:latest
+          command:
+            - sh
+            - -c
+            - cp /secret/kubeconfig /kubeconfig/kubeconfig && chown 1000:1337 /kubeconfig/kubeconfig && chmod 0400 /kubeconfig/kubeconfig
+          volumeMounts:
+            - name: kubeconfig-secret
+              mountPath: /secret
+            - name: kubeconfig
+              mountPath: /kubeconfig
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
       containers:
         - name: app
           image: bacchus-sgs
@@ -24,7 +46,7 @@ spec:
           env:
             - name: KUBECONFIG
               value: /kubeconfig
-            - name: SGS_WORKER_APPLY
+            - name: SGS_DEPLOY_APPLY
               value: 'true'
           envFrom:
             - secretRef:
@@ -43,10 +65,10 @@ spec:
           resources:
             requests:
               cpu: 100m
-              memory: 128Mi
+              memory: 512Mi
             limits:
               cpu: 100m
-              memory: 128Mi
+              memory: 512Mi
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
