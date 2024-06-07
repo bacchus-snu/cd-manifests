@@ -2,6 +2,6 @@
 cluster:
     apiServer:
       extraArgs:
-        enable-admission-plugins: PodNodeSelector,NodeRestriction,DenyServiceExternalIPs
+        enable-admission-plugins: PodNodeSelector,NodeRestriction,DenyServiceExternalIPs,AlwaysPullImages
       admissionControl:
         - name: PodNodeSelector
