@@ -46,7 +46,7 @@ rules:
       - limitranges
       - namespaces
       - resourcequotas
-      - secret
+      - secrets
       - serviceaccounts
     verbs:
       - list
