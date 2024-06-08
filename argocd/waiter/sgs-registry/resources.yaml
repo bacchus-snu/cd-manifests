@@ -1,0 +1,36 @@
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  namespace: sgs-registry
+  name: sgs-registry
+spec:
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: https-snucse-org
+  hostnames:
+    - sgs-registry.snucse.org
+  rules:
+    - backendRefs:
+        - name: sgs-registry-harbor-portal
+          port: 80
+    - matches:
+        - path:
+            value: /api/
+            type: PathPrefix
+        - path:
+            value: /service/
+            type: PathPrefix
+        - path:
+            value: /v2
+            type: PathPrefix
+        - path:
+            value: /chartrepo/
+            type: PathPrefix
+        - path:
+            value: /c/
+            type: PathPrefix
+      backendRefs:
+        - name: sgs-registry-harbor-core
+          port: 80

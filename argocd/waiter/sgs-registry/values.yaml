@@ -1,0 +1,27 @@
+# we use gateway to expose the registry
+expose:
+  type: clusterIP
+  tls:
+    enabled: false
+externalURL: https://sgs-registry.snucse.org
+
+# resource config
+persistence:
+  persistentVolumeClaim:
+    registry:
+      size: 100Gi
+
+registry:
+  registry:
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+
+# other workloads are small, configure resources once it becomes a problem
+
+trivy:
+  enabled: false

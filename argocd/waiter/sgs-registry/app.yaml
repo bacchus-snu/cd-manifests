@@ -1,0 +1,31 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: sgs-registry
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    name: in-cluster
+    namespace: sgs-registry
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+  sources:
+    - repoURL: https://helm.goharbor.io
+      targetRevision: 1.14.2
+      chart: harbor
+      helm:
+        valueFiles:
+          - $values/argocd/waiter/sgs-registry/values.yaml
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: main
+      ref: values
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: main
+      path: argocd/waiter/sgs-registry
+      directory:
+        include: 'resources.yaml'
