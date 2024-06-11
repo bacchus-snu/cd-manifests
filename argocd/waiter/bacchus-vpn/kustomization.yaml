@@ -14,4 +14,4 @@ labels:
 images:
   - name: wg-access-server
     newName: ghcr.io/freifunkmuc/wg-access-server
-    newTag: v0.12.0
+    newTag: v0.12.1
