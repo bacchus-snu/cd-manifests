@@ -23,8 +23,11 @@ spec:
       cpu: 1000m
       memory: 2Gi
   enableFeatures:
+    # resources
     - auto-gomaxprocs
     - auto-gomemlimit
+    # sort_by_label
+    - promql-experimental-functions
   # TODO: increase before release
   retention: 24h
   securityContext:
