@@ -34,3 +34,10 @@ k8sClientRateLimit:
 # enable gateway
 gatewayAPI:
   enabled: true
+
+# enable hubble
+hubble:
+  relay:
+    enabled: true
+  ui:
+    enabled: true
