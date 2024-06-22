@@ -1,0 +1,15 @@
+resources:
+  - resources.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: deb-mirror
+      app.kubernetes.io/instance: deb-mirror
+    includeSelectors: true
+
+configMapGenerator:
+  - name: deb-mirror-config
+    files:
+      - Caddyfile
+    options:
+      disableNameSuffixHash: true

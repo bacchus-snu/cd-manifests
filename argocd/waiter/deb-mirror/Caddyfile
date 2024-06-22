@@ -1,0 +1,38 @@
+:8081
+
+handle_path /debian/* {
+	rewrite * /debian{path}
+	reverse_proxy * https://deb.debian.org {
+		header_up Host {upstream_hostport}
+	}
+}
+
+handle_path /debian/pve/* {
+	rewrite * /debian/pve{path}
+	reverse_proxy * http://download.proxmox.com {
+		# SNUNet drops connection otherwise
+		header_up -X-Forwarded-For
+	}
+}
+
+handle_path /node/* {
+	rewrite * {path}
+	reverse_proxy * https://deb.nodesource.com {
+		header_up Host {upstream_hostport}
+	}
+}
+
+handle_path /sbt/* {
+	#rewrite * /scalasbt/debian{path}
+	rewrite * /artifactory/debian{path}
+	reverse_proxy * https://scala.jfrog.io {
+		header_up Host {upstream_hostport}
+	}
+}
+
+handle_path /vscode/* {
+	rewrite * /repos/vscode{path}
+	reverse_proxy https://packages.microsoft.com {
+		header_up Host {upstream_hostport}
+	}
+}
