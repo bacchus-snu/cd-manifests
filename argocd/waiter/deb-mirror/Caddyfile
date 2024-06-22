@@ -10,6 +10,7 @@ handle_path /debian/* {
 handle_path /debian/pve/* {
 	rewrite * /debian/pve{path}
 	reverse_proxy * http://download.proxmox.com {
+		header_up Host {upstream_hostport}
 		# SNUNet drops connection otherwise
 		header_up -X-Forwarded-For
 	}
