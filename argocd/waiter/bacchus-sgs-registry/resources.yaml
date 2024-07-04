@@ -2,8 +2,8 @@
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: HTTPRoute
 metadata:
-  namespace: sgs-registry
-  name: sgs-registry
+  namespace: bacchus-sgs-registry
+  name: bacchus-sgs-registry
 spec:
   parentRefs:
     - namespace: cilium-system
@@ -13,7 +13,7 @@ spec:
     - sgs-registry.snucse.org
   rules:
     - backendRefs:
-        - name: sgs-registry-harbor-portal
+        - name: bacchus-sgs-registry-harbor-portal
           port: 80
     - matches:
         - path:
@@ -32,5 +32,5 @@ spec:
             value: /c/
             type: PathPrefix
       backendRefs:
-        - name: sgs-registry-harbor-core
+        - name: bacchus-sgs-registry-harbor-core
           port: 80

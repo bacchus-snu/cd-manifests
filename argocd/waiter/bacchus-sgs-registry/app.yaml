@@ -3,14 +3,14 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   namespace: argocd
-  name: sgs-registry
+  name: bacchus-sgs-registry
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   destination:
     name: in-cluster
-    namespace: sgs-registry
+    namespace: bacchus-sgs-registry
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
@@ -20,12 +20,12 @@ spec:
       chart: harbor
       helm:
         valueFiles:
-          - $values/argocd/waiter/sgs-registry/values.yaml
+          - $values/argocd/waiter/bacchus-sgs-registry/values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       ref: values
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
-      path: argocd/waiter/sgs-registry
+      path: argocd/waiter/bacchus-sgs-registry
       directory:
         include: 'resources.yaml'
