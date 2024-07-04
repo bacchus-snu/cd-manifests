@@ -3,5 +3,5 @@ resources:
 
 labels:
   - pairs:
-      app.kubernetes.io/name: sgs-monitoring
-      app.kubernetes.io/instance: sgs-monitoring
+      app.kubernetes.io/name: bacchus-sgs-monitoring
+      app.kubernetes.io/instance: bacchus-sgs-monitoring

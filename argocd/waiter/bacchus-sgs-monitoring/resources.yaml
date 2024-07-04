@@ -9,12 +9,12 @@ spec:
   evaluationInterval: 1m
   scrapeConfigSelector:
     matchLabels:
-      app.kubernetes.io/name: bacchus-sgs
-      app.kubernetes.io/instance: bacchus-sgs
+      app.kubernetes.io/name: bacchus-sgs-monitoring
+      app.kubernetes.io/instance: bacchus-sgs-monitoring
   ruleSelector:
     matchLabels:
-      app.kubernetes.io/name: bacchus-sgs
-      app.kubernetes.io/instance: bacchus-sgs
+      app.kubernetes.io/name: bacchus-sgs-monitoring
+      app.kubernetes.io/instance: bacchus-sgs-monitoring
   resources:
     requests:
       cpu: 1000m
