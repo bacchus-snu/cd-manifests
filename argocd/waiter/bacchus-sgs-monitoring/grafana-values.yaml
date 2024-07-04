@@ -17,6 +17,23 @@ datasources:
         jsonData:
           timeInterval: 1m
 
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+      - name: default
+        disableDeletion: true
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards/default
+
+dashboards:
+  default:
+    node-exporter:
+      gnetId: 1860
+      revision: 37
+      datasource: Prometheus
+
 grafana.ini:
   analytics:
     reporting_enabled: false
