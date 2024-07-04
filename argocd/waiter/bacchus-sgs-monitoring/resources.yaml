@@ -195,20 +195,20 @@ spec:
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
 metadata:
-  name: bacchus-sgs-dashboard
+  name: bacchus-sgs-monitoring
 spec:
   vaultAuthRef: default
   type: kv-v2
   mount: secret
-  path: bacchus-sgs/dashboard
+  path: bacchus-sgs/monitoring
   destination:
     create: true
-    name: bacchus-sgs-dashboard
+    name: bacchus-sgs-monitoring
 ---
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: HTTPRoute
 metadata:
-  name: bacchus-sgs-dashboard
+  name: bacchus-sgs-monitoring
 spec:
   hostnames:
     - sgs-dashboard.snucse.org
@@ -218,5 +218,5 @@ spec:
       sectionName: https-snucse-org
   rules:
     - backendRefs:
-        - name: bacchus-sgs-grafana
+        - name: bacchus-sgs-monitoring-grafana
           port: 80

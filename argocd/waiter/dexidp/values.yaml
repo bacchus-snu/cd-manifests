@@ -61,7 +61,7 @@ envVars:
     valueFrom:
       secretKeyRef:
         name: dex-client-secrets
-        key: bacchus-sgs-dashboard
+        key: bacchus-sgs-monitoring
   - name: DEX_CLIENT_BACCHUS_VPN
     valueFrom:
       secretKeyRef:
@@ -120,7 +120,7 @@ config:
         - https://dashboard.bacchus.io/login/generic_oauth
       secretEnv: DEX_CLIENT_BACCHUS_GRAFANA
     - name: Bacchus SGS Dashboard
-      id: bacchus-sgs-dashboard
+      id: bacchus-sgs-monitoring
       redirectURIs:
         - https://sgs-dashboard.snucse.org/login/generic_oauth
       secretEnv: DEX_CLIENT_BACCHUS_SGS_DASHBOARD
