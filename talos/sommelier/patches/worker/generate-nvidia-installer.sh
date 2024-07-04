@@ -18,5 +18,5 @@ EOF
 cat <<EOF > nvidia-installer.yaml
 machine:
   install:
-    image: factory.talos.dev/installer/${img_id}:v1.7.1
+    image: factory.talos.dev/installer/${img_id}:v1.7.5
 EOF
