@@ -5,3 +5,10 @@ labels:
   - pairs:
       app.kubernetes.io/name: bacchus-sgs-monitoring
       app.kubernetes.io/instance: bacchus-sgs-monitoring
+
+configMapGenerator:
+  - name: bacchus-sgs-dashboards
+    files:
+      - dashboards/sgs-resources.json
+    options:
+      disableNameSuffixHash: true

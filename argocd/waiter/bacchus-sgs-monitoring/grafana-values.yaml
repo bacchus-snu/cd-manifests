@@ -26,6 +26,11 @@ dashboardProviders:
         allowUiUpdates: true
         options:
           path: /var/lib/grafana/dashboards/default
+      - name: configmap
+        disableDeletion: true
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards/configmap
 
 dashboards:
   default:
@@ -33,6 +38,9 @@ dashboards:
       gnetId: 1860
       revision: 37
       datasource: Prometheus
+
+dashboardsConfigMaps:
+  configmap: bacchus-sgs-dashboards
 
 grafana.ini:
   analytics:
