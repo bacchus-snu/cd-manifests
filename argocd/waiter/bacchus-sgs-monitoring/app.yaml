@@ -1,0 +1,21 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: bacchus-sgs-monitoring
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    name: in-cluster
+    namespace: bacchus-sgs
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+  sources:
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: main
+      path: argocd/waiter/bacchus-sgs-monitoring
+      kustomize: {}

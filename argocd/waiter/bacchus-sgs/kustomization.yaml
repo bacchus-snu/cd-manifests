@@ -1,6 +1,5 @@
 resources:
   - resources.yaml
-  - monitoring-resources.yaml
 
 labels:
   - pairs:

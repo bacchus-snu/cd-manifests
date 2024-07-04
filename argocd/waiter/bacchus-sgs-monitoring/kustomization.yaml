@@ -1,0 +1,7 @@
+resources:
+  - resources.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: sgs-monitoring
+      app.kubernetes.io/instance: sgs-monitoring
