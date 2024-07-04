@@ -33,7 +33,7 @@ grafana.ini:
   auth.generic_oauth:
     enabled: true
     allow_sign_up: true
-    client_id: bacchus-sgs-dashboard
+    client_id: bacchus-sgs-monitoring
     client_secret: '$__file{/etc/secrets/dex-auth/secret}'
     scopes: openid email profile groups
     api_url: https://auth.bacchus.io/dex/userinfo
@@ -48,6 +48,6 @@ grafana.ini:
 
 extraSecretMounts:
   - name: dex-auth
-    secretName: bacchus-sgs-dashboard
+    secretName: bacchus-sgs-monitoring
     mountPath: /etc/secrets/dex-auth
     readOnly: true
