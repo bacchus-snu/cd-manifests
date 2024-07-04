@@ -1,0 +1,53 @@
+# avoid conflicting with waiter monitoring
+rbac:
+  namespaced: true
+
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        url: http://prometheus-operated.bacchus-sgs.svc.cluster.local:9090
+        access: proxy
+        isDefault: true
+        jsonData:
+          timeInterval: 1m
+
+grafana.ini:
+  analytics:
+    reporting_enabled: false
+    check_for_updates: false
+
+  server:
+    domain: sgs-dashboard.snucse.org
+    root_url: https://%(domain)s
+
+  # auth
+  security:
+    disable_initial_admin_creation: true
+  auth:
+    disable_login_form: true
+  auth.anonymous:
+    enabled: true
+  auth.generic_oauth:
+    enabled: true
+    allow_sign_up: true
+    client_id: bacchus-sgs-dashboard
+    client_secret: '$__file{/etc/secrets/dex-auth/secret}'
+    scopes: openid email profile groups
+    api_url: https://auth.bacchus.io/dex/userinfo
+    auth_url: https://auth.bacchus.io/dex/auth
+    token_url: https://auth.bacchus.io/dex/token
+    # dex does not include indirect groups, we must enumerate every group
+    role_attribute_path: >
+      contains(groups[*], 'regular-members@bacchus.snucse.org') && 'Editor' ||
+      contains(groups[*], 'intern-members@bacchus.snucse.org') && 'Viewer' ||
+      contains(groups[*], 'suspended-members@bacchus.snucse.org') && 'Viewer' ||
+      contains(groups[*], 'alumni-members@bacchus.snucse.org') && 'Viewer'
+
+extraSecretMounts:
+  - name: dex-auth
+    secretName: bacchus-sgs-dashboard
+    mountPath: /etc/secrets/dex-auth
+    readOnly: true

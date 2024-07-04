@@ -191,3 +191,32 @@ spec:
     - action: replace
       targetLabel: job
       replacement: dcgm-exporter
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: bacchus-sgs-dashboard
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: bacchus-sgs/dashboard
+  destination:
+    create: true
+    name: bacchus-sgs-dashboard
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  name: bacchus-sgs-dashboard
+spec:
+  hostnames:
+    - sgs-dashboard.snucse.org
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: https-snucse-org
+  rules:
+    - backendRefs:
+        - name: bacchus-sgs-grafana
+          port: 80

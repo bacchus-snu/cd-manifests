@@ -19,3 +19,12 @@ spec:
       targetRevision: main
       path: argocd/waiter/bacchus-sgs-monitoring
       kustomize: {}
+    - repoURL: https://grafana.github.io/helm-charts
+      targetRevision: 8.3.1
+      chart: grafana
+      helm:
+        valueFiles:
+          - $values/argocd/waiter/bacchus-sgs-monitoring/grafana-values.yaml
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: main
+      ref: values
