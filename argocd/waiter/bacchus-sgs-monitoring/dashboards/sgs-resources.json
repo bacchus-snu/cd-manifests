@@ -1080,13 +1080,13 @@
     ]
   },
   "time": {
-    "from": "now-1h",
+    "from": "now-24h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "browser",
   "title": "SGS Resources",
   "uid": "edqqj6ibamj28b",
-  "version": 4,
+  "version": 2,
   "weekStart": ""
 }
