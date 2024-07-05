@@ -5,7 +5,7 @@ metadata:
   name: bacchus-regular-members
 subjects:
   - kind: Group
-    name: regular-members@bacchus.snucse.org
+    name: bacchus:regular-members@bacchus.snucse.org
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -17,7 +17,7 @@ metadata:
   name: bacchus-intern-members
 subjects:
   - kind: Group
-    name: intern-members@bacchus.snucse.org
+    name: bacchus:intern-members@bacchus.snucse.org
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

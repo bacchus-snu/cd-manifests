@@ -1,9 +1,46 @@
 # Use in-cluster dex to authenticate
+# Also allow GitHub actions to authenticate
 cluster:
   apiServer:
     extraArgs:
-      oidc-issuer-url: https://auth.bacchus.io/dex
-      oidc-client-id: bacchus-waiter
-      oidc-username-claim: email
-      oidc-groups-claim: groups
+      authentication-config: /auth-config/config.yaml
+      feature-gates: StructuredAuthenticationConfiguration=true
+    extraVolumes:
+      - hostPath: /var/run/snucse-auth
+        mountPath: /auth-config
+        readonly: true
 
+machine:
+  files:
+    - path: /var/run/snucse-auth/config.yaml
+      permissions: 0o644
+      op: create
+      content: |
+        apiVersion: apiserver.config.k8s.io/v1alpha1
+        kind: AuthenticationConfiguration
+        jwt:
+          - issuer:
+              url: https://auth.bacchus.io/dex
+              audiences:
+                - bacchus-waiter
+            claimMappings:
+              username:
+                claim: email
+                prefix: 'bacchus:'
+              groups:
+                claim: groups
+                prefix: 'bacchus:'
+          - issuer:
+              url: https://token.actions.githubusercontent.com
+              audiences:
+                - bacchus-waiter
+            claimValidationRules:
+              - claim: repository_owner
+                requiredValue: bacchus-snu
+            claimMappings:
+              username:
+                claim: sub
+                prefix: 'github:'
+              groups:
+                claim: repository
+                prefix: 'github:'
