@@ -10,4 +10,4 @@ labels:
 images:
   - name: bacchus-sgs
     newName: ghcr.io/bacchus-snu/sgs
-    newTag: v1.0.0-rc7
+    newTag: v1.0.0-rc9
