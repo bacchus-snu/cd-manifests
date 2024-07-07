@@ -6,6 +6,9 @@ metadata:
   name: dashboard
   finalizers:
     - resources-finalizer.argocd.argoproj.io
+  annotations:
+    # needed to prevent permanent diff with ServerSideApply
+    argocd.argoproj.io/compare-options: ServerSideDiff=true,IncludeMutationWebhook=true
 spec:
   project: infra
   destination:
