@@ -12,9 +12,6 @@ spec:
     name: in-cluster
     namespace: external-dns
   syncPolicy:
-  #   automated:
-  #     prune: true
-  #     selfHeal: true
     syncOptions:
       - CreateNamespace=true
   sources:

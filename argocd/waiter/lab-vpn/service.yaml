@@ -8,6 +8,8 @@ metadata:
     app.kubernetes.io/interface: lab-vpn
   annotations:
     lbipam.cilium.io/ips: 10.89.0.32
+    external-dns.alpha.kubernetes.io/hostname: lab-vpn.bacchus.io
+    external-dns.alpha.kubernetes.io/target: waiter.bacchus.io
 spec:
   type: LoadBalancer
   selector:

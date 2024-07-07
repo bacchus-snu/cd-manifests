@@ -12,6 +12,7 @@ env:
 
 sources:
   - gateway-httproute
+  - service
 
 domainFilters:
   - snucse.org

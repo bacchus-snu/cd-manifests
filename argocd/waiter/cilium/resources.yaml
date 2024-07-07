@@ -76,6 +76,9 @@ kind: HTTPRoute
 metadata:
   namespace: cilium-system
   name: web-gateway-https-redirect
+  annotations:
+    # Otherwise, external-dns creates a wildcard record
+    external-dns.alpha.kubernetes.io/exclude: 'true'
 spec:
   parentRefs:
     - name: web-gateway
