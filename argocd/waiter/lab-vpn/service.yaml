@@ -7,9 +7,8 @@ metadata:
     app.kubernetes.io/name: lab-vpn
     app.kubernetes.io/interface: lab-vpn
   annotations:
+    # routed by the same external name as bacchus-vpn (vpn.bacchus.io)
     lbipam.cilium.io/ips: 10.89.0.32
-    external-dns.alpha.kubernetes.io/hostname: lab-vpn.bacchus.io
-    external-dns.alpha.kubernetes.io/target: waiter.bacchus.io
 spec:
   type: LoadBalancer
   selector:
