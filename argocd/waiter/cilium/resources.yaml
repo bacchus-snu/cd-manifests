@@ -27,6 +27,7 @@ metadata:
   name: web-gateway
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
+    cert-manager.io/private-key-algorithm: ECDSA
     external-dns.alpha.kubernetes.io/target: waiter.bacchus.io
 spec:
   gatewayClassName: cilium

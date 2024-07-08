@@ -1,6 +1,8 @@
 # we use gateway to expose the registry
 expose:
   type: clusterIP
+  clusterIP:
+    name: bacchus-sgs-registry
   tls:
     enabled: false
 externalURL: https://sgs-registry.snucse.org
@@ -11,7 +13,20 @@ persistence:
     registry:
       size: 100Gi
 
+# Grab secrets from Vault, so they stay stable
+existingSecretAdminPassword: bacchus-sgs-registry-harbor-secrets
+existingSecretSecretKey: bacchus-sgs-registry-harbor-secrets
+core:
+  existingSecret: bacchus-sgs-registry-harbor-secrets
+  secretName: bacchus-sgs-registry-harbor-secrets
+  existingXsrfSecret: bacchus-sgs-registry-harbor-secrets
+jobservice:
+  existingSecret: bacchus-sgs-registry-harbor-secrets
 registry:
+  existingSecret: bacchus-sgs-registry-harbor-secrets
+  credentials:
+    existingSecret: bacchus-sgs-registry-harbor-secrets
+  # While other workloads are small, the registry is a bit more resource hungry
   registry:
     resources:
       requests:
@@ -20,8 +35,6 @@ registry:
       limits:
         cpu: 500m
         memory: 1Gi
-
-# other workloads are small, configure resources once it becomes a problem
 
 trivy:
   enabled: false

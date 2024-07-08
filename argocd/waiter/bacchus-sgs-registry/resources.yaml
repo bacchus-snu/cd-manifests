@@ -13,24 +13,29 @@ spec:
     - sgs-registry.snucse.org
   rules:
     - backendRefs:
-        - name: bacchus-sgs-registry-harbor-portal
+        - name: bacchus-sgs-registry
           port: 80
-    - matches:
-        - path:
-            value: /api/
-            type: PathPrefix
-        - path:
-            value: /service/
-            type: PathPrefix
-        - path:
-            value: /v2
-            type: PathPrefix
-        - path:
-            value: /chartrepo/
-            type: PathPrefix
-        - path:
-            value: /c/
-            type: PathPrefix
-      backendRefs:
-        - name: bacchus-sgs-registry-harbor-core
-          port: 80
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: default
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: vault-secrets-operator
+    serviceAccount: default
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: bacchus-sgs-registry-harbor-secrets
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: bacchus-sgs-registry/harbor-secrets
+  destination:
+    create: true
+    name: bacchus-sgs-registry-harbor-secrets
