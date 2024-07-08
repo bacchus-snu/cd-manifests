@@ -48,9 +48,9 @@ spec:
       - selector:
           dnsZones:
             - cse.snu.ac.kr
-        http01:
-          gatewayHTTPRoute:
-            parentRefs:
-              - namespace: cilium-system
-                name: web-gateway
-            serviceType: ClusterIP
+        dns01:
+          cnameStrategy: Follow
+          cloudflare:
+            apiTokenSecretRef:
+              name: cert-manager-cloudflare
+              key: token
