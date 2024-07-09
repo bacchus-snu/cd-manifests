@@ -102,11 +102,11 @@ metadata:
   name: deb-mirror
 spec:
   hostnames:
-    - mirror-test.bacchus.io
+    - mirror.snucse.org
   parentRefs:
     - namespace: cilium-system
       name: web-gateway
-      sectionName: https-bacchus-io
+      sectionName: https-snucse-org
     # allow plain HTTP
     - namespace: cilium-system
       name: web-gateway
