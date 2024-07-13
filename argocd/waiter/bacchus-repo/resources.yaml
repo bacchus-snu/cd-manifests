@@ -1,0 +1,16 @@
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: bacchus-repo
+spec:
+  hostnames:
+    - repo.snucse.org
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: https-snucse-org
+  rules:
+    - backendRefs:
+        - name: bacchus-repo
+          port: 80
