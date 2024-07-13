@@ -24,6 +24,6 @@ spec:
     #     pod-security.kubernetes.io/audit-version: latest
   sources:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
-      targetRevision: bacchus-repo
+      targetRevision: bacchus-repo  # TODO: change into main
       path: argocd/waiter/bacchus-repo
-      kustomize: {}
+      # kustomize: {}
