@@ -1,0 +1,29 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: bacchus-repo
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    name: in-cluster
+    namespace: bacchus-repo
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+    # managedNamespaceMetadata:
+    #   labels:
+    #     pod-security.kubernetes.io/enforce: baseline
+    #     pod-security.kubernetes.io/enforce-version: latest
+    #     pod-security.kubernetes.io/warn: baseline
+    #     pod-security.kubernetes.io/warn-version: latest
+    #     pod-security.kubernetes.io/audit: baseline
+    #     pod-security.kubernetes.io/audit-version: latest
+  sources:
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: bacchus-repo
+      path: argocd/waiter/bacchus-repo
+      kustomize: {}
