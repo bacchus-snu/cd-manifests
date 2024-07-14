@@ -123,3 +123,22 @@ spec:
           requestRedirect:
             scheme: https
             statusCode: 301
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  namespace: cilium-system
+  name: internal-web-gateway-https-redirect
+  annotations:
+    # Otherwise, external-dns creates a wildcard record
+    external-dns.alpha.kubernetes.io/exclude: 'true'
+spec:
+  parentRefs:
+    - name: internal-web-gateway
+      sectionName: http
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
