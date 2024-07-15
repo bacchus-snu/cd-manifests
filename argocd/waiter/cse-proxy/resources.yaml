@@ -17,6 +17,12 @@ spec:
     - backendRefs:
         - name: cse-proxy
           port: 80
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            # remove Server header
+            remove:
+              - Server
 ---
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: HTTPRoute
@@ -36,6 +42,12 @@ spec:
     - backendRefs:
         - name: cse-proxy
           port: 443
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            # remove Server header
+            remove:
+              - Server
 ---
 apiVersion: v1
 kind: Service
