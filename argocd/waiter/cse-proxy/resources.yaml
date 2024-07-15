@@ -113,7 +113,7 @@ spec:
                     -n cilium-system \
                     ciliumenvoyconfigs.cilium.io/cilium-gateway-web-gateway \
                     -ojsonpath='{$.spec.resources[0].filterChains[0].filters[0].typedConfig.serverHeaderTransformation}')
-                  [[ "$check" = "PASS_THROUGH" ]] || continue
+                  [[ "$check" = "PASS_THROUGH" ]] && continue
                   kubectl patch \
                     -n cilium-system \
                     --type=json \
