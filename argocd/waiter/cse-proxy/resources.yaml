@@ -87,6 +87,39 @@ spec:
         - hostnames:
             - cse.snu.ac.kr
           ip: 10.91.1.1
+      ServiceAccountName: cse-proxy
+      initContainers:
+        - name: envoy-patch
+          image: bitnami/kubectl:latest
+          restartPolicy: Always # sidecar
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          command:
+            # set serverHeaderTransformation=PASS_THROUGH
+            - /bin/bash
+            - -c
+            - |
+                set -eu
+                while true; do
+                  sleep 10
+                  check=$(kubectl get
+                    -n cilium-system \
+                    ciliumenvoyconfigs.cilium.io/cilium-gateway-web-gateway \
+                    -ojsonpath='{$.spec.resources[0].filterChains[0].filters[0].typedConfig.serverHeaderTransformation}')
+                  [[ "$check" = "PASS_THROUGH" ]] || continue
+                  kubectl patch \
+                    -n cilium-system \
+                    --type=json \
+                    ciliumenvoyconfigs.cilium.io/cilium-gateway-web-gateway \
+                    -p '[{"op":"add","path":"/spec/resources/0/filterChains/0/filters/0/typedConfig/serverHeaderTransformation","value":"PASS_THROUGH"},{"op":"add","path":"/spec/resources/0/filterChains/2/filters/0/typedConfig/serverHeaderTransformation","value":"PASS_THROUGH"}]'
+                done
       containers:
         - name: app-http
           image: 'caddy:2-alpine'
@@ -150,3 +183,37 @@ spec:
             runAsUser: 1000
             seccompProfile:
               type: RuntimeDefault
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cse-proxy-ptach
+rules:
+  - apiGroups:
+      - cilium.io
+    resources:
+      - ciliumenvoyconfigs
+    verbs:
+      - get
+      - patch
+    resourceNames:
+      - cilium-gateway-web-gateway
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cse-proxy-patch
+subjects:
+  - kind: ServiceAccount
+    namespace: cse-proxy
+    name: cse-proxy
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cse-proxy-patch
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: cse-proxy
+  name: cse-proxy

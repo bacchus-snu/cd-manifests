@@ -46,7 +46,7 @@ spec:
                   sleep 10
                   first_filter=$(kubectl get \
                     -n cilium-system \
-                    ciliumenvoyconfigs.cilium.io cilium-gateway-web-gateway \
+                    ciliumenvoyconfigs.cilium.io/cilium-gateway-web-gateway \
                     -ojsonpath='{$.spec.resources[0].filterChains[0].filters[0].typedConfig.httpFilters[0].name}')
                   [[ "$first_filter" = "envoy.filters.http.grpc_web" ]] || continue
                   kubectl patch \
