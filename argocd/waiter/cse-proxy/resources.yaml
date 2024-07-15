@@ -87,7 +87,7 @@ spec:
         - hostnames:
             - cse.snu.ac.kr
           ip: 10.91.1.1
-      ServiceAccountName: cse-proxy
+      serviceAccountName: cse-proxy
       initContainers:
         - name: envoy-patch
           image: bitnami/kubectl:latest
@@ -109,7 +109,7 @@ spec:
                 set -eu
                 while true; do
                   sleep 10
-                  check=$(kubectl get
+                  check=$(kubectl get \
                     -n cilium-system \
                     ciliumenvoyconfigs.cilium.io/cilium-gateway-web-gateway \
                     -ojsonpath='{$.spec.resources[0].filterChains[0].filters[0].typedConfig.serverHeaderTransformation}')
@@ -187,7 +187,7 @@ spec:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: cse-proxy-ptach
+  name: cse-proxy-patch
 rules:
   - apiGroups:
       - cilium.io
