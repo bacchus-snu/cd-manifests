@@ -1,0 +1,13 @@
+resources:
+  - resources.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: cloudflared
+      app.kubernetes.io/instance: cloudflared
+    includeSelectors: true
+
+images:
+  - name: cloudflared
+    newName: cloudflare/cloudflared
+    newTag: cloudflare/cloudflared:2024.6.1
