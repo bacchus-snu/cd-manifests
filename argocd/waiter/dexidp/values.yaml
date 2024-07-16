@@ -106,18 +106,18 @@ config:
     - name: Vault
       id: bacchus-vault
       redirectURIs:
-        - https://vault.bacchus.io/ui/vault/auth/oidc/oidc/callback
+        - https://vault.internal.bacchus.io/ui/vault/auth/oidc/oidc/callback
         - http://localhost:8250/oidc/callback
       secretEnv: DEX_CLIENT_BACCHUS_VAULT
     - name: ArgoCD
       id: bacchus-argocd
       redirectURIs:
-        - https://argocd.bacchus.io/auth/callback
+        - https://argocd.internal.bacchus.io/auth/callback
       secretEnv: DEX_CLIENT_BACCHUS_ARGOCD
     - name: Grafana
       id: bacchus-grafana
       redirectURIs:
-        - https://dashboard.bacchus.io/login/generic_oauth
+        - https://dashboard.internal.bacchus.io/login/generic_oauth
       secretEnv: DEX_CLIENT_BACCHUS_GRAFANA
     - name: Bacchus SGS Dashboard
       id: bacchus-sgs-monitoring
@@ -143,4 +143,4 @@ config:
           - bacchus.snucse.org
         serviceAccountFilePath: $GOOGLE_SERVICE_ACCOUNT
         domainToAdminEmail:
-          '*': admin@snucse.org
+          "*": admin@snucse.org
