@@ -14,3 +14,13 @@ spec:
     - backendRefs:
         - name: bacchus-repo
           port: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bacchus-repo
+spec:
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
