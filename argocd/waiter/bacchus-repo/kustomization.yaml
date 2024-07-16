@@ -1,2 +1,9 @@
 resources:
   - resources.yaml
+
+configMapGenerator:
+  - name: bacchus-repo-caddy-config
+    files:
+      - Caddyfile
+    options:
+      disableNameSuffixHash: true
