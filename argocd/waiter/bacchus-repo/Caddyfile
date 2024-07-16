@@ -1,0 +1,10 @@
+:8080
+
+repo.snucse.org {
+	root * /srv/repos
+	file_server browse
+	@forbidden {
+		path_regexp forbidden .*/(db|conf)/
+	}
+	respond @forbidden "Access denied" 403
+}
