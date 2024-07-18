@@ -30,6 +30,8 @@ metadata:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     cert-manager.io/private-key-algorithm: ECDSA
     external-dns.alpha.kubernetes.io/target: waiter.bacchus.io
+  labels:
+    external-dns.alpha.kubernetes.io/include: "true"
 spec:
   gatewayClassName: cilium
   infrastructure:
@@ -45,17 +47,17 @@ spec:
     - name: https-snucse-org
       protocol: HTTPS
       port: 443
-      hostname: '*.snucse.org'
+      hostname: "*.snucse.org"
       tls:
         certificateRefs:
-        - name: web-gateway-certs
+          - name: web-gateway-certs
       allowedRoutes:
         namespaces:
           from: All
     - name: https-bacchus-io
       protocol: HTTPS
       port: 443
-      hostname: '*.bacchus.io'
+      hostname: "*.bacchus.io"
       tls:
         certificateRefs:
           - name: web-gateway-certs
@@ -65,7 +67,7 @@ spec:
     - name: https-cse
       protocol: HTTPS
       port: 443
-      hostname: 'cse.snu.ac.kr'
+      hostname: "cse.snu.ac.kr"
       tls:
         certificateRefs:
           - name: web-gateway-cse-cert
@@ -81,7 +83,6 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     cert-manager.io/private-key-algorithm: ECDSA
-    external-dns.alpha.kubernetes.io/exclude: "true"
 spec:
   gatewayClassName: cilium
   infrastructure:
@@ -112,7 +113,7 @@ metadata:
   name: web-gateway-https-redirect
   annotations:
     # Otherwise, external-dns creates a wildcard record
-    external-dns.alpha.kubernetes.io/exclude: 'true'
+    external-dns.alpha.kubernetes.io/exclude: "true"
 spec:
   parentRefs:
     - name: web-gateway
@@ -129,9 +130,6 @@ kind: HTTPRoute
 metadata:
   namespace: cilium-system
   name: internal-web-gateway-https-redirect
-  annotations:
-    # Otherwise, external-dns creates a wildcard record
-    external-dns.alpha.kubernetes.io/exclude: 'true'
 spec:
   parentRefs:
     - name: internal-web-gateway
