@@ -134,8 +134,6 @@ spec:
   parentRefs:
     - name: internal-web-gateway
       sectionName: http
-    - name: web-gateway
-      sectionName: http
   rules:
     - filters:
         - type: RequestRedirect
