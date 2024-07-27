@@ -7,10 +7,10 @@ metadata:
 spec:
   parentRefs:
     - namespace: cilium-system
-      name: web-gateway
+      name: internal-web-gateway
       sectionName: https-bacchus-io
   hostnames:
-    - dashboard.bacchus.io
+    - dashboard.internal.bacchus.io
   rules:
     - backendRefs:
         - name: dashboard-grafana

@@ -7,10 +7,10 @@ metadata:
 spec:
   parentRefs:
     - namespace: cilium-system
-      name: web-gateway
+      name: internal-web-gateway
       sectionName: https-bacchus-io
   hostnames:
-    - vault.bacchus.io
+    - vault.internal.bacchus.io
   rules:
     - backendRefs:
         - name: vault-ui
@@ -59,7 +59,7 @@ metadata:
   namespace: vault
   name: vault-snapshots
 spec:
-  schedule: '@daily'
+  schedule: "@daily"
   jobTemplate:
     spec:
       template:
@@ -89,13 +89,13 @@ spec:
                 - /bin/sh
                 - -c
                 - |
-                    kubectl apply -f- <<EOF
-                      apiVersion: snapshot.storage.k8s.io/v1
-                      kind: VolumeSnapshot
-                      metadata:
-                        name: data-vault-0-$(date +%s)
-                      spec:
-                        volumeSnapshotClassName: rbd
-                        source:
-                          persistentVolumeClaimName: data-vault-0
-                    EOF
+                  kubectl apply -f- <<EOF
+                    apiVersion: snapshot.storage.k8s.io/v1
+                    kind: VolumeSnapshot
+                    metadata:
+                      name: data-vault-0-$(date +%s)
+                    spec:
+                      volumeSnapshotClassName: rbd
+                      source:
+                        persistentVolumeClaimName: data-vault-0
+                  EOF

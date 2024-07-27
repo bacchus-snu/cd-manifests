@@ -8,7 +8,7 @@ configs:
       issuer: https://auth.bacchus.io/dex
       clientID: bacchus-argocd
       clientSecret: $dex-auth:secret
-    url: https://argocd.bacchus.io
+    url: https://argocd.internal.bacchus.io
   params:
     server.insecure: true
   rbac:

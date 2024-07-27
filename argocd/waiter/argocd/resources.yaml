@@ -7,16 +7,16 @@ metadata:
 spec:
   destinations:
     - name: in-cluster
-      namespace: '*'
+      namespace: "*"
       server: https://kubernetes.default.svc
   clusterResourceWhitelist:
-    - group: '*'
-      kind: '*'
+    - group: "*"
+      kind: "*"
   namespaceResourceWhitelist:
-    - group: '*'
-      kind: '*'
+    - group: "*"
+      kind: "*"
   sourceRepos:
-    - '*'
+    - "*"
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
@@ -26,16 +26,16 @@ metadata:
 spec:
   destinations:
     - name: in-cluster
-      namespace: '*'
+      namespace: "*"
       server: https://kubernetes.default.svc
   clusterResourceWhitelist:
-    - group: '*'
-      kind: '*'
+    - group: "*"
+      kind: "*"
   namespaceResourceWhitelist:
-    - group: '*'
-      kind: '*'
+    - group: "*"
+      kind: "*"
   sourceRepos:
-    - '*'
+    - "*"
 ---
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: HTTPRoute
@@ -45,10 +45,10 @@ metadata:
 spec:
   parentRefs:
     - namespace: cilium-system
-      name: web-gateway
+      name: internal-web-gateway
       sectionName: https-bacchus-io
   hostnames:
-    - argocd.bacchus.io
+    - argocd.internal.bacchus.io
   rules:
     - backendRefs:
         - name: argocd-server
