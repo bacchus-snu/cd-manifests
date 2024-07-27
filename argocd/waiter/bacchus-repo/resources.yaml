@@ -60,7 +60,7 @@ spec:
             httpGet:
               port: 8080
         - name: reprepro
-          image: alpine:3 # TODO: create Dockerfile
+          image: ghcr.io/bacchus-snu/reprepro_docker_img:main
           volumeMounts:
             - name: packages
               mountPath: /srv/repos
