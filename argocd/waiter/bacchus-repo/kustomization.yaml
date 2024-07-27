@@ -1,6 +1,12 @@
 resources:
   - resources.yaml
 
+labels:
+  - pairs:
+      app.kubernetes.io/name: bacchus-repo
+      app.kubernetes.io/instance: bacchus-repo
+    includeSelectors: true
+
 configMapGenerator:
   - name: bacchus-repo-caddy-config
     files:
