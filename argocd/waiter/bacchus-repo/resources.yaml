@@ -61,12 +61,13 @@ spec:
               port: 8080
         - name: reprepro
           image: ghcr.io/bacchus-snu/reprepro_docker_img:main
+          command:
+            - /bin/sh
+            - -c
+            - sleep inf
           volumeMounts:
             - name: packages
               mountPath: /srv/repos
-          ports:
-            - name: http-reprepro
-              containerPort: 8081
           resources:
             requests:
               cpu: 100m

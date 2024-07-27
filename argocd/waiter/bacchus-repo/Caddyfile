@@ -1,6 +1,4 @@
-:8080
-
-repo.snucse.org {
+:8080 {
 	root * /srv/repos
 	file_server browse
 	@forbidden {
