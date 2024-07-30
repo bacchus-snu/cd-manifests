@@ -62,14 +62,14 @@ metadata:
   name: waiter-docs
   annotations:
     # waiter.bacchus.io record is managed in tf
-    external-dns.alpha.kubernetes.io/exclude: 'true'
+    external-dns.alpha.kubernetes.io/exclude: "true"
 spec:
   parentRefs:
     - namespace: cilium-system
       name: web-gateway
       sectionName: https-bacchus-io
   hostnames:
-    - waiter.bacchus.io
+    - web_gateway.bacchus.io
   rules:
     - backendRefs:
         - name: waiter-docs
