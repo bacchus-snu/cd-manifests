@@ -29,7 +29,7 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     cert-manager.io/private-key-algorithm: ECDSA
-    external-dns.alpha.kubernetes.io/target: waiter.bacchus.io
+    external-dns.alpha.kubernetes.io/target: web_gateway.bacchus.io
   labels:
     external-dns.alpha.kubernetes.io/include: "true"
 spec:
