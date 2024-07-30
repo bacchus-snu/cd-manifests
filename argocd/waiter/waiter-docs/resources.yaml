@@ -66,7 +66,7 @@ spec:
       name: web-gateway
       sectionName: https-bacchus-io
   hostnames:
-    - waiter_docs.bacchus.io
+    - waiter-docs.bacchus.io
   rules:
     - backendRefs:
         - name: waiter-docs
