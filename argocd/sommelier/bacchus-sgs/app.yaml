@@ -49,5 +49,5 @@ spec:
       targetRevision: 4.37.1
       chart: prometheus-node-exporter
     - repoURL: https://prometheus-community.github.io/helm-charts
-      targetRevision: 5.25.0
+      targetRevision: 5.25.1
       chart: kube-state-metrics
