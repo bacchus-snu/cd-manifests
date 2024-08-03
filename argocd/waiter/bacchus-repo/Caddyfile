@@ -1,0 +1,8 @@
+:8080 {
+	root * /srv/repos
+	file_server
+	@forbidden {
+		path_regexp forbidden .*/(db|conf)/
+	}
+	respond @forbidden "Access denied" 403
+}
