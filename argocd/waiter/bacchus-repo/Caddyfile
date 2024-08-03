@@ -1,6 +1,6 @@
 :8080 {
 	root * /srv/repos
-	file_server browse
+	file_server
 	@forbidden {
 		path_regexp forbidden .*/(db|conf)/
 	}
