@@ -28,7 +28,7 @@ spec:
       chart: redis
       helm:
         valueFiles:
-          - $values/argocd/waiter/id/redis-values.yaml
+          - $values/argocd/waiter/snucse/redis-values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
-      targetRevision: main
+      targetRevision: dev-snucse
       ref: values
