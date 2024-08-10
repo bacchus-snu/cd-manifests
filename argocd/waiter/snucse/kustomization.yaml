@@ -1,4 +1,4 @@
 resources:
   - resources.yaml
   - front
-  # b.yaml
+  - elasticsearch
