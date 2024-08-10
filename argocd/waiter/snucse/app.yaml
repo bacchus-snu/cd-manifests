@@ -22,6 +22,13 @@ spec:
       targetRevision: dev-snucse
       path: argocd/waiter/snucse
       kustomize: {}
-    # redis
     # mysql
-    # values
+    - repoURL: registry-1.docker.io/bitnamicharts
+      targetRevision: 19.6.4
+      chart: redis
+      helm:
+        valueFiles:
+          - $values/argocd/waiter/id/redis-values.yaml
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: main
+      ref: values
