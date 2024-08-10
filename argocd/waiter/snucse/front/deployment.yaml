@@ -22,7 +22,7 @@ spec:
               cpu: 100m
               memory: 512Mi
             limits:
-              cpu:
+              cpu: 100m
               memory: 512Mi
           securityContext:
             allowPrivilegeEscalation: false
@@ -33,4 +33,4 @@ spec:
             runAsUser: 1000
             seccompProfile:
               type: RuntimeDefault
-        serviceAccountName: snucse-front
+      serviceAccountName: snucse-front
