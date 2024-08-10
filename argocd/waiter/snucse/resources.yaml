@@ -28,6 +28,9 @@ spec:
             type: PathPrefix
             value: /login
         - path:
+            type: PathPrefix
+            value: /api
+        - path:
             type:
             value: /files
 ---
