@@ -27,3 +27,16 @@ spec:
       targetRevision: main
       path: argocd/waiter/bacchus-howto
       kustomize: {}
+    - repoURL: https://oauth2-proxy.github.io/manifests
+      targetRevision: 7.7.9
+      chart: oauth2-proxy
+      helm:
+        valueFiles:
+          - $values/argocd/waiter/bacchus-howto/values.yaml
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: main
+      ref: values
+
+
+
+      
