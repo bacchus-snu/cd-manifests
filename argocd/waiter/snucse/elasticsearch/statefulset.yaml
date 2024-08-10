@@ -7,6 +7,8 @@ spec:
   serviceName: snucse-elasticsearch
   template:
     spec:
+      securityContext:
+        fsGroup: 1337
       containers:
         - name: app
           image: elasticsearch
