@@ -1,0 +1,15 @@
+resources:
+  - resources.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: bacchus-howto
+      app.kubernetes.io/instance: bacchus-howto
+    includeSelectors: true
+
+configMapGenerator:
+  - name: bacchus-howto-caddy-config
+    files:
+      - Caddyfile
+    options:
+      disableNameSuffixHash: true
