@@ -13,4 +13,6 @@ labels:
     includeSelectors: true
 
 images:
-  - name: mysql:5.7
+  - name: snucse-db
+    newName: mysql
+    newTag: 5.7
