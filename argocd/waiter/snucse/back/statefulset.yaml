@@ -1,0 +1,55 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: snucse-back
+spec:
+  serviceName: snucse-back
+  template:
+    spec:
+      containers:
+        - name: app
+          image: snucse-back
+          env:
+            - name: RAILS_ENV
+              value: "PRODUCTION"
+          ports:
+            - name: http
+              containerPort: 3000
+          volumeMounts:
+            - name: config
+              mountPath: /app/config/database.yml
+              subPath: database.yml
+              readOnly: true
+            - name: config
+              mountPath: /app/config/elasticsearch.yml
+              subPath: es.yml
+              readOnly: true
+            - name: config
+              mountPath: /app/config/redis.yml
+              subPath: redis.yml
+              readOnly: true
+            - name: config
+              mountPath: /app/config/secrets.yml
+              subPath: secrets.yml
+              readOnly: true
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+      volumes:
+      - name: config
+        secret:
+          secretName: snucse-config

@@ -1,0 +1,18 @@
+resources:
+  - statefulset.yaml
+  - service.yaml
+  - serviceaccount.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: snucse-back
+      app.kubernetes.io/instance: snucse-back
+      app.kubernetes.io/part-of: snucse
+      app.kubernetes.io/component: backend
+    includeSelectors: true
+
+images:
+  - name: snucse-back
+  # for test purpose on user repository
+    newName: ghcr.io/stdev17/snucse-back
+    newTag: latest
