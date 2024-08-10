@@ -1,3 +1,4 @@
 resources:
-  - app.yaml
+  - resources.yaml
+  - front
   # b.yaml
