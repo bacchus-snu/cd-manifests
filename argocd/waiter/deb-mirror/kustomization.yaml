@@ -13,3 +13,9 @@ configMapGenerator:
       - Caddyfile
     options:
       disableNameSuffixHash: true
+
+images:
+  - name: varnish
+    newTag: 7.5.0
+  - name: caddy
+    newTag: 2.8.4
