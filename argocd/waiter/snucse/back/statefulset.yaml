@@ -19,19 +19,19 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /app/config/database.yml
-              subPath: database.yml
+              subPath: database.yaml
               readOnly: true
             - name: config
               mountPath: /app/config/elasticsearch.yml
-              subPath: es.yml
+              subPath: es.yaml
               readOnly: true
             - name: config
               mountPath: /app/config/redis.yml
-              subPath: redis.yml
+              subPath: redis.yaml
               readOnly: true
             - name: config
               mountPath: /app/config/secrets.yml
-              subPath: secrets.yml
+              subPath: secrets.yaml
               readOnly: true
           resources:
             requests:
