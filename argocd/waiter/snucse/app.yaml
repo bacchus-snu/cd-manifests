@@ -1,0 +1,27 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: snucse
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    name: in-cluster
+    namespace: snucse
+  syncPolicy:
+  #  automated:
+  #    prune: true
+  #    selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+  sources:
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: dev-snucse
+      path: argocd/waiter/snucse
+      kustomize: {}
+    # redis
+    # mysql
+    - repoURL: 
