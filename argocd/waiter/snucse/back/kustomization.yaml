@@ -2,6 +2,7 @@ resources:
   - statefulset.yaml
   - service.yaml
   - serviceaccount.yaml
+  - vaultsecret.yaml
 
 labels:
   - pairs:
