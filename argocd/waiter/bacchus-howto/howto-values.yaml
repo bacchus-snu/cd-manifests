@@ -9,3 +9,4 @@ extraArgs:
   - --oidc-issuer-url=https://auth.bacchus.io/dex
   - --email-domain=bacchus.snucse.org
   - --skip-provider-button
+  - --approval-prompt=auto
