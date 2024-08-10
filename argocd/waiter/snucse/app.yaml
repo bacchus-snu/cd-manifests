@@ -24,4 +24,4 @@ spec:
       kustomize: {}
     # redis
     # mysql
-    - repoURL: 
+    # values
