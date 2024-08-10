@@ -5,7 +5,8 @@ metadata:
   name: bacchus-howto
 spec:
   hostnames:
-    - test.howto.bacchus.io #howto.bacchus.io
+    - test-howto.bacchus.io #howto.bacchus.io
+
   parentRefs:
     - namespace: cilium-system
       name: web-gateway
@@ -42,7 +43,7 @@ spec:
               mountPath: /etc/caddy/Caddyfile
               readOnly: true
             - name: packages
-              mountPath: /srv/repos
+              mountPath: /srv/howto
           ports:
             - name: http-caddy
               containerPort: 8080
