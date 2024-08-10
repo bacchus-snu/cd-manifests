@@ -1,0 +1,15 @@
+auth:
+  username: snucse
+  database: snucse_production
+  existingSecret: db-pw
+  secretKeys:
+    userPasswordKey: MYSQL_PASSWORD
+
+primary:
+  resources:
+    requests:
+      cpu: 1
+      memory: 512Mi
+    limits:
+      cpu: 2
+      memory: 1024Mi

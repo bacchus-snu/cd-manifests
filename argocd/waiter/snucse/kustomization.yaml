@@ -2,5 +2,4 @@ resources:
   - resources.yaml
   - front
   - back
-  - db
   - elasticsearch

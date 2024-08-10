@@ -39,3 +39,16 @@ spec:
   kubernetes:
     role: vault-secrets-operator
     serviceAccount: default
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: db-pw
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: snucse/db
+  destination:
+    create: true
+    name: db-pw

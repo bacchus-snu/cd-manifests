@@ -32,3 +32,9 @@ spec:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: dev-snucse
       ref: values
+    - repoURL: registry-1.docker.io/bitnamicharts
+      targetRevision: 5.7
+      chart: mysql
+      helm:
+        valueFiles:
+          - $values/argocd/waiter/snucse/mysql-values.yaml
