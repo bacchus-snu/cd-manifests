@@ -23,9 +23,6 @@ spec:
       matches:
         - path:
             type: PathPrefix
-            value: /
-        - path:
-            type: PathPrefix
             value: /login
         - path:
             type: PathPrefix
