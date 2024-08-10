@@ -1,0 +1,19 @@
+resources:
+  - deployment.yaml
+  - service.yaml
+  - serviceaccount.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: snucse-front
+      app.kubernetes.io/instance: snucse-front
+      app.kubernetes.io/part-of: snucse
+      app.kubernetes.io/component: frontend
+    includeSelectors: true
+
+images:
+  - name: snucse-front
+  # name, tag on bacchus-snu registry
+  # for test purpose on user repository
+    newName: ghcr.io/stdev17/snucse-front
+    newTag: latest

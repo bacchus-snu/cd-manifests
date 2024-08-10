@@ -1,0 +1,19 @@
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  namespace: snucse
+  name: snucse
+spec:
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: https-snucse-org
+  hostnames:
+    - id.snucse.org
+  rules:
+    # default route to frontend
+    - backendRefs:
+        - name: snucse-front
+          port: 80
+    # backend routes
