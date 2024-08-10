@@ -12,7 +12,7 @@ spec:
           image: snucse-back
           env:
             - name: RAILS_ENV
-              value: "PRODUCTION"
+              value: "production"
           ports:
             - name: http
               containerPort: 3000
