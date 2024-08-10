@@ -1,4 +1,5 @@
 resources:
+  - service.yaml
   - statefulset.yaml
 
 labels:
