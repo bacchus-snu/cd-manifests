@@ -17,6 +17,19 @@ spec:
         - name: snucse-front
           port: 80
     # backend routes
+    - backendRefs:
+        - name: snucse-back
+          port: 80
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
+        - path:
+            type: PathPrefix
+            value: /login
+        - path:
+            type:
+            value: /files
 ---
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultAuth
