@@ -1,2 +1,9 @@
 config:
   existingSecret: 'bacchus-howto-oauth-proxy'
+
+extraArgs: 
+- --provider=oidc
+- --provider-display-name=bacchus auth
+- --redirect-url=https://test-howto.bacchus.io/oauth2/callback
+- --oidc-issuer-url=https://auth.bacchus.io/dex
+- --email-domain=bacchus.snucse.org
