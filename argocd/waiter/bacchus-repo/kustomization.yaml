@@ -13,3 +13,7 @@ configMapGenerator:
       - Caddyfile
     options:
       disableNameSuffixHash: true
+
+images:
+  - name: caddy
+    newTag: 2.8.4
