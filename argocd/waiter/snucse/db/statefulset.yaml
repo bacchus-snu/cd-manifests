@@ -9,7 +9,7 @@ spec:
     spec:
       containers:
         - name: app
-          image: snucse-db
+          image: mysql:5.7
           env:
             - name: MYSQL_RANDOM_ROOT_PASSWORD
               value: "yes"

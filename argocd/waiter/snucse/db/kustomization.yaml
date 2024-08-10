@@ -11,8 +11,3 @@ labels:
       app.kubernetes.io/part-of: snucse
       app.kubernetes.io/component: db
     includeSelectors: true
-
-images:
-  - name: snucse-db
-    newName: mysql
-    newTag: 5.7
