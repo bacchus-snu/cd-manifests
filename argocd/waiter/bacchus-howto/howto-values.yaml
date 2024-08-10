@@ -1,6 +1,7 @@
 config:
   existingSecret: 'bacchus-howto-oauth-proxy'
-
+  configFile: |-
+    upstreams = ["http://bacchus-howto.bacchus-howto.svc.cluster.local"]
 extraArgs: 
 - --provider=oidc
 - --provider-display-name=bacchus auth
