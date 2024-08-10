@@ -54,12 +54,12 @@ spec:
             limits:
               cpu: 100m
               memory: 128Mi
-          livenessProbe:
-            httpGet:
-              port: 8080
-          readinessProbe:
-            httpGet:
-              port: 8080
+              #livenessProbe:
+              #httpGet:
+              # port: 8080
+              #readinessProbe:
+              #httpGet:
+              #port: 8080
       volumes:
         - name: caddy-config
           configMap:
