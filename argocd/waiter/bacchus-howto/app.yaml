@@ -14,14 +14,6 @@ spec:
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
-    # managedNamespaceMetadata:
-    #   labels:
-    #     pod-security.kubernetes.io/enforce: baseline
-    #     pod-security.kubernetes.io/enforce-version: latest
-    #     pod-security.kubernetes.io/warn: baseline
-    #     pod-security.kubernetes.io/warn-version: latest
-    #     pod-security.kubernetes.io/audit: baseline
-    #     pod-security.kubernetes.io/audit-version: latest
   sources:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
@@ -32,11 +24,7 @@ spec:
       chart: oauth2-proxy
       helm:
         valueFiles:
-                - $values/argocd/waiter/bacchus-howto/howto-values.yaml
+          - $values/argocd/waiter/bacchus-howto/oauth2-proxy-values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       ref: values
-
-
-
-      

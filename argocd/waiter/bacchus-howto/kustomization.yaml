@@ -7,9 +7,6 @@ labels:
       app.kubernetes.io/instance: bacchus-howto
     includeSelectors: true
 
-configMapGenerator:
-  - name: bacchus-howto-caddy-config
-    files:
-      - Caddyfile
-    options:
-      disableNameSuffixHash: true
+images:
+  - name: caddy
+    newTag: 2.8.4

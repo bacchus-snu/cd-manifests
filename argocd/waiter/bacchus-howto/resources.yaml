@@ -5,12 +5,11 @@ metadata:
   name: bacchus-howto
 spec:
   hostnames:
-    - test-howto.bacchus.io #howto.bacchus.io
-
+    - test-howto.bacchus.io
   parentRefs:
     - namespace: cilium-system
       name: web-gateway
-      sectionName: https-bacchus-io # should I change it?
+      sectionName: https-bacchus-io
   rules:
     - backendRefs:
         - name: bacchus-howto-oauth2-proxy
@@ -24,28 +23,29 @@ spec:
   ports:
     - name: http
       port: 80
-      targetPort: 8080
+      targetPort: http
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: bacchus-howto
 spec:
-  replicas: 1
   template:
     spec:
       containers:
         - name: caddy
-          image: caddy:latest
+          image: caddy
+          args:
+            - caddy
+            - file-server
+            - --root=/srv/howto
+            - --listen=:8080
+            - --access-log
           volumeMounts:
-            - name: caddy-config
-              subPath: Caddyfile
-              mountPath: /etc/caddy/Caddyfile
-              readOnly: true
-            - name: packages
+            - name: howto
               mountPath: /srv/howto
           ports:
-            - name: http-caddy
+            - name: http
               containerPort: 8080
           resources:
             requests:
@@ -54,25 +54,35 @@ spec:
             limits:
               cpu: 100m
               memory: 128Mi
-              #livenessProbe:
-              #httpGet:
-              # port: 8080
-              #readinessProbe:
-              #httpGet:
-              #port: 8080
-      volumes:
-        - name: caddy-config
-          configMap:
-            name: bacchus-howto-caddy-config
+          livenessProbe:
+            tcpSocket:
+              port: http
+          readinessProbe:
+            tcpSocket:
+              port: http
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - NET_BIND_SERVICE
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+      securityContext:
+        fsGroup: 1337
   volumeClaimTemplates:
-  - metadata:
-      name: packages
-    spec:
-      accessModes:
-        - ReadWriteOncePod
-      resources:
-        requests:
-          storage: 1Gi
+    - metadata:
+        name: howto
+      spec:
+        accessModes:
+          - ReadWriteOncePod
+        resources:
+          requests:
+            storage: 1Gi
 ---
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultAuth
@@ -89,7 +99,7 @@ spec:
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
 metadata:
-  name: bacchus-howto-oauth-proxy
+  name: bacchus-howto-oauth2-proxy
 spec:
   vaultAuthRef: default
   type: kv-v2
@@ -97,4 +107,4 @@ spec:
   path: bacchus-howto/oauth2-proxy
   destination:
     create: true
-    name: bacchus-howto-oauth-proxy
+    name: bacchus-howto-oauth2-proxy
