@@ -33,7 +33,7 @@ spec:
       targetRevision: dev-snucse
       ref: values
     - repoURL: registry-1.docker.io/bitnamicharts
-      targetRevision: 5.7
+      targetRevision: 11.1.15
       chart: mysql
       helm:
         valueFiles:
