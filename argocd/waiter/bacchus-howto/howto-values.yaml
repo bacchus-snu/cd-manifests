@@ -1,2 +1,2 @@
 config:
-  existingSecret: 'bacchushowto'
+  existingSecret: 'bacchus-howto-oauth-proxy'
