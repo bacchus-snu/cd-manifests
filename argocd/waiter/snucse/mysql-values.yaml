@@ -2,8 +2,6 @@ auth:
   username: snucse
   database: snucse_production
   existingSecret: db-pw
-  secretKeys:
-    userPasswordKey: MYSQL_PASSWORD
 
 primary:
   resources:
