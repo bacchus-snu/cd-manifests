@@ -13,7 +13,7 @@ spec:
       sectionName: https-snucse-org # should I change it?
   rules:
     - backendRefs:
-        - name: bacchus-howto
+        - name: bacchus-howto-oauth2-proxy
           port: 80
 ---
 apiVersion: v1
@@ -73,3 +73,28 @@ spec:
       resources:
         requests:
           storage: 1Gi
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  namespace: bacchus-howto
+  name: default
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: vault-secrets-operator
+    serviceAccount: default
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: bacchus-howto-oauth-proxy
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: bacchus-howto/oauth2-proxy
+  destination:
+    create: true
+    name: bacchus-howto-oauth-proxy
