@@ -10,7 +10,7 @@ spec:
   parentRefs:
     - namespace: cilium-system
       name: web-gateway
-      sectionName: https-snucse-org # should I change it?
+      sectionName: https-bacchus-io # should I change it?
   rules:
     - backendRefs:
         - name: bacchus-howto-oauth2-proxy
