@@ -2,6 +2,7 @@ auth:
   username: snucse
   database: snucse_production
   existingSecret: db-pw
+  authenticationPolicy: "mysql_native_password"
 
 primary:
   extraFlags: "--mysql-native-password=ON"
