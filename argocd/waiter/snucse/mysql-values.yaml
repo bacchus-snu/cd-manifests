@@ -5,7 +5,7 @@ auth:
   authenticationPolicy: "mysql_native_password"
 
 primary:
-  extraFlags: "--mysql-native-password=ON"
+  extraFlags: "--mysql_native_password=ON"
   resources:
     requests:
       cpu: 1
