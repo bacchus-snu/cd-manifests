@@ -4,8 +4,7 @@ auth:
   existingSecret: db-pw
 
 primary:
-  extraFlags:
-    - --default-authentication-plugin=mysql_native_password
+  extraFlags: "--default-authentication-plugin=mysql_native_password"
   resources:
     requests:
       cpu: 1
