@@ -50,6 +50,8 @@ spec:
               drop:
                 - ALL
             runAsNonRoot: true
+            # snucse(10000), the default user in built image
+            runAsUser: 10000
             seccompProfile:
               type: RuntimeDefault
       volumes:
