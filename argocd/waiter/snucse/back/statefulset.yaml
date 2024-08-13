@@ -33,6 +33,10 @@ spec:
               mountPath: /app/config/secrets.yml
               subPath: secrets.yaml
               readOnly: true
+            - name: uploads
+              mountPath: /app/uploads/user
+            - name: attachment
+              mountPath: /app/uploads/attachment
           resources:
             requests:
               cpu: 250m
@@ -40,16 +44,33 @@ spec:
             limits:
               cpu: 500m
               memory: 512Mi
-          # securityContext:
-            #allowPrivilegeEscalation: false
-            #capabilities:
-              #drop:
-                #- ALL
-            #runAsNonRoot: true
-            #runAsUser: 1000
-            #seccompProfile:
-              #type: RuntimeDefault
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
       volumes:
       - name: config
         secret:
           secretName: snucse-config
+  volumeClaimTemplates:
+    - metadata:
+        name: uploads
+      spec:
+        accessModes:
+          - ReadWriteOncePod
+        resources:
+          requests:
+            storage: 1Gi
+    - metadata:
+        name: attachment
+      spec:
+        accessModes:
+          - ReadWriteOncePod
+        resources:
+          requests:
+            storage: 128Gi
