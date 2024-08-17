@@ -5,7 +5,7 @@ metadata:
   name: bacchus-howto
 spec:
   hostnames:
-    - test-howto.bacchus.io
+    - howto.bacchus.io
   parentRefs:
     - namespace: cilium-system
       name: web-gateway
