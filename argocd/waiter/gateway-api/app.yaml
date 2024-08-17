@@ -1,5 +1,5 @@
 ---
-apiVersion: argoproj.io/v1alpha2
+apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   namespace: argocd
