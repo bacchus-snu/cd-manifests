@@ -15,5 +15,5 @@ images:
   - name: snucse-front
   # name, tag on bacchus-snu registry
   # for test purpose on user repository
-    newName: ghcr.io/stdev17/snucse-front
-    newTag: latest
+    newName: ghcr.io/bacchus-snu/snucse
+    newTag: master

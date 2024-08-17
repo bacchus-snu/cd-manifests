@@ -11,12 +11,7 @@ spec:
           image: snucse-front
           ports:
             - name: http
-              containerPort: 80
-          # env:
-          # - name: HOST
-          #   value: 0.0.0.0
-          # - name: PORT
-          #   value: '3000'
+              containerPort: 8080
           resources:
             requests:
               cpu: 100m
@@ -24,13 +19,13 @@ spec:
             limits:
               cpu: 100m
               memory: 512Mi
-          # securityContext:
-          #  allowPrivilegeEscalation: false
-          #  capabilities:
-          #    drop:
-          #      - ALL
-           # runAsNonRoot: true
-           # runAsUser: 1000
-         #   seccompProfile:
-         #     type: RuntimeDefault
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
       serviceAccountName: snucse-front
