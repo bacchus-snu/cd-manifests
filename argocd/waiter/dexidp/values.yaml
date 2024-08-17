@@ -138,7 +138,6 @@ config:
       id: bacchus-howto
       redirectURIs:
         - https://howto.bacchus.io/oauth2/callback
-        - https://test-howto.bacchus.io/oauth2/callback
       secretEnv: DEX_CLIENT_BACCHUS_HOWTO
 
   connectors:
