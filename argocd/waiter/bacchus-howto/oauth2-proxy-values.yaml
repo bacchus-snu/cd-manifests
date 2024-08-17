@@ -5,7 +5,7 @@ config:
 extraArgs:
   - --provider=oidc
   - --provider-display-name=Bacchus Dex
-  - --redirect-url=https://test-howto.bacchus.io/oauth2/callback
+  - --redirect-url=https://howto.bacchus.io/oauth2/callback
   - --oidc-issuer-url=https://auth.bacchus.io/dex
   - --email-domain=bacchus.snucse.org
   - --skip-provider-button
