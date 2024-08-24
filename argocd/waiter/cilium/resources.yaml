@@ -54,7 +54,7 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
-    - name: www-snucse-org
+    - name: apex-snucse-org
       protocol: HTTPS
       hostname: "snucse.org"
       tls:
