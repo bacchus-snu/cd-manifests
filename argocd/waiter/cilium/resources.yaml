@@ -56,7 +56,7 @@ spec:
           from: All
     - name: www-snucse-org
       protocol: HTTPS
-      hostname: "www.snucse.org"
+      hostname: "snucse.org"
       tls:
         certificateRefs:
           - name: web-gateway-certs
