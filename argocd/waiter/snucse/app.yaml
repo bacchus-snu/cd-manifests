@@ -19,7 +19,7 @@ spec:
       - CreateNamespace=true
   sources:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
-      targetRevision: dev-snucse
+      targetRevision: main
       path: argocd/waiter/snucse
       kustomize: {}
     # mysql
@@ -30,7 +30,7 @@ spec:
         valueFiles:
           - $values/argocd/waiter/snucse/redis-values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
-      targetRevision: dev-snucse
+      targetRevision: main
       ref: values
     - repoURL: registry-1.docker.io/bitnamicharts
       targetRevision: 11.1.15
