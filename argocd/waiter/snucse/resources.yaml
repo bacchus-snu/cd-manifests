@@ -36,12 +36,17 @@ metadata:
 spec:
   parentRefs:
     - name: web-gateway
-      sectionName: www-snucse-org
+      sectionName: apex-snucse-org
+  hostnames:
+    - snucse.org
   rules:
     - filters:
-        - type: URLRewrite
-          urlRewrite:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
             hostname: www.snucse.org
+            port: 443
+            statusCode: 301
 ---
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultAuth
