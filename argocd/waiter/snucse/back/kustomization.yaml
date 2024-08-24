@@ -14,6 +14,5 @@ labels:
 
 images:
   - name: snucse-back
-  # for test purpose on user repository
     newName: ghcr.io/bacchus-snu/snucse-api
-    newTag: master
+    newTag: v3.1.7

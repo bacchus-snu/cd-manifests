@@ -13,7 +13,5 @@ labels:
 
 images:
   - name: snucse-front
-  # name, tag on bacchus-snu registry
-  # for test purpose on user repository
     newName: ghcr.io/bacchus-snu/snucse
-    digest: sha256:b627dab59d218aac4e31babde7e738308b4b643d7dbdb34b91a53af59cf9fd1c
+    newTag: v3.2.1
