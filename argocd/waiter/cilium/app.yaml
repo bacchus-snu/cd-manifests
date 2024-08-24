@@ -6,6 +6,9 @@ metadata:
   name: cilium
   finalizers:
     - resources-finalizer.argocd.argoproj.io
+  annotations:
+    # needed to prevent permanent diff with ServerSideApply
+    argocd.argoproj.io/compare-options: ServerSideDiff=true
 spec:
   project: infra
   destination:
@@ -14,6 +17,8 @@ spec:
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
+      # CRDs are too large for client-side apply
+      - ServerSideApply=true
     managedNamespaceMetadata:
       labels:
         pod-security.kubernetes.io/enforce: privileged
