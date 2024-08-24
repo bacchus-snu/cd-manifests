@@ -3,37 +3,28 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   namespace: argocd
-  name: id
+  name: bacchus-howto
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   destination:
     name: in-cluster
-    namespace: id
+    namespace: bacchus-howto
   syncPolicy:
-  #  automated:
-  #    prune: true
-  #    selfHeal: true
     syncOptions:
       - CreateNamespace=true
   sources:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
-      path: argocd/waiter/id
+      path: argocd/waiter/bacchus-howto
       kustomize: {}
-    - repoURL: registry-1.docker.io/bitnamicharts
-      targetRevision: 20.0.2
-      chart: redis
+    - repoURL: https://oauth2-proxy.github.io/manifests
+      targetRevision: 7.7.9
+      chart: oauth2-proxy
       helm:
         valueFiles:
-          - $values/argocd/waiter/id/redis-values.yaml
-    - repoURL: registry-1.docker.io/bitnamicharts
-      targetRevision: 15.5.22
-      chart: postgresql
-      helm:
-        valueFiles:
-          - $values/argocd/waiter/id/postgresql-values.yaml
+          - $values/argocd/waiter/bacchus-howto/oauth2-proxy-values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       ref: values

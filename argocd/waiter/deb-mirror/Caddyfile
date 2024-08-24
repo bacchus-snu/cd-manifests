@@ -7,6 +7,13 @@ handle_path /debian/* {
 	}
 }
 
+handle_path /ubuntu/* {
+	rewrite * /ubuntu{path}
+	reverse_proxy * https://mirror.kakao.com {
+		header_up Host {upstream_hostport}
+	}
+}
+
 handle_path /debian/pve/* {
 	rewrite * /debian/pve{path}
 	reverse_proxy * http://download.proxmox.com {

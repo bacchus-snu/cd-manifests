@@ -1,0 +1,135 @@
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: bacchus-howto
+spec:
+  hostnames:
+    - howto.bacchus.io
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: https-bacchus-io
+  rules:
+    - backendRefs:
+        - name: bacchus-howto-oauth2-proxy
+          port: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bacchus-howto
+spec:
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: bacchus-howto
+spec:
+  template:
+    spec:
+      containers:
+        - name: caddy
+          image: caddy
+          args:
+            - caddy
+            - file-server
+            - --root=/srv/howto
+            - --listen=:8080
+            - --access-log
+          volumeMounts:
+            - name: howto
+              mountPath: /srv/howto
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          livenessProbe:
+            tcpSocket:
+              port: http
+          readinessProbe:
+            tcpSocket:
+              port: http
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - NET_BIND_SERVICE
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+      securityContext:
+        fsGroup: 1337
+  volumeClaimTemplates:
+    - metadata:
+        name: howto
+      spec:
+        accessModes:
+          - ReadWriteOncePod
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  namespace: bacchus-howto
+  name: default
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: vault-secrets-operator
+    serviceAccount: default
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: bacchus-howto-oauth2-proxy
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: bacchus-howto/oauth2-proxy
+  destination:
+    create: true
+    name: bacchus-howto-oauth2-proxy
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: howto-management-role
+  namespace: bacchus-howto
+rules:
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: howto-management
+subjects:
+  - kind: Group
+    name: github:bacchus-snu/work
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: howto-management-role

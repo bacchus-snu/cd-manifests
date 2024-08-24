@@ -23,13 +23,13 @@ spec:
       path: argocd/waiter/id-dev
       kustomize: {}
     - repoURL: registry-1.docker.io/bitnamicharts
-      targetRevision: 19.6.4
+      targetRevision: 20.0.2
       chart: redis
       helm:
         valueFiles:
           - $values/argocd/waiter/id-dev/redis-values.yaml
     - repoURL: registry-1.docker.io/bitnamicharts
-      targetRevision: 15.5.20
+      targetRevision: 15.5.22
       chart: postgresql
       helm:
         valueFiles:

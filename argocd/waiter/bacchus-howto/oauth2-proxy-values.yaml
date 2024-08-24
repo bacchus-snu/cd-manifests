@@ -1,0 +1,12 @@
+config:
+  existingSecret: 'bacchus-howto-oauth2-proxy'
+  configFile: |
+    upstreams = ["http://bacchus-howto.bacchus-howto.svc.cluster.local"]
+extraArgs:
+  - --provider=oidc
+  - --provider-display-name=Bacchus Dex
+  - --redirect-url=https://howto.bacchus.io/oauth2/callback
+  - --oidc-issuer-url=https://auth.bacchus.io/dex
+  - --email-domain=bacchus.snucse.org
+  - --skip-provider-button
+  - --approval-prompt=auto

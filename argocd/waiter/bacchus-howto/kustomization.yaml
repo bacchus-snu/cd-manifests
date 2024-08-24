@@ -1,0 +1,12 @@
+resources:
+  - resources.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: bacchus-howto
+      app.kubernetes.io/instance: bacchus-howto
+    includeSelectors: true
+
+images:
+  - name: caddy
+    newTag: 2.8.4
