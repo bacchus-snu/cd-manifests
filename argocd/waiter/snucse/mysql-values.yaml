@@ -1,0 +1,15 @@
+auth:
+  username: snucse
+  database: snucse_production
+  existingSecret: db-pw
+  authenticationPolicy: "mysql_native_password"
+
+primary:
+  extraFlags: "--mysql_native_password=ON"
+  resources:
+    requests:
+      cpu: 250m
+      memory: 1Gi
+    limits:
+      cpu: 250m
+      memory: 2Gi

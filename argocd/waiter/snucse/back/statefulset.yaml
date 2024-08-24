@@ -1,0 +1,80 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: snucse-back
+spec:
+  serviceName: snucse-back
+  template:
+    spec:
+      containers:
+        - name: app
+          image: snucse-back
+          env:
+            - name: RAILS_ENV
+              value: "production"
+          ports:
+            - name: http
+              containerPort: 3000
+          volumeMounts:
+            - name: config
+              mountPath: /app/config/database.yml
+              subPath: database.yaml
+              readOnly: true
+            - name: config
+              mountPath: /app/config/elasticsearch.yml
+              subPath: es.yaml
+              readOnly: true
+            - name: config
+              mountPath: /app/config/redis.yml
+              subPath: redis.yaml
+              readOnly: true
+            - name: config
+              mountPath: /app/config/secrets.yml
+              subPath: secrets.yaml
+              readOnly: true
+            - name: uploads
+              mountPath: /app/uploads/user
+            - name: attachment
+              mountPath: /app/uploads/attachment
+          resources:
+            requests:
+              cpu: 250m
+              memory: 1Gi
+            limits:
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            # snucse(10000), the default user in built image
+            runAsUser: 10000
+            seccompProfile:
+              type: RuntimeDefault
+      securityContext:
+        # snucse(10001) gid
+        fsGroup: 10001
+        fsGroupChangePolicy: Always
+      volumes:
+      - name: config
+        secret:
+          secretName: snucse-config
+  volumeClaimTemplates:
+    - metadata:
+        name: uploads
+      spec:
+        accessModes:
+          - ReadWriteOncePod
+        resources:
+          requests:
+            storage: 1Gi
+    - metadata:
+        name: attachment
+      spec:
+        accessModes:
+          - ReadWriteOncePod
+        resources:
+          requests:
+            storage: 128Gi

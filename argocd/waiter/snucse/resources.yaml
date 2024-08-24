@@ -1,0 +1,54 @@
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  namespace: snucse
+  name: snucse
+spec:
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: https-snucse-org
+  hostnames:
+    - www.snucse.org
+  rules:
+    # default route to frontend
+    - backendRefs:
+        - name: snucse-front
+          port: 80
+    # backend routes
+    - backendRefs:
+        - name: snucse-back
+          port: 80
+      matches:
+        - path:
+            type: PathPrefix
+            value: /api
+        - path:
+            type:
+            value: /files
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  namespace: snucse
+  name: default
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: vault-secrets-operator
+    serviceAccount: default
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: db-pw
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: snucse/db
+  destination:
+    create: true
+    name: db-pw

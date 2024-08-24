@@ -1,0 +1,19 @@
+resources:
+  - statefulset.yaml
+  - service.yaml
+  - serviceaccount.yaml
+  - vaultsecret.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: snucse-back
+      app.kubernetes.io/instance: snucse-back
+      app.kubernetes.io/part-of: snucse
+      app.kubernetes.io/component: backend
+    includeSelectors: true
+
+images:
+  - name: snucse-back
+  # for test purpose on user repository
+    newName: ghcr.io/bacchus-snu/snucse-api
+    newTag: master

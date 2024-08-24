@@ -1,0 +1,15 @@
+resources:
+  - service.yaml
+  - statefulset.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: elasticsearch
+      app.kubernetes.io/instance: snucse-elasticsearch
+      app.kubernetes.io/part-of: snucse
+      app.kubernetes.io/component: search
+    includeSelectors: true
+
+images:
+  - name: elasticsearch
+    newTag: 2.3.1
