@@ -27,9 +27,6 @@ spec:
         - path:
             type:
             value: /files
-        - path:
-            type:
-            value: /login
 ---
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: HTTPRoute
