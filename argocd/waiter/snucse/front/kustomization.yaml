@@ -12,7 +12,7 @@ labels:
     includeSelectors: true
 
 images:
-  - name: snucse
+  - name: snucse-front
   # name, tag on bacchus-snu registry
   # for test purpose on user repository
     newName: ghcr.io/bacchus-snu/snucse
