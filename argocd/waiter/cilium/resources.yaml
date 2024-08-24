@@ -54,6 +54,15 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
+    - name: apex-snucse-org
+      protocol: HTTPS
+      hostname: "snucse.org"
+      tls:
+        certificateRefs:
+          - name: web-gateway-certs
+      allowedRoutes:
+        namespaces:
+          from: All
     - name: https-bacchus-io
       protocol: HTTPS
       port: 443

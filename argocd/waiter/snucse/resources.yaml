@@ -28,6 +28,26 @@ spec:
             type:
             value: /files
 ---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  namespace: cilium-system
+  name: redirect-to-www
+spec:
+  parentRefs:
+    - name: web-gateway
+      sectionName: apex-snucse-org
+  hostnames:
+    - snucse.org
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            hostname: www.snucse.org
+            port: 443
+            statusCode: 301
+---
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultAuth
 metadata:
