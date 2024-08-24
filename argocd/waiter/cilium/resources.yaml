@@ -54,6 +54,15 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
+    - name: www-snucse-org
+      protocol: HTTPS
+      hostname: "www.snucse.org"
+      tls:
+        certificateRefs:
+          - name: web-gateway-certs
+      allowedRoutes:
+        namespaces:
+          from: All
     - name: https-bacchus-io
       protocol: HTTPS
       port: 443
