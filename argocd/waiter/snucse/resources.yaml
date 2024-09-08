@@ -33,6 +33,9 @@ kind: HTTPRoute
 metadata:
   namespace: cilium-system
   name: redirect-to-www
+  annotations:
+    # Otherwise, external-dns struggles with creating the CNAME at the apex
+    external-dns.alpha.kubernetes.io/exclude: "true"
 spec:
   parentRefs:
     - name: web-gateway
