@@ -10,4 +10,4 @@ labels:
 images:
   - name: cloudflared
     newName: cloudflare/cloudflared
-    newTag: 2024.8.3
+    newTag: 2024.9.1
