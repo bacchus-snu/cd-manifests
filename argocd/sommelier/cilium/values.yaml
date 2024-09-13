@@ -34,3 +34,7 @@ l2announcements:
 k8sClientRateLimit:
   qps: 10
   burst: 20
+
+# disable hubble
+hubble:
+  enabled: false
