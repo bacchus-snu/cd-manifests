@@ -17,7 +17,7 @@ spec:
   #     selfHeal: true
   sources:
     - repoURL: ghcr.io/bacchus-snu
-      targetRevision: '20231117'
+      targetRevision: '20240923'
       chart: waiter-docs
       helm:
         valueFiles:
