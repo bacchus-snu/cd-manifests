@@ -23,6 +23,7 @@ core:
 jobservice:
   existingSecret: bacchus-sgs-registry-harbor-secrets
 registry:
+  relativeurls: true
   existingSecret: bacchus-sgs-registry-harbor-secrets
   credentials:
     existingSecret: bacchus-sgs-registry-harbor-secrets
