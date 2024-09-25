@@ -26,6 +26,9 @@ registry:
   existingSecret: bacchus-sgs-registry-harbor-secrets
   credentials:
     existingSecret: bacchus-sgs-registry-harbor-secrets
+  # otherwise, deployment hangs due to multi-attach error
+  updateStrategy:
+    type: Recreate
   # While other workloads are small, the registry is a bit more resource hungry
   registry:
     resources:
