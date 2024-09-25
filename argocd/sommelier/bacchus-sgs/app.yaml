@@ -37,7 +37,7 @@ spec:
       directory:
         include: 'resources.yaml'
     - repoURL: https://nvidia.github.io/dcgm-exporter/helm-charts
-      targetRevision: 3.5.0
+      targetRevision: 3.6.0
       chart: dcgm-exporter
       helm:
         values: |
