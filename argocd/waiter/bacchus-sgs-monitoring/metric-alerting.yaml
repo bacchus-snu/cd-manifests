@@ -1,0 +1,19 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  namespace: bacchus-sgs
+  name: bacchus-sgs-alerts
+  labels:
+    app.kubernetes.io/name: bacchus-sgs-monitoring
+    app.kubernetes.io/instance: bacchus-sgs-monitoring
+spec:
+  groups:
+    - name: general
+      rules:
+        - alert: Watchdog
+          expr: vector(1)
+          annotations:
+            summary: Always-firing watchdog alert
+            description: |
+              This alert is always firing, to ensure that the alerting pipeline is functional.

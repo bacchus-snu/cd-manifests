@@ -1,0 +1,63 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Alertmanager
+metadata:
+  namespace: bacchus-sgs
+  name: bacchus-sgs-alertmanager
+  labels:
+    argocd.argoproj.io/instance: bacchus-sgs-monitoring
+spec:
+  version: v0.27.0
+  alertmanagerConfiguration:
+    name: bacchus-sgs-monitoring
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 128Mi
+  securityContext:
+    fsGroup: 2000
+    runAsGroup: 2000
+    runAsNonRoot: true
+    runAsUser: 1000
+    seccompProfile:
+      type: RuntimeDefault
+  storage:
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+          - ReadWriteOncePod
+        resources:
+          requests:
+            storage: 10Gi
+---
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  namespace: bacchus-sgs
+  name: bacchus-sgs-monitoring
+  labels:
+    app.kubernetes.io/name: bacchus-sgs-monitoring
+    app.kubernetes.io/instance: bacchus-sgs-monitoring
+spec:
+  receivers:
+    # no-op receiver
+    - name: default-receiver
+    # discord #notifications
+    - name: discord-notifications
+      discordConfigs:
+        - apiURL:
+            name: bacchus-sgs-monitoring
+            key: discord_url
+  route:
+    receiver: default-receiver
+    groupBy: [...]
+    routes:
+      # ignore watchdog
+      - matchers:
+          - name: alertname
+            value: Watchdog
+            matchType: =
+      # everything else goes to discord
+      - receiver: discord-notifications

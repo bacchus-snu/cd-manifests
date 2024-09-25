@@ -1,0 +1,74 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: bacchus-sgs
+  name: bacchus-sgs-prometheus
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: bacchus-sgs
+  name: bacchus-sgs-prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  # use ClusterRole from kube-prometheus-stack
+  name: dashboard-kube-prometheus-prometheus
+subjects:
+  - kind: ServiceAccount
+    name: bacchus-sgs-prometheus
+    namespace: bacchus-sgs
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  namespace: bacchus-sgs
+  name: bacchus-sgs-prometheus
+spec:
+  version: v2.54.1
+  scrapeInterval: 1m
+  evaluationInterval: 1m
+  scrapeConfigSelector:
+    matchLabels:
+      app.kubernetes.io/name: bacchus-sgs-monitoring
+      app.kubernetes.io/instance: bacchus-sgs-monitoring
+  ruleSelector:
+    matchLabels:
+      app.kubernetes.io/name: bacchus-sgs-monitoring
+      app.kubernetes.io/instance: bacchus-sgs-monitoring
+  alerting:
+    alertmanagers:
+      - apiVersion: v2
+        name: alertmanager-operated
+        port: web
+  serviceAccountName: bacchus-sgs-prometheus
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 2Gi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+  enableFeatures:
+    # resources
+    - auto-gomaxprocs
+    - auto-gomemlimit
+    # sort_by_label
+    - promql-experimental-functions
+  retention: 30d
+  securityContext:
+    fsGroup: 2000
+    runAsGroup: 2000
+    runAsNonRoot: true
+    runAsUser: 1000
+    seccompProfile:
+      type: RuntimeDefault
+  storage:
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+          - ReadWriteOncePod
+        resources:
+          requests:
+            storage: 100Gi

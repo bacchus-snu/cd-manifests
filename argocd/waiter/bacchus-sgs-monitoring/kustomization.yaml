@@ -1,4 +1,8 @@
 resources:
+  - alertmanager.yaml
+  - metric-alerting.yaml
+  - metric-scraping.yaml
+  - prometheus.yaml
   - resources.yaml
 
 labels:
