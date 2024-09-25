@@ -73,6 +73,12 @@ spec:
         - name: config
           configMap:
             name: http-proxy-config
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: ''
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          effect: NoSchedule
+          operator: Exists
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
