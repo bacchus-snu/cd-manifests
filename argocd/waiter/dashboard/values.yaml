@@ -19,6 +19,9 @@ prometheus:
               storage: 100Gi
     retention: 30d
 
+alertmanager:
+  enabled: false
+
 grafana:
   imageRenderer:
     grafanaProtocol: https
