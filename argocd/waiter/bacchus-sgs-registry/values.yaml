@@ -13,6 +13,10 @@ persistence:
     registry:
       size: 100Gi
 
+# otherwise, deployment hangs due to multi-attach error
+updateStrategy:
+  type: Recreate
+
 # Grab secrets from Vault, so they stay stable
 existingSecretAdminPassword: bacchus-sgs-registry-harbor-secrets
 existingSecretSecretKey: bacchus-sgs-registry-harbor-secrets
@@ -26,9 +30,6 @@ registry:
   existingSecret: bacchus-sgs-registry-harbor-secrets
   credentials:
     existingSecret: bacchus-sgs-registry-harbor-secrets
-  # otherwise, deployment hangs due to multi-attach error
-  updateStrategy:
-    type: Recreate
   # While other workloads are small, the registry is a bit more resource hungry
   registry:
     resources:
