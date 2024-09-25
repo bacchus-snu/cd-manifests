@@ -16,6 +16,6 @@ configMapGenerator:
 
 images:
   - name: varnish
-    newTag: 7.5.0
+    newTag: 7.6.0
   - name: caddy
     newTag: 2.8.4
