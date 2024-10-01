@@ -17,3 +17,45 @@ spec:
             summary: Always-firing watchdog alert
             description: |
               This alert is always firing, to ensure that the alerting pipeline is functional.
+
+    - name: service-available
+      rules:
+        - alert: TargetNodeDown
+          expr: max by (node) (up{job="node-exporter"} == 0)
+          for: 15m
+          annotations:
+            summary: 'Target node {{ $labels.node }} down'
+            description: 'Node {{ $labels.node }} has been down for more than 15 minutes.'
+        - alert: TargetKubeletDown
+          expr: max by (node) (up{job="kubelet"} == 0)
+          for: 15m
+          annotations:
+            summary: 'Target kubelet {{ $labels.node }} down'
+            description: 'Kubelet {{ $labels.node }} has been down for more than 15 minutes.'
+        - alert: KubernetesNodeNotReady
+          for: 15m
+          expr: max by (node) (kube_node_status_condition{condition="Ready",status="false"} == 1)
+          annotations:
+            summary: 'Kubernetes node {{ $labels.node }} not ready'
+            description: 'Kubernetes node {{ $labels.node }} has been not ready for more than 15 minutes.'
+        - alert: KubernetesNodeDiskPressure
+          expr: max by (node) (kube_node_status_condition{condition="DiskPressure",status="true"} == 1)
+          annotations:
+            summary: 'Kubernetes node {{ $labels.node }} disk pressure'
+            description: 'Kubernetes node {{ $labels.node }} has disk pressure.'
+        - alert: KubernetesNodeMemoryPressure
+          expr: max by (node) (kube_node_status_condition{condition="MemoryPressure",status="true"} == 1)
+          annotations:
+            summary: 'Kubernetes node {{ $labels.node }} memory pressure'
+            description: 'Kubernetes node {{ $labels.node }} has memory pressure.'
+        - alert: KubernetesNodeNetworkUnavailable
+          expr: max by (node) (kube_node_status_condition{condition="NetworkUnavailable",status="true"} == 1)
+          for: 15m
+          annotations:
+            summary: 'Kubernetes node {{ $labels.node }} network unavailable'
+            description: 'Kubernetes node {{ $labels.node }} network has been unavailable for more than 15 minutes.'
+        - alert: KubernetesNodePIDPressure
+          expr: max by (node) (kube_node_status_condition{condition="PIDPressure",status="true"} == 1)
+          annotations:
+            summary: 'Kubernetes node {{ $labels.node }} PID pressure'
+            description: 'Kubernetes node {{ $labels.node }} has PID pressure.'
