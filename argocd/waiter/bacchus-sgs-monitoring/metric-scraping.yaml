@@ -166,7 +166,7 @@ spec:
           expr: |
             sum by (node, resource, namespace) (
                 kube_pod_container_resource_requests{namespace=~"ws-.*",resource=~"cpu|memory|nvidia_com_gpu"}
-              * on (pod) group_left ()
+              * on (namespace, pod) group_left ()
                 kube_pod_status_phase{phase="Running"}
             )
         - record: sgs:node_resource:unallocated
@@ -176,7 +176,9 @@ spec:
                 )
               -
                 sum by (node, resource) (
-                  kube_pod_container_resource_requests * on (pod) group_left () kube_pod_status_phase{phase="Running"}
+                    kube_pod_container_resource_requests
+                  * on (namespace, pod) group_left ()
+                    kube_pod_status_phase{phase="Running"}
                 )
             or
               sum by (node, resource) (
