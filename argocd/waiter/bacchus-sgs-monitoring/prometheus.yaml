@@ -43,6 +43,8 @@ spec:
         name: alertmanager-operated
         port: web
   serviceAccountName: bacchus-sgs-prometheus
+  externalUrl: https://sgs-dashboard.internal.bacchus.io/prometheus
+  routePrefix: /
   resources:
     requests:
       cpu: 1000m

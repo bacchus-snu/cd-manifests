@@ -10,6 +10,8 @@ spec:
   version: v0.27.0
   alertmanagerConfiguration:
     name: bacchus-sgs-monitoring
+  externalUrl: https://sgs-dashboard.internal.bacchus.io/alertmanager
+  routePrefix: /
   resources:
     requests:
       cpu: 100m
