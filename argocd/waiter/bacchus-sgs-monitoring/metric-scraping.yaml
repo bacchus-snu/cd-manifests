@@ -219,9 +219,23 @@ spec:
             sum by (node) (1 - clamp_max(DCGM_FI_DEV_GPU_UTIL, 1))
 
         # alerts
+        - alert: SGSGPUWaste
+          for: 30m
+          expr: |2
+              1 - sgs:node_namespace_resource:used{resource="nvidia_com_gpu"}
+              / (sgs:node_namespace_resource:allocated > 0)
+            > 0
+          annotations:
+            summary: 'SGS GPU waste {{ $labels.node }}/{{ $labels.resource }} {{ $labels.namespace }}'
+            description: |
+              {{ $labels.namespace }} is wasting allocated {{ $labels.resource }} on {{ $labels.node }} for more than 15 minutes.
+              Waste ratio is currently {{ humanizePercentage $value }}
         - alert: SGSResourceWaste
-          for: 15m
-          expr: 1 - sgs:node_namespace_resource:used / (sgs:node_namespace_resource:allocated > 0) > 0
+          for: 30m
+          expr: |2
+              1 - sgs:node_namespace_resource:used{resource!="nvidia_com_gpu"}
+              / (sgs:node_namespace_resource:allocated > 0)
+            > 0.5
           annotations:
             summary: 'SGS resource waste {{ $labels.node }}/{{ $labels.resource }} {{ $labels.namespace }}'
             description: |
