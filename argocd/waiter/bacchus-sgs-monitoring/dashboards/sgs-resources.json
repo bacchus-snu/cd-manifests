@@ -1055,6 +1055,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
+      "description": "",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1119,7 +1120,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 8,
         "x": 0,
         "y": 20
       },
@@ -1151,7 +1152,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum_over_time(sgs:node_namespace_resource:used{node=\"$node\"}[24h:1m]) / 60",
+          "expr": "sum_over_time(sgs:node_namespace_resource:used{node=\"$node\"}[$__range:1m]) / 60",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -1159,7 +1160,168 @@
           "refId": "A"
         }
       ],
-      "title": "Resource Usage - 24h",
+      "title": "Cumulative Resource Usage",
+      "transformations": [
+        {
+          "id": "groupingToMatrix",
+          "options": {
+            "columnField": "resource",
+            "emptyValue": "empty",
+            "rowField": "namespace",
+            "valueField": "Value"
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "memory-converted",
+            "binary": {
+              "left": "memory",
+              "operator": "/",
+              "right": "1073741824"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            },
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "memory": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "cpu": 1,
+              "memory": 2,
+              "memory-converted": 3,
+              "namespace\\resource": 0,
+              "nvidia_com_gpu": 4
+            },
+            "renameByName": {
+              "memory-converted": "memory",
+              "namespace\\resource": "namespace"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "default": true,
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "cpu"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "vCPU-hours"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "memory"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "GiB-hours"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "nvidia_com_gpu"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "GPU-hours"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 20
+      },
+      "id": 15,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "nvidia_com_gpu"
+          }
+        ]
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "sum_over_time((\n    (sgs:node_namespace_resource:allocated{node=\"$node\"} > 0)\n        -\n    sgs:node_namespace_resource:used{node=\"$node\"}\n)[$__range:1m]) / 60 > 0",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Cumulative Resource Over-Allocation",
       "transformations": [
         {
           "id": "groupingToMatrix",
@@ -1216,8 +1378,8 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
+        "w": 8,
+        "x": 16,
         "y": 20
       },
       "id": 14,
@@ -1243,6 +1405,7 @@
       "type": "alertlist"
     }
   ],
+  "refresh": "5m",
   "schemaVersion": 39,
   "tags": [
     "GPU"
@@ -1286,6 +1449,6 @@
   "timezone": "browser",
   "title": "SGS Resources",
   "uid": "edqqj6ibamj28b",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }
