@@ -5,3 +5,11 @@ auth:
   existingSecret: bacchus-sgs-db-creds
   secretKeys:
     userPasswordKey: password
+
+primary:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 128Mi
