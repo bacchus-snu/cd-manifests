@@ -11,7 +11,7 @@ externalURL: https://sgs-registry.snucse.org
 persistence:
   persistentVolumeClaim:
     registry:
-      size: 100Gi
+      size: 200Gi
 
 # otherwise, deployment hangs due to multi-attach error
 updateStrategy:
