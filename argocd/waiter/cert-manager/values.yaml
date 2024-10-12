@@ -9,3 +9,6 @@ resources:
     memory: 128Mi
 extraArgs:
   - --enable-gateway-api
+
+cainjector:
+  enabled: false
