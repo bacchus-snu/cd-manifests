@@ -35,6 +35,13 @@ k8sClientRateLimit:
   qps: 10
   burst: 20
 
-# disable hubble
+# enable hubble
 hubble:
-  enabled: false
+  relay:
+    enabled: true
+    nodeSelector:
+      node-role.kubernetes.io/control-plane: ''
+  ui:
+    enabled: true
+    nodeSelector:
+      node-role.kubernetes.io/control-plane: ''
