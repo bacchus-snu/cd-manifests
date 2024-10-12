@@ -20,7 +20,7 @@ spec:
       path: argocd/waiter/bacchus-howto
       kustomize: {}
     - repoURL: https://oauth2-proxy.github.io/manifests
-      targetRevision: 7.7.24
+      targetRevision: 7.7.26
       chart: oauth2-proxy
       helm:
         valueFiles:
