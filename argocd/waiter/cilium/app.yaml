@@ -19,6 +19,7 @@ spec:
       - CreateNamespace=true
       # CRDs are too large for client-side apply
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true
     managedNamespaceMetadata:
       labels:
         pod-security.kubernetes.io/enforce: privileged

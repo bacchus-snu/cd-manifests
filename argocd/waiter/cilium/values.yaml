@@ -34,6 +34,8 @@ k8sClientRateLimit:
 # enable gateway
 gatewayAPI:
   enabled: true
+  # required for h2
+  enableAlpn: true
 
 # enable hubble
 hubble:
