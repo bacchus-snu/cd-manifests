@@ -38,7 +38,7 @@ spec:
       targetRevision: main
       ref: values
     - repoURL: registry-1.docker.io/bitnamicharts
-      targetRevision: 11.1.17
+      targetRevision: 11.1.19
       chart: mysql
       helm:
         valueFiles:
