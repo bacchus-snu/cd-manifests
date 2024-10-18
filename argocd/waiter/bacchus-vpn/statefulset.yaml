@@ -16,16 +16,20 @@ spec:
   template:
     spec:
       initContainers:
-        - name: sysctl-forward
-          image: busybox:1.36
+        - name: network-setup
+          image: busybox # replaced by kustomize
           command:
             - sh
             - -c
-            - sysctl -w net.ipv4.ip_forward=1
+            - |
+                # enable ip forwarding
+                sysctl -w net.ipv4.ip_forward=1
+                # clamp MSS to PMTU
+                iptables -A iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
           securityContext:
             privileged: true
         - name: envoy-patch
-          image: bitnami/kubectl:latest
+          image: kubectl
           restartPolicy: Always # sidecar
           securityContext:
             allowPrivilegeEscalation: false
