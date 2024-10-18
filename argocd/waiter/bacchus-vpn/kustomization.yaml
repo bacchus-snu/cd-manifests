@@ -12,6 +12,11 @@ labels:
     includeSelectors: true
 
 images:
+  - name: busybox
+    newTag: '1.37'
+  - name: kubectl
+    newName: bitnami/kubectl
+    newTag: '1.30'
   - name: wg-access-server
     newName: ghcr.io/freifunkmuc/wg-access-server
     newTag: v0.12.1
