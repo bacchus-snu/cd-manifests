@@ -228,7 +228,7 @@ spec:
           annotations:
             summary: 'SGS GPU waste {{ $labels.node }}/{{ $labels.resource }} {{ $labels.namespace }}'
             description: |
-              {{ $labels.namespace }} is wasting allocated {{ $labels.resource }} on {{ $labels.node }} for more than 15 minutes.
+              {{ $labels.namespace }} is wasting allocated {{ $labels.resource }} on {{ $labels.node }} for more than 30 minutes.
               Waste ratio is currently {{ humanizePercentage $value }}
         - alert: SGSResourceWaste
           for: 30m
@@ -239,5 +239,5 @@ spec:
           annotations:
             summary: 'SGS resource waste {{ $labels.node }}/{{ $labels.resource }} {{ $labels.namespace }}'
             description: |
-              {{ $labels.namespace }} is wasting over 50% of allocated {{ $labels.resource }} on {{ $labels.node }} for more than 15 minutes.
+              {{ $labels.namespace }} is wasting over 50% of allocated {{ $labels.resource }} on {{ $labels.node }} for more than 30 minutes.
               Waste ratio is currently {{ humanizePercentage $value }}
