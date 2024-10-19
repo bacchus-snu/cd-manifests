@@ -12,9 +12,6 @@ spec:
     name: in-cluster
     namespace: id-dev
   syncPolicy:
-  #  automated:
-  #    prune: true
-  #    selfHeal: true
     syncOptions:
       - CreateNamespace=true
   sources:
@@ -29,7 +26,7 @@ spec:
         valueFiles:
           - $values/argocd/waiter/id-dev/redis-values.yaml
     - repoURL: registry-1.docker.io/bitnamicharts
-      targetRevision: 15.5.38
+      targetRevision: 16.0.1
       chart: postgresql
       helm:
         valueFiles:
