@@ -1,11 +1,11 @@
 auth:
-  enablePostgresUser: false
   username: id
   database: id
   existingSecret: id-dev-db-creds
-  secretKeys:
-    userPasswordKey: password
 
 primary:
   initdb:
     scriptsConfigMap: id-dev-db-schema
+
+backup:
+  enabled: true
