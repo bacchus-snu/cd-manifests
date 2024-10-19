@@ -17,7 +17,7 @@ spec:
     spec:
       initContainers:
         - name: network-setup
-          image: busybox # replaced by kustomize
+          image: alpine # replaced by kustomize
           command:
             - sh
             - -c
@@ -25,7 +25,8 @@ spec:
                 # enable ip forwarding
                 sysctl -w net.ipv4.ip_forward=1
                 # clamp MSS to PMTU
-                iptables -A iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+                apk add iptables
+                iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
           securityContext:
             privileged: true
         - name: envoy-patch

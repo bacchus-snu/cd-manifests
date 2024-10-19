@@ -12,8 +12,8 @@ labels:
     includeSelectors: true
 
 images:
-  - name: busybox
-    newTag: '1.37'
+  - name: alpine
+    newTag: '3.20'
   - name: kubectl
     newName: bitnami/kubectl
     newTag: '1.30'
