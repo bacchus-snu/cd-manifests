@@ -64,7 +64,7 @@ spec:
                         values:
                           - 'true'
     - repoURL: https://prometheus-community.github.io/helm-charts
-      targetRevision: 4.41.0
+      targetRevision: 4.42.0
       chart: prometheus-node-exporter
     - repoURL: https://prometheus-community.github.io/helm-charts
       targetRevision: 5.26.0
