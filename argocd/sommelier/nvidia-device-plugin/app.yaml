@@ -24,7 +24,7 @@ spec:
         pod-security.kubernetes.io/audit-version: v1.29
   sources:
     - repoURL: https://nvidia.github.io/k8s-device-plugin
-      targetRevision: 0.16.2
+      targetRevision: 0.17.0
       chart: nvidia-device-plugin
       helm:
         values: |
