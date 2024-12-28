@@ -13,7 +13,7 @@ spec:
     namespace: cert-manager
   sources:
     - repoURL: https://charts.jetstack.io
-      targetRevision: v1.16.1
+      targetRevision: v1.16.2
       chart: cert-manager
       helm:
         valueFiles:
