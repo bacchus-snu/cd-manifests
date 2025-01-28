@@ -16,7 +16,7 @@ spec:
       - CreateNamespace=true
   sources:
     - repoURL: https://helm.goharbor.io
-      targetRevision: 1.16.0
+      targetRevision: 1.16.2
       chart: harbor
       helm:
         valueFiles:
