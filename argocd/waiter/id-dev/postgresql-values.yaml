@@ -6,6 +6,13 @@ auth:
 primary:
   initdb:
     scriptsConfigMap: id-dev-db-schema
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 1000m
+      memory: 128Mi
 
 backup:
   enabled: true

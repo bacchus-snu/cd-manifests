@@ -9,3 +9,10 @@ auth:
 primary:
   initdb:
     scriptsConfigMap: id-db-schema
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 1000m
+      memory: 128Mi
