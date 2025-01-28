@@ -17,7 +17,7 @@ spec:
   #     selfHeal: true
   sources:
     - repoURL: https://argoproj.github.io/argo-helm
-      targetRevision: 7.7.20
+      targetRevision: 7.7.21
       chart: argo-cd
       helm:
         valueFiles:
