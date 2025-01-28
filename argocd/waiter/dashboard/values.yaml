@@ -56,15 +56,19 @@ grafana:
       mountPath: /etc/secrets/dex-auth
       readOnly: true
 
+# Not available, we use cilium kube-proxy replacement
 kubeProxy:
   enabled: false
 
+# Talos binds these services to localhost.
+# We could update the Talos config to allow scraping metrics.
 kubeScheduler:
-  service:
-    selector:
-      k8s-app: kube-scheduler
-
+  enabled: false
+  #service:
+  #  selector:
+  #    k8s-app: kube-scheduler
 kubeControllerManager:
-  service:
-    selector:
-      k8s-app: kube-controller-manager
+  enabled: false
+  #service:
+  #  selector:
+  #    k8s-app: kube-controller-manager
