@@ -26,7 +26,7 @@ metadata:
   namespace: bacchus-sgs
   name: bacchus-sgs-prometheus
 spec:
-  version: v2.54.1
+  version: v3.1.0
   scrapeInterval: 1m
   evaluationInterval: 1m
   scrapeConfigSelector:
@@ -53,9 +53,6 @@ spec:
       cpu: 1000m
       memory: 2Gi
   enableFeatures:
-    # resources
-    - auto-gomaxprocs
-    - auto-gomemlimit
     # sort_by_label
     - promql-experimental-functions
   retention: 30d
