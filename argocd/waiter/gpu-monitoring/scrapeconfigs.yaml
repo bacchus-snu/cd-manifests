@@ -12,7 +12,6 @@ spec:
     - labels:
         job: gpu-kube-state-metrics
       targets:
-        - bentley.snucse.org:30080
         - ferrari.snucse.org:30080
 ---
 apiVersion: monitoring.coreos.com/v1alpha1
@@ -31,7 +30,6 @@ spec:
     - labels:
         job: node-exporter
       targets:
-        - bentley.snucse.org:30080
         - ferrari.snucse.org:30080
 ---
 apiVersion: monitoring.coreos.com/v1alpha1
@@ -47,5 +45,4 @@ spec:
     - labels:
         job: gpu-dcgm-exporter
       targets:
-        - bentley.snucse.org:30080
         - ferrari.snucse.org:30080
