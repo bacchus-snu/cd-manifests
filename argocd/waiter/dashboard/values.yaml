@@ -7,9 +7,6 @@ prometheus:
       limits:
         cpu: 1000m
         memory: 2Gi
-    enableFeatures:
-      - auto-gomaxprocs
-      - auto-gomemlimit
     storageSpec:
       volumeClaimTemplate:
         spec:
@@ -58,3 +55,16 @@ grafana:
       secretName: dex-auth
       mountPath: /etc/secrets/dex-auth
       readOnly: true
+
+kubeProxy:
+  enabled: false
+
+kubeScheduler:
+  service:
+    selector:
+      k8s-app: kube-scheduler
+
+kubeControllerManager:
+  service:
+    selector:
+      k8s-app: kube-controller-manager
