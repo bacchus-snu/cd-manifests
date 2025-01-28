@@ -24,7 +24,7 @@ spec:
         pod-security.kubernetes.io/audit-version: v1.29
   sources:
     - repoURL: https://openebs.github.io/openebs
-      targetRevision: 4.1.1
+      targetRevision: 4.1.2
       chart: openebs
       helm:
         valueFiles:
