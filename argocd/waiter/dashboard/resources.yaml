@@ -132,20 +132,27 @@ apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
   namespace: dashboard
-  name: dashboard-node-exporter-smartmon
+  name: dashboard-node-exporter-disk
   labels:
     release: dashboard
 spec:
   groups:
-    - name: node-exporter-smartmon
+    - name: node-exporter-disk
       rules:
-      - alert: SmartmonUnhealthyDisk
-        expr: |2
-            (smartmon_device_smart_healthy{job="node-exporter"} != 1)
-          * on (job, instance, type, disk) group_left (serial_number)
-            smartmon_device_info
-        annotations:
-          description: Disk {{ $labels.disk }} in {{ $labels.instance }} is reporting unhealthy SMART status.
-          summary: Unhealthy SMART status.
-        labels:
-          severity: critical
+        - alert: SmartmonUnhealthyDisk
+          expr: |2
+              (smartmon_device_smart_healthy{job="node-exporter"} != 1)
+            * on (job, instance, type, disk) group_left (serial_number)
+              smartmon_device_info
+          annotations:
+            description: Disk {{ $labels.disk }} in {{ $labels.instance }} is reporting unhealthy SMART status.
+            summary: Unhealthy SMART status.
+          labels:
+            severity: critical
+        - alert: ZpoolUnhealthyStatus
+          expr: node_zfs_zpool_state{job="node-exporter", state!="online"} == 1
+          annotations:
+            description: zpool {{ $labels.zpool }} in {{ $labels.instance }} is in {{ $labels.state }} state.
+            summary: Unhealthy SMART status.
+          labels:
+            severity: critical
