@@ -17,7 +17,24 @@ prometheus:
     retention: 30d
 
 alertmanager:
-  enabled: false
+  enableFeatures:
+    - auto-gomaxprocs
+    - auto-gomemlimit
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        memory: 128Mi
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOncePod
+          resources:
+            requests:
+              storage: 10Gi
 
 grafana:
   imageRenderer:
