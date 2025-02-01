@@ -3,7 +3,7 @@ apiVersion: gateway.networking.k8s.io/v1beta1
 kind: HTTPRoute
 metadata:
   namespace: dashboard
-  name: grafana
+  name: dashboard-internal
 spec:
   parentRefs:
     - namespace: cilium-system
@@ -12,6 +12,32 @@ spec:
   hostnames:
     - dashboard.internal.bacchus.io
   rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /alertmanager
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: dashboard-kube-prometheus-alertmanager
+          port: 9093
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /prometheus
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: dashboard-kube-prometheus-prometheus
+          port: 9090
     - backendRefs:
         - name: dashboard-grafana
           port: 80
