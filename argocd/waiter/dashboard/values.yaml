@@ -24,6 +24,8 @@ alertmanager:
     alertmanagerConfigSelector:
       matchLabels:
         release: dashboard
+    alertmanagerConfigMatcherStrategy:
+      type: None
     resources:
       requests:
         cpu: 100m

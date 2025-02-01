@@ -79,7 +79,7 @@ spec:
 apiVersion: monitoring.coreos.com/v1alpha1
 kind: AlertmanagerConfig
 metadata:
-  namespace: dashboardj
+  namespace: dashboard
   name: dashboard-alertmanager-discord
   labels:
     release: dashboard
@@ -91,4 +91,12 @@ spec:
             name: dashboard-alertmanager-discord
             key: webhook-url
   route:
-    receiver: discord-notifications
+    receiver: 'null'
+    routes:
+      # ignore watchdog
+      - matchers:
+          - name: alertname
+            value: Watchdog
+            matchType: =
+      # everything else goes to discord
+      - receiver: discord-notifications
