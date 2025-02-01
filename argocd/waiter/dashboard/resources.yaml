@@ -140,12 +140,12 @@ spec:
     - name: node-exporter-smartmon
       rules:
       - alert: SmartmonUnhealthyDisk
-        annotations:
-          description: Disk {{ $labels.disk }} in {{ $labels.instance }} is reporting unhealthy SMART status.
-          summary: Unhealthy SMART status.
-        expr: 2|
+        expr: |2
             (smartmon_device_smart_healthy{job="node-exporter"} != 1)
           * on (job, instance, type, disk) group_left (serial_number)
             smartmon_device_info
+        annotations:
+          description: Disk {{ $labels.disk }} in {{ $labels.instance }} is reporting unhealthy SMART status.
+          summary: Unhealthy SMART status.
         labels:
           severity: critical
