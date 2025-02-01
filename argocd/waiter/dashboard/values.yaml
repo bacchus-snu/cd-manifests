@@ -1,3 +1,12 @@
+# Use a temp build, as alertmanager up to 0.28.0 had issues with
+# webhook_url_file.
+# ref: https://github.com/prometheus/alertmanager/pull/3728
+prometheusOperator:
+  image:
+    registry: ghcr.io
+    repository: prometheus-operator/prometheus-operator
+    sha: 4f0e77ff531a0d98350c611b8165cefcaeae18adf97d82e6b2531f78948d0d04
+
 prometheus:
   prometheusSpec:
     resources:
