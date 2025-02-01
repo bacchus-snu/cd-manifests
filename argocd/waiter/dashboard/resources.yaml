@@ -75,3 +75,20 @@ spec:
         - fizz.snucse.org:9100
         - gin.snucse.org:9100
         - ramos.snucse.org:9100
+---
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  namespace: dashboardj
+  name: dashboard-alertmanager-discord
+  labels:
+    release: dashboard
+spec:
+  receivers:
+    - name: discord-notifications
+      discordConfigs:
+        - apiURL:
+            name: dashboard-alertmanager-discord
+            key: webhook-url
+  route:
+    receiver: discord-notifications
