@@ -35,6 +35,20 @@ alertmanager:
           resources:
             requests:
               storage: 10Gi
+    secrets:
+      - dashboard-alertmanager-discord
+  config:
+    receivers:
+      - name: 'null'
+      - name: discord-notifications
+        discord_configs:
+          - webhook_url_file: /etc/alertmanager/secrets/dashboard-alertmanager-discord/webhook-url
+    route:
+      routes:
+        - receiver: 'null'
+          matchers:
+            - alertname = "Watchdog"
+        - receiver: discord-notifications
 
 grafana:
   imageRenderer:

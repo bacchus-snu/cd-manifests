@@ -42,6 +42,20 @@ spec:
     create: true
     name: dex-auth
 ---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  namespace: dashboard
+  name: dashboard-alertmanager-discord
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: dashboard/alertmanager/discord
+  destination:
+    create: true
+    name: dashboard-alertmanager-discord
+---
 apiVersion: monitoring.coreos.com/v1alpha1
 kind: ScrapeConfig
 metadata:
