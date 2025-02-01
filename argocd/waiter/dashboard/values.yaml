@@ -21,6 +21,9 @@ alertmanager:
     - auto-gomaxprocs
     - auto-gomemlimit
   alertmanagerSpec:
+    alertmanagerConfigSelector:
+      matchLabels:
+        release: dashboard
     resources:
       requests:
         cpu: 100m
