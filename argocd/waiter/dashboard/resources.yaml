@@ -85,6 +85,7 @@ metadata:
     release: dashboard
 spec:
   receivers:
+    - name: 'null'
     - name: discord-notifications
       discordConfigs:
         - apiURL:
