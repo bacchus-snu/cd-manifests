@@ -49,7 +49,7 @@ spec:
   project: default
   destination:
     name: in-cluster
-    namespace: id
+    namespace: id-test
   syncPolicy:
   #  automated:
   #    prune: true
