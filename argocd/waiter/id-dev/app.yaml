@@ -25,12 +25,6 @@ spec:
       helm:
         valueFiles:
           - $values/argocd/waiter/id-dev/redis-values.yaml
-    - repoURL: registry-1.docker.io/bitnamicharts
-      targetRevision: 16.0.1
-      chart: postgresql
-      helm:
-        valueFiles:
-          - $values/argocd/waiter/id-dev/postgresql-values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       ref: values
