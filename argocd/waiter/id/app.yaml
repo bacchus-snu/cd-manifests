@@ -34,39 +34,6 @@ spec:
       helm:
         valueFiles:
           - $values/argocd/waiter/id/postgresql-values.yaml
-    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
-      targetRevision: main
-      ref: values
----
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  namespace: argocd
-  name: id-test
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
-spec:
-  project: default
-  destination:
-    name: in-cluster
-    namespace: id-test
-  syncPolicy:
-  #  automated:
-  #    prune: true
-  #    selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-  sources:
-    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
-      targetRevision: main
-      path: argocd/waiter/id
-      kustomize: {}
-    - repoURL: registry-1.docker.io/bitnamicharts
-      targetRevision: 20.6.3
-      chart: redis
-      helm:
-        valueFiles:
-          - $values/argocd/waiter/id/redis-values.yaml
     - repoURL: registry-1.docker.io/bitnamicharts
       targetRevision: 16.4.7
       chart: postgresql
