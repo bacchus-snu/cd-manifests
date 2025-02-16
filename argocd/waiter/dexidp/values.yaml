@@ -72,6 +72,11 @@ envVars:
       secretKeyRef:
         name: dex-client-secrets
         key: bacchus-howto
+  - name: DEX_CLIENT_BACCHUS_SANDBOX
+    valueFrom:
+      secretKeyRef:
+        name: dex-client-secrets
+        key: bacchus-sandbox
 
 volumes:
   - name: dex-google-secret
@@ -139,6 +144,11 @@ config:
       redirectURIs:
         - https://howto.bacchus.io/oauth2/callback
       secretEnv: DEX_CLIENT_BACCHUS_HOWTO
+    - name: Bacchus Sandbox
+      id: bacchus-sandbox
+      redirectURIs:
+        - https://genesis.snucse.org:8006
+      secretEnv: DEX_CLIENT_BACCHUS_SANDBOX
 
   connectors:
     - name: Google
