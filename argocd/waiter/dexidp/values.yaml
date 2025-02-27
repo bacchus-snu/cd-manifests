@@ -77,6 +77,11 @@ envVars:
       secretKeyRef:
         name: dex-client-secrets
         key: bacchus-sandbox
+  - name: DEX_CLIENT_BACCHUS_OLOROSO_BACKUP
+    valueFrom:
+      secretKeyRef:
+        name: dex-client-secrets
+        key: bacchus-oloroso-backup
 
 volumes:
   - name: dex-google-secret
@@ -149,6 +154,11 @@ config:
       redirectURIs:
         - https://genesis.snucse.org:8006
       secretEnv: DEX_CLIENT_BACCHUS_SANDBOX
+    - name: Bacchus Oloroso Backup
+      id: bacchus-oloroso-backup
+      redirectURIs:
+        - https://oloroso.snucse.org:8007
+      secretEnv: DEX_CLIENT_BACCHUS_OLOROSO_BACKUP
 
   connectors:
     - name: Google
