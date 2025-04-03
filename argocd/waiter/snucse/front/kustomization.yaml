@@ -14,4 +14,4 @@ labels:
 images:
   - name: snucse-front
     newName: ghcr.io/bacchus-snu/snucse
-    newTag: v3.2.1
+    newTag: v3.2.2
