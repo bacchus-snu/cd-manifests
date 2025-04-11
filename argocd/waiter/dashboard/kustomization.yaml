@@ -2,7 +2,7 @@ resources:
   - resources.yaml
 
 configMapGenerator:
-  - name: test
+  - name: dashboard-ceph-cluster
     options:
       disableNameSuffixHash: true
       labels:
