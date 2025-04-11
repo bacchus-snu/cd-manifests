@@ -72,7 +72,7 @@ grafana:
         contains(groups[*], 'alumni-members@bacchus.snucse.org') && 'Viewer'
 
     security:
-      disable_initial_admin_creation: false
+      disable_initial_admin_creation: true
 
   extraSecretMounts:
     - name: dex-auth
