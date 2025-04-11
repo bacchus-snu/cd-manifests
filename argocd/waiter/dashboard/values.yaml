@@ -80,6 +80,12 @@ grafana:
       mountPath: /etc/secrets/dex-auth
       readOnly: true
 
+  dashboards:
+    default:
+      ceph-cluster:
+        gnetId: 2842
+        revision: 18
+
 # Not available, we use cilium kube-proxy replacement
 kubeProxy:
   enabled: false

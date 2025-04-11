@@ -92,15 +92,33 @@ metadata:
 spec:
   metricsPath: /metrics
   staticConfigs:
-    # use the same label as the in-cluster node-expoter, as node-exporter only
+    # use the same label as the in-cluster node-exporter, as node-exporter only
     # has node-level metrics and thus the metrics cannot collide with
     # in-cluster nodes
     - labels:
         job: node-exporter
+        cluster: bartender # for easy querying
       targets:
         - fizz.snucse.org:9100
         - gin.snucse.org:9100
         - ramos.snucse.org:9100
+---
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  namespace: dashboard
+  name: bartender-ceph-cluster
+  labels:
+    release: dashboard
+spec:
+  metricsPath: /metrics
+  staticConfigs:
+    - labels:
+        job: ceph-cluster
+      targets:
+        - fizz.snucse.org:9283
+        - gin.snucse.org:9283
+        - ramos.snucse.org:9283
 ---
 apiVersion: monitoring.coreos.com/v1alpha1
 kind: AlertmanagerConfig
@@ -156,3 +174,43 @@ spec:
             summary: Unhealthy SMART status.
           labels:
             severity: critical
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  namespace: dashboard
+  name: dashboard-ceph-cluster
+  labels:
+    release: dashboard
+spec:
+  groups:
+    - name: ceph-cluster
+      rules:
+        - alert: CephClusterUnhealthy
+          expr: ceph_health_detail != 0
+          annotations:
+            description: Ceph cluster healthceck {{ $labels.name }} has failed.
+            summary: Ceph cluster healthcheck failed.
+          labels:
+            severity: critical
+        - alert: CephClusterNearFull
+          expr: ceph_cluster_total_used_raw_bytes / ceph_cluster_total_bytes > 0.75
+          annotations:
+            description: Ceph cluster is {{ humanizePercentage $value }} full.
+            summary: Ceph cluster is near full.
+          labels:
+            severity: critical
+        - alert: CephClusterOSDDown
+          expr: ceph_osd_up != 1
+          annotations:
+            description: Ceph OSD {{ $labels.ceph_daemon }} is down.
+            summary: Ceph OSD is down.
+          labels:
+            severity: critical
+        - alert: CephClusterOSDOut
+          expr: ceph_osd_in != 1
+          annotations:
+            description: Ceph OSD {{ $labels.ceph_daemon }} is out of service.
+            summary: Ceph OSD is out.
+          labels:
+            severity: warning
