@@ -15,6 +15,13 @@ operator:
     enabled: true
     minAvailable: 1
     maxUnavailable: null
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: Exists
 
 # replace kube-proxy
 kubeProxyReplacement: true
