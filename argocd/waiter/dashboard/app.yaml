@@ -40,5 +40,4 @@ spec:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       path: argocd/waiter/dashboard
-      directory:
-        include: 'resources.yaml'
+      kustomize: {}

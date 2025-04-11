@@ -1,0 +1,11 @@
+resources:
+  - resources.yaml
+
+configMapGenerator:
+  - name: test
+    options:
+      disableNameSuffixHash: true
+      labels:
+        grafana_dashboard: "1"
+    files:
+      - ceph-cluster.json=https://grafana.com/api/dashboards/2842/revisions/18/download
