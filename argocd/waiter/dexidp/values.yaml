@@ -153,6 +153,7 @@ config:
       id: bacchus-sandbox
       redirectURIs:
         - https://genesis.snucse.org:8006
+        - https://joker.snucse.org:8006
       secretEnv: DEX_CLIENT_BACCHUS_SANDBOX
     - name: Bacchus Oloroso Backup
       id: bacchus-oloroso-backup
