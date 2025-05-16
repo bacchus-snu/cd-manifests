@@ -1,4 +1,28 @@
 ---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: default
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: vault-secrets-operator
+    serviceAccount: default
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: talos-etcd-snapshots-pbs
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: default/talos-etcd-snapshots/pbs
+  destination:
+    create: true
+    name: talos-etcd-snapshots-pbs
+---
 apiVersion: talos.dev/v1alpha1
 kind: ServiceAccount
 metadata:
@@ -7,18 +31,6 @@ metadata:
 spec:
   roles:
     - os:etcd:backup
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  namespace: default
-  name: talos-etcd-snapshots
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 10Gi
 ---
 apiVersion: batch/v1
 kind: CronJob
@@ -36,18 +48,24 @@ spec:
             - name: talos-secrets
               secret:
                 secretName: talos-api-access-talos-secrets
-            - name: snapshots
-              persistentVolumeClaim:
-                claimName: talos-etcd-snapshots
-          containers:
-            - name: app
+            - name: scratch
+              ephemeral:
+                volumeClaimTemplate:
+                  spec:
+                    accessModes:
+                      - ReadWriteOncePod
+                    resources:
+                      requests:
+                        storage: 1Gi
+          initContainers:
+            - name: create-etcd-snapshots
               image: alpine:3
               volumeMounts:
                 - name: talos-secrets
                   mountPath: /var/run/secrets/talos.dev
                   readOnly: true
-                - name: snapshots
-                  mountPath: /snapshots
+                - name: scratch
+                  mountPath: /scratch
               resources:
                 requests:
                   cpu: 100m
@@ -68,9 +86,39 @@ spec:
                 - /bin/sh
                 - -c
                 - |
-                    set -euox
+                    set -euxo pipefail
                     wget -O /tmp/talosctl https://github.com/siderolabs/talos/releases/download/v1.6.1/talosctl-linux-amd64
                     chmod +x /tmp/talosctl
-                    /tmp/talosctl -n 10.89.0.21 etcd snapshot /snapshots/$(date -uIsecond)-db.snapshot
+                    /tmp/talosctl -n 10.89.0.21 etcd snapshot /scratch/etcd.snapshot
+          containers:
+            - name: backup
+              image: debian:bookworm
+              envFrom:
+                - secretRef:
+                    name: talos-etcd-snapshots-pbs
+              volumeMounts:
+                - name: scratch
+                  mountPath: /scratch
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 1Gi
+                limits:
+                  cpu: 100m
+                  memory: 1Gi
+              securityContext:
+                allowPrivilegeEscalation: false
+                seccompProfile:
+                  type: RuntimeDefault
+              command:
+                - /bin/bash
+                - -c
+                - |
+                    set -euxo pipefail
+                    apt-get update && apt-get install -y wget
+                    wget https://enterprise.proxmox.com/debian/proxmox-release-bookworm.gpg -O /usr/share/keyrings/proxmox-release-bookworm.gpg
+                    echo 'deb [signed-by=/usr/share/keyrings/proxmox-release-bookworm.gpg] http://download.proxmox.com/debian/pbs-client bookworm main' >> /etc/apt/sources.list
+                    apt-get update && apt-get install -y proxmox-backup-client
+                    proxmox-backup-client backup --ns=waiter --backup-id=etcd --backup-type=ct etcd.pxar:/scratch
           securityContext:
             fsGroup: 1337
