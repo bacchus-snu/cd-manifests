@@ -3,7 +3,7 @@ apiVersion: gateway.networking.k8s.io/v1beta1
 kind: HTTPRoute
 metadata:
   namespace: vault
-  name: vault-ui
+  name: vault-active
 spec:
   parentRefs:
     - namespace: cilium-system
@@ -13,9 +13,28 @@ spec:
     - vault.internal.bacchus.io
   rules:
     - backendRefs:
+        - name: vault-active
+          port: 8200
+---
+# In case of vault failure (all replicas down/sealed) and Dex failure
+# We may not have easy access to the Kubernetes API externally before Vault becomes ready again.
+# This host allows administrators to access the Vault UI to unseal at least one replica.
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  namespace: vault
+  name: vault-any
+spec:
+  parentRefs:
+    - namespace: cilium-system
+      name: internal-web-gateway
+      sectionName: https-bacchus-io
+  hostnames:
+    - vault-any.internal.bacchus.io
+  rules:
+    - backendRefs:
         - name: vault-ui
           port: 8200
-
 # snapshot vault volumes every day
 ---
 apiVersion: v1
