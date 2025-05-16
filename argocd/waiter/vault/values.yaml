@@ -6,11 +6,33 @@ server:
     limits:
       memory: 512Mi
 
+  extraInitContainers:
+    - name: vault-storage-migration
+      image: hashicorp/vault:1.17.2
+      command:
+        - "/bin/sh"
+        - "-ec"
+      args:
+        - "/bin/vault operator migrate -config /vault/storage-migration/migrate.hcl"
+      volumeMounts:
+        - name: storage-migration
+          mountPath: "/vault/storage-migration"
+        - name: data
+          mountPath: "/vault/data"
+  volumeMounts:
+    - name: storage-migration
+      mountPath: "/vault/storage-migration"
+  volumes:
+    - name: storage-migration
+      configMap:
+        name: storage-migration
+
   auditStorage:
     enabled: true
 
   ha:
     enabled: true
+    replicas: 1 # for migration
     raft:
       enabled: true
 
