@@ -99,18 +99,3 @@ spec:
                       source:
                         persistentVolumeClaimName: data-vault-0
                   EOF
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: storage-migration
-  namespace: vault
-data:
-  migrate.hcl: |
-    storage_source "file" {
-      path = "/data/vault"
-    }
-    storage_destination "raft" {
-      path = "/data/vault"
-    }
-    cluster_addr = "https://vault-0.vault:8201"
