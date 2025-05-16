@@ -2,12 +2,17 @@ server:
   resources:
     requests:
       memory: 512Mi
-      cpu: 1
+      cpu: 500m
     limits:
       memory: 512Mi
 
   auditStorage:
     enabled: true
+
+  ha:
+    enabled: true
+    raft:
+      enabled: true
 
 ui:
   enabled: true
