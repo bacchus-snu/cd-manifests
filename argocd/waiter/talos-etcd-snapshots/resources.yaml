@@ -59,7 +59,7 @@ spec:
                         storage: 1Gi
           initContainers:
             - name: create-etcd-snapshots
-              image: alpine:3
+              image: ghcr.io/siderolabs/talosctl:v1.7.5
               volumeMounts:
                 - name: talos-secrets
                   mountPath: /var/run/secrets/talos.dev
@@ -82,14 +82,7 @@ spec:
                 runAsUser: 1000
                 seccompProfile:
                   type: RuntimeDefault
-              command:
-                - /bin/sh
-                - -c
-                - |
-                    set -euxo pipefail
-                    wget -O /tmp/talosctl https://github.com/siderolabs/talos/releases/download/v1.6.1/talosctl-linux-amd64
-                    chmod +x /tmp/talosctl
-                    /tmp/talosctl -n 10.89.0.21 etcd snapshot /scratch/etcd.snapshot
+              args: ['-n', '10.89.0.21', 'etcd', 'snapshot', '/scratch/etcd.snapshot']
           containers:
             - name: backup
               image: debian:bookworm
