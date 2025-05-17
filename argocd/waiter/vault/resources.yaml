@@ -36,6 +36,32 @@ spec:
         - name: vault-ui
           port: 8200
 ---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  namespace: vault
+  name: default
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: vault-secrets-operator
+    serviceAccount: default
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  namespace: vault
+  name: vault-pbs
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: vault/pbs
+  destination:
+    create: true
+    name: vault-pbs
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -88,7 +114,7 @@ spec:
               image: ghcr.io/bacchus-snu/images/proxmox-backup-client:5575324
               envFrom:
                 - secretRef:
-                    name: vault-raft-snapshot-pbs
+                    name: vault-pbs
               volumeMounts:
                 - name: scratch
                   mountPath: /scratch

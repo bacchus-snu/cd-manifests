@@ -55,7 +55,6 @@ spec:
   destination:
     create: true
     name: id-db-creds
-
 ---
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
