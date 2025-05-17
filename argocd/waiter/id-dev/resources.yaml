@@ -81,6 +81,8 @@ spec:
         spec:
           restartPolicy: Never
           volumes:
+            - name: tmp
+              emptyDir: {}
             - name: scratch
               ephemeral:
                 volumeClaimTemplate:
@@ -137,6 +139,8 @@ spec:
                 - secretRef:
                     name: id-dev-pbs
               volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
                 - name: scratch
                   mountPath: /scratch
               resources:
@@ -148,6 +152,11 @@ spec:
                   memory: 1Gi
               securityContext:
                 allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                runAsNonRoot: true
+                runAsUser: 1000
                 seccompProfile:
                   type: RuntimeDefault
               args: ['backup', '--ns=waiter', '--backup-id=id-dev', '--backup-type=ct', 'pgdump.pxar:/scratch']

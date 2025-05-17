@@ -45,6 +45,8 @@ spec:
         spec:
           restartPolicy: Never
           volumes:
+            - name: tmp
+              emptyDir: {}
             - name: talos-secrets
               secret:
                 secretName: talos-api-access-talos-secrets
@@ -90,6 +92,8 @@ spec:
                 - secretRef:
                     name: talos-etcd-snapshots-pbs
               volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
                 - name: scratch
                   mountPath: /scratch
               resources:
@@ -101,6 +105,11 @@ spec:
                   memory: 1Gi
               securityContext:
                 allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                runAsNonRoot: true
+                runAsUser: 1000
                 seccompProfile:
                   type: RuntimeDefault
               args: ['backup', '--ns=waiter', '--backup-id=etcd', '--backup-type=ct', 'etcd.pxar:/scratch']
