@@ -20,7 +20,7 @@ spec:
       path: argocd/waiter/bacchus-sgs
       kustomize: {}
     - repoURL: registry-1.docker.io/bitnamicharts
-      targetRevision: 16.4.7
+      targetRevision: 16.7.4
       chart: postgresql
       helm:
         valueFiles:
