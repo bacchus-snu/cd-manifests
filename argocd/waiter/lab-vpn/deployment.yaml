@@ -75,7 +75,8 @@ spec:
               cpu: 100m
               memory: 64Mi
             limits:
-              cpu: 100m
+              # for some reason, throttles heavily otherwise
+              cpu: 1000m
               memory: 64Mi
       volumes:
         - name: secrets
