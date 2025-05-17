@@ -196,7 +196,7 @@ spec:
                   mountPath: /scratch
               env:
                 - name: PGUSER
-                  value: postgres
+                  value: bacchus-sgs
                 - name: PGPASSWORD
                   valueFrom:
                     secretKeyRef:
