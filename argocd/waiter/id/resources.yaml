@@ -56,55 +56,59 @@ spec:
     create: true
     name: id-db-creds
 
-# snapshot id volumes every day
 ---
-apiVersion: v1
-kind: ServiceAccount
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
 metadata:
-  name: id-snapshots
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: id-snapshots
-rules:
-  - apiGroups:
-      - snapshot.storage.k8s.io
-    resources:
-      - volumesnapshots
-    verbs:
-      - create
-      - delete
-      - get
-      - list
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: id-snapshots
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: id-snapshots
-subjects:
-  - kind: ServiceAccount
-    name: id-snapshots
+  name: id-pbs
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: id/pbs
+  destination:
+    create: true
+    name: id-pbs
 ---
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: id-snapshots
+  name: id-backup
 spec:
   schedule: '@daily'
   jobTemplate:
     spec:
       template:
         spec:
-          serviceAccountName: id-snapshots
           restartPolicy: Never
-          containers:
-            - name: app
-              image: bitnami/kubectl:latest
+          volumes:
+            - name: scratch
+              ephemeral:
+                volumeClaimTemplate:
+                  spec:
+                    accessModes:
+                      - ReadWriteOncePod
+                    resources:
+                      requests:
+                        storage: 1Gi
+          initContainers:
+            - name: create-pgdump
+              image: docker.io/bitnami/postgresql:17.2.0-debian-12-r10
+              volumeMounts:
+                - name: scratch
+                  mountPath: /scratch
+              env:
+                - name: PGUSER
+                  value: id
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      key: password
+                      name: id-db-creds
+                - name: PGHOST
+                  value: id-postgresql
+                - name: PGPORT
+                  value: '5432'
               resources:
                 requests:
                   cpu: 100m
@@ -121,17 +125,32 @@ spec:
                 runAsUser: 1000
                 seccompProfile:
                   type: RuntimeDefault
-              command:
-                - /bin/sh
+              args:
+                - /bin/bash
                 - -c
                 - |
-                    kubectl apply -f- <<EOF
-                      apiVersion: snapshot.storage.k8s.io/v1
-                      kind: VolumeSnapshot
-                      metadata:
-                        name: data-id-postgresql-0-$(date +%s)
-                      spec:
-                        volumeSnapshotClassName: rbd
-                        source:
-                          persistentVolumeClaimName: data-id-postgresql-0
-                    EOF
+                    set -euxo pipefail
+                    pg_dumpall --clean --if-exists --quote-all-identifiers --file=/scratch/pgdump.sql
+          containers:
+            - name: backup
+              image: ghcr.io/bacchus-snu/images/proxmox-backup-client:5575324
+              envFrom:
+                - secretRef:
+                    name: id-pbs
+              volumeMounts:
+                - name: scratch
+                  mountPath: /scratch
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 1Gi
+                limits:
+                  cpu: 100m
+                  memory: 1Gi
+              securityContext:
+                allowPrivilegeEscalation: false
+                seccompProfile:
+                  type: RuntimeDefault
+              args: ['backup', '--ns=waiter', '--backup-id=id', '--backup-type=ct', 'pgdump.pxar:/scratch']
+          securityContext:
+            fsGroup: 1337
