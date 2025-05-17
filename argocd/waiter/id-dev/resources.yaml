@@ -56,6 +56,19 @@ spec:
     create: true
     name: id-dev-db-creds
 ---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: id-dev-pbs
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: id-dev/pbs
+  destination:
+    create: true
+    name: id-dev-pbs
+---
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -122,7 +135,7 @@ spec:
               image: ghcr.io/bacchus-snu/images/proxmox-backup-client:5575324
               envFrom:
                 - secretRef:
-                    name: talos-etcd-snapshots-pbs
+                    name: id-dev-pbs
               volumeMounts:
                 - name: scratch
                   mountPath: /scratch
