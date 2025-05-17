@@ -130,7 +130,7 @@ spec:
                 - -c
                 - |
                     set -euxo pipefail
-                    pg_dumpall --clean --if-exists --quote-all-identifiers --file=/scratch/pgdump.sql
+                    pg_dump id --clean --if-exists --quote-all-identifiers --file=/scratch/pgdump.sql
           containers:
             - name: backup
               image: ghcr.io/bacchus-snu/images/proxmox-backup-client:5575324
