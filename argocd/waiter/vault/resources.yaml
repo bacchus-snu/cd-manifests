@@ -81,6 +81,16 @@ spec:
         spec:
           serviceAccountName: vault-raft-snapshot
           restartPolicy: Never
+          volumes:
+            - name: scratch
+              ephemeral:
+                volumeClaimTemplate:
+                  spec:
+                    accessModes:
+                      - ReadWriteOncePod
+                    resources:
+                      requests:
+                        storage: 1Gi
           initContainers:
             - name: create-vault-raft-snapshot
               image: hashicorp/vault:1.17.2
