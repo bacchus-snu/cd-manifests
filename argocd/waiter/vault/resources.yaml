@@ -94,6 +94,9 @@ spec:
           initContainers:
             - name: create-vault-raft-snapshot
               image: hashicorp/vault:1.17.2
+              env:
+                - name: VAULT_ADDR
+                  value: http://vault-active.vault.svc.cluster.local:8200
               volumeMounts:
                 - name: scratch
                   mountPath: /scratch
