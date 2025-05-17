@@ -35,59 +35,32 @@ spec:
     - backendRefs:
         - name: vault-ui
           port: 8200
-# snapshot vault volumes every day
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   namespace: vault
-  name: vault-snapshots
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  namespace: vault
-  name: vault-snapshots
-rules:
-  - apiGroups:
-      - snapshot.storage.k8s.io
-    resources:
-      - volumesnapshots
-    verbs:
-      - create
-      - delete
-      - get
-      - list
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  namespace: vault
-  name: vault-snapshots
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: vault-snapshots
-subjects:
-  - kind: ServiceAccount
-    name: vault-snapshots
+  name: vault-raft-snapshot
 ---
 apiVersion: batch/v1
 kind: CronJob
 metadata:
   namespace: vault
-  name: vault-snapshots
+  name: vault-raft-snapshot
 spec:
   schedule: "@daily"
   jobTemplate:
     spec:
       template:
         spec:
-          serviceAccountName: vault-snapshots
+          serviceAccountName: vault-raft-snapshot
           restartPolicy: Never
-          containers:
-            - name: app
-              image: bitnami/kubectl:latest
+          initContainers:
+            - name: create-vault-raft-snapshot
+              image: hashicorp/vault:1.17.2
+              volumeMounts:
+                - name: scratch
+                  mountPath: /scratch
               resources:
                 requests:
                   cpu: 100m
@@ -108,13 +81,26 @@ spec:
                 - /bin/sh
                 - -c
                 - |
-                  kubectl apply -f- <<EOF
-                    apiVersion: snapshot.storage.k8s.io/v1
-                    kind: VolumeSnapshot
-                    metadata:
-                      name: data-vault-0-$(date +%s)
-                    spec:
-                      volumeSnapshotClassName: rbd
-                      source:
-                        persistentVolumeClaimName: data-vault-0
-                  EOF
+                    export VAULT_TOKEN=$(vault write -field=token auth/kubernetes/login jwt=@/var/run/secrets/kubernetes.io/serviceaccount/token role=vault-raft-snapshot)
+                    vault operator raft snapshot save /scratch/vault.snap
+          containers:
+            - name: backup
+              image: ghcr.io/bacchus-snu/images/proxmox-backup-client:5575324
+              envFrom:
+                - secretRef:
+                    name: vault-raft-snapshot-pbs
+              volumeMounts:
+                - name: scratch
+                  mountPath: /scratch
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 1Gi
+                limits:
+                  cpu: 100m
+                  memory: 1Gi
+              securityContext:
+                allowPrivilegeEscalation: false
+                seccompProfile:
+                  type: RuntimeDefault
+              args: ['backup', '--ns=waiter', '--backup-id=vault', '--backup-type=ct', 'vault.pxar:/scratch']
