@@ -143,3 +143,5 @@ spec:
                 seccompProfile:
                   type: RuntimeDefault
               args: ['backup', '--ns=waiter', '--backup-id=vault', '--backup-type=ct', 'vault.pxar:/scratch']
+          securityContext:
+            fsGroup: 1337
