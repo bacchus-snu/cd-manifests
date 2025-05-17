@@ -13,6 +13,3 @@ primary:
     limits:
       cpu: 1000m
       memory: 128Mi
-
-backup:
-  enabled: true
