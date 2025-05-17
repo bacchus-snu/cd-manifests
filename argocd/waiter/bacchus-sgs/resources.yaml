@@ -153,3 +153,101 @@ spec:
   destination:
     create: true
     name: bacchus-sgs-config
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: bacchus-sgs-pbs
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: bacchus-sgs/pbs
+  destination:
+    create: true
+    name: bacchus-sgs-pbs
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: bacchus-sgs-backup
+spec:
+  schedule: '@daily'
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          volumes:
+            - name: scratch
+              ephemeral:
+                volumeClaimTemplate:
+                  spec:
+                    accessModes:
+                      - ReadWriteOncePod
+                    resources:
+                      requests:
+                        storage: 1Gi
+          initContainers:
+            - name: create-pgdump
+              image: docker.io/bitnami/postgresql:17.2.0-debian-12-r10
+              volumeMounts:
+                - name: scratch
+                  mountPath: /scratch
+              env:
+                - name: PGUSER
+                  value: postgres
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      key: postgres-password
+                      name: bacchus-sgs-db-creds
+                - name: PGHOST
+                  value: bacchus-sgs-postgresql
+                - name: PGPORT
+                  value: '5432'
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                runAsNonRoot: true
+                runAsUser: 1000
+                seccompProfile:
+                  type: RuntimeDefault
+              args:
+                - /bin/bash
+                - -c
+                - |
+                    set -euxo pipefail
+                    pg_dumpall --clean --if-exists --quote-all-identifiers --file=/scratch/pgdump.sql
+          containers:
+            - name: backup
+              image: ghcr.io/bacchus-snu/images/proxmox-backup-client:5575324
+              envFrom:
+                - secretRef:
+                    name: bacchus-sgs-pbs
+              volumeMounts:
+                - name: scratch
+                  mountPath: /scratch
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 1Gi
+                limits:
+                  cpu: 100m
+                  memory: 1Gi
+              securityContext:
+                allowPrivilegeEscalation: false
+                seccompProfile:
+                  type: RuntimeDefault
+              args: ['backup', '--ns=waiter', '--backup-id=bacchus-sgs', '--backup-type=ct', 'pgdump.pxar:/scratch']
+          securityContext:
+            fsGroup: 1337
