@@ -85,7 +85,7 @@ spec:
               args: ['-n', '10.89.0.21', 'etcd', 'snapshot', '/scratch/etcd.snapshot']
           containers:
             - name: backup
-              image: debian:bookworm
+              image: ghcr.io/bacchus-snu/images/proxmox-backup-client:5575324
               envFrom:
                 - secretRef:
                     name: talos-etcd-snapshots-pbs
@@ -103,15 +103,6 @@ spec:
                 allowPrivilegeEscalation: false
                 seccompProfile:
                   type: RuntimeDefault
-              command:
-                - /bin/bash
-                - -c
-                - |
-                    set -euxo pipefail
-                    apt-get update && apt-get install -y wget
-                    wget https://enterprise.proxmox.com/debian/proxmox-release-bookworm.gpg -O /usr/share/keyrings/proxmox-release-bookworm.gpg
-                    echo 'deb [signed-by=/usr/share/keyrings/proxmox-release-bookworm.gpg] http://download.proxmox.com/debian/pbs-client bookworm main' >> /etc/apt/sources.list
-                    apt-get update && apt-get install -y proxmox-backup-client
-                    proxmox-backup-client backup --ns=waiter --backup-id=etcd --backup-type=ct etcd.pxar:/scratch
+              args: ['backup', '--ns=waiter', '--backup-id=etcd', '--backup-type=ct', 'etcd.pxar:/scratch']
           securityContext:
             fsGroup: 1337
