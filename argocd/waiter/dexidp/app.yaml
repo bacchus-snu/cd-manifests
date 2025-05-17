@@ -16,7 +16,7 @@ spec:
       - CreateNamespace=true
   sources:
     - repoURL: https://charts.dexidp.io
-      targetRevision: 0.20.0
+      targetRevision: 0.23.0
       chart: dex
       helm:
         valueFiles:
