@@ -200,7 +200,7 @@ spec:
                 - name: PGPASSWORD
                   valueFrom:
                     secretKeyRef:
-                      key: postgres-password
+                      key: password
                       name: bacchus-sgs-db-creds
                 - name: PGHOST
                   value: bacchus-sgs-postgresql
@@ -227,7 +227,7 @@ spec:
                 - -c
                 - |
                     set -euxo pipefail
-                    pg_dumpall --clean --if-exists --quote-all-identifiers --file=/scratch/pgdump.sql
+                    pg_dump bacchus-sgs --clean --if-exists --quote-all-identifiers --file=/scratch/pgdump.sql
           containers:
             - name: backup
               image: ghcr.io/bacchus-snu/images/proxmox-backup-client:5575324
