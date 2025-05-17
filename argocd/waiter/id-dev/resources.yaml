@@ -81,6 +81,9 @@ spec:
             - name: create-pgdump
               image: docker.io/bitnami/postgresql:17.2.0-debian-12-r10
               volumeMounts:
+                - name: scratch
+                  mountPath: /scratch
+              env:
                 - name: PGUSER
                   value: postgres
                 - name: PGPASSWORD
