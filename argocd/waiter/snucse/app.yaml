@@ -29,7 +29,7 @@ spec:
       kustomize: {}
     # mysql
     - repoURL: registry-1.docker.io/bitnamicharts
-      targetRevision: 20.13.4
+      targetRevision: 21.1.3
       chart: redis
       helm:
         valueFiles:
