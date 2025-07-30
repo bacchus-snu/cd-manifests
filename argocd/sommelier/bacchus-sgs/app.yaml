@@ -77,3 +77,5 @@ spec:
             - key: node-role.kubernetes.io/control-plane
               effect: NoSchedule
               operator: Exists
+          extraArgs:
+            - --metric-labels-allowlist=nodes=[node-restriction.kubernetes.io/nodegroup]
