@@ -56,12 +56,15 @@ spec:
         - apiURL:
             name: bacchus-sgs-monitoring
             key: discord_url
+<<<<<<< HEAD
     # discord #gpu-waste-notifications
     - name: discord-gpu-waste-notifications
       discordConfigs:
         - apiURL:
             name: bacchus-sgs-monitoring
             key: discord_gpu_waste_url
+=======
+>>>>>>> parent of d376a66 (Make gpu-waste discord channel)
   route:
     receiver: default-receiver
     groupBy: [...]
@@ -71,6 +74,7 @@ spec:
           - name: alertname
             value: Watchdog
             matchType: =
+<<<<<<< HEAD
 
       # gpu waste notifications
       - receiver: discord-gpu-waste-notifications
@@ -79,5 +83,7 @@ spec:
             value: SGSGPUWaste
             matchType: =
             
+=======
+>>>>>>> parent of d376a66 (Make gpu-waste discord channel)
       # everything else goes to discord
       - receiver: discord-notifications
