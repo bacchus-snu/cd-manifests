@@ -55,7 +55,8 @@ spec:
       discordConfigs:
         - apiURL:
             name: bacchus-sgs-monitoring
-            key: discord_url
+            key: discord_url    
+    # discord #gpu-waste-notifications
     - name: discord-gpu-waste-notifications
       discordConfigs:
         - apiURL:
@@ -70,10 +71,11 @@ spec:
           - name: alertname
             value: Watchdog
             matchType: =
-      - matchers:
+      # gpu waste notifications
+      - receiver: discord-gpu-waste-notifications
+        matchers:
           - name: alertname
             value: SGSGPUWaste
             matchType: =
-            receiver: discord-gpu-waste-notifications
       # everything else goes to discord
       - receiver: discord-notifications
