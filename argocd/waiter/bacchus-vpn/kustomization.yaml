@@ -13,7 +13,7 @@ labels:
 
 images:
   - name: alpine
-    newTag: '3.21'
+    newTag: '3.22'
   - name: kubectl
     newName: bitnami/kubectl
     newTag: '1.31'
