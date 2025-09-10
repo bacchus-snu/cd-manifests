@@ -90,7 +90,7 @@ spec:
       serviceAccountName: cse-proxy
       initContainers:
         - name: envoy-patch
-          image: bitnami/kubectl:latest
+          image: bitnamilegacy/kubectl:latest
           restartPolicy: Always # sidecar
           securityContext:
             allowPrivilegeEscalation: false
