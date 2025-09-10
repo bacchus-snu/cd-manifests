@@ -15,7 +15,7 @@ images:
   - name: alpine
     newTag: '3.21'
   - name: kubectl
-    newName: bitnami/kubectl
+    newName: bitnamilegacy/kubectl
     newTag: '1.31'
   - name: wg-access-server
     newName: ghcr.io/freifunkmuc/wg-access-server

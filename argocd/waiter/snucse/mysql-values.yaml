@@ -13,3 +13,8 @@ primary:
     limits:
       cpu: 250m
       memory: 2Gi
+
+# Override the default image to use the legacy repository due to Bitnami policy change
+image:
+  registry: docker.io
+  repository: bitnamilegacy/mysql
