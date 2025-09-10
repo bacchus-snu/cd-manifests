@@ -2,6 +2,7 @@ architecture: standalone
 auth:
   enabled: false
 
+# Override the default image to use the legacy repository due to Bitnami policy change
 image:
   registry: docker.io
   repository: bitnamilegacy/redis
