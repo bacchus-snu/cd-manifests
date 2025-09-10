@@ -16,4 +16,4 @@ configMapGenerator:
 
 images:
   - name: caddy
-    newTag: 2.10.0
+    newTag: 2.10.2
