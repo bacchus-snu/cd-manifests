@@ -6,3 +6,7 @@ auth:
 image:
   registry: docker.io
   repository: bitnamilegacy/redis
+
+global: 
+  security: 
+    allowInsecureImages: true
