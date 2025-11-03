@@ -75,3 +75,111 @@ spec:
   destination:
     create: true
     name: db-pw
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: snucse-pbs
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: snucse/pbs
+  destination:
+    create: true
+    name: snucse-pbs
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: snucse-backup
+spec:
+  schedule: '@daily'
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          volumes:
+            - name: tmp
+              emptyDir: {}
+            - name: scratch
+              ephemeral:
+                volumeClaimTemplate:
+                  spec:
+                    accessModes:
+                      - ReadWriteOncePod
+                    resources:
+                      requests:
+                        storage: 1Gi
+          initContainers:
+            - name: create-mysqldump
+              image: docker.io/bitnamilegacy/mysql:8.0.44-debian
+              volumeMounts:
+                - name: scratch
+                  mountPath: /scratch
+              env:
+                - name: MYSQL_USER
+                  value: snucse
+                - name: MYSQL_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      key: mysql-root-password
+                      name: db-pw
+                - name: MYSQL_HOST
+                  value: snucse-mysql
+                - name: MYSQL_PORT
+                  value: '3306'
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                runAsNonRoot: true
+                runAsUser: 1000
+                seccompProfile:
+                  type: RuntimeDefault
+              args:
+                - /bin/bash
+                - -c
+                - |
+                    set -euxo pipefail
+                    mysqldump --host=${MYSQL_HOST} --port=${MYSQL_PORT} --user=${MYSQL_USER} --password=${MYSQL_PASSWORD} --single-transaction --routines --triggers --all-databases > /scratch/mysqldump.sql
+          containers:
+            - name: backup
+              image: ghcr.io/bacchus-snu/images/proxmox-backup-client:5575324
+              envFrom:
+                - secretRef:
+                    name: snucse-pbs
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+                - name: scratch
+                  mountPath: /scratch
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 1Gi
+                limits:
+                  cpu: 100m
+                  memory: 1Gi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                runAsNonRoot: true
+                runAsUser: 1000
+                seccompProfile:
+                  type: RuntimeDefault
+              args: ['backup', '--ns=waiter', '--backup-id=snucse', '--backup-type=ct', 'pgdump.pxar:/scratch']
+          securityContext:
+            fsGroup: 1337
