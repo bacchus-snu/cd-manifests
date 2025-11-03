@@ -115,13 +115,13 @@ spec:
                         storage: 1Gi
           initContainers:
             - name: create-mysqldump
-              image: docker.io/bitnamilegacy/mysql:8.0.44-debian
+              image: docker.io/bitnamilegacy/mysql:9.4.0-debian-12-r1
               volumeMounts:
                 - name: scratch
                   mountPath: /scratch
               env:
                 - name: MYSQL_USER
-                  value: snucse
+                  value: root
                 - name: MYSQL_PASSWORD
                   valueFrom:
                     secretKeyRef:
