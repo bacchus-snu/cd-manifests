@@ -122,7 +122,7 @@ spec:
               env:
                 - name: MYSQL_USER
                   value: root
-                - name: MYSQL_PASSWORD
+                - name: MYSQL_PWD
                   valueFrom:
                     secretKeyRef:
                       key: mysql-root-password
