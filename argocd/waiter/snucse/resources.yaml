@@ -121,7 +121,7 @@ spec:
                   mountPath: /scratch
               env:
                 - name: MYSQL_USER
-                  value: snucse
+                  value: root
                 - name: MYSQL_PASSWORD
                   valueFrom:
                     secretKeyRef:
