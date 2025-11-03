@@ -18,3 +18,7 @@ primary:
 image:
   registry: docker.io
   repository: bitnamilegacy/postgresql
+
+global: 
+  security: 
+    allowInsecureImages: true

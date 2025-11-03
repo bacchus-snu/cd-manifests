@@ -18,3 +18,7 @@ primary:
 image:
   registry: docker.io
   repository: bitnamilegacy/mysql
+
+global: 
+  security: 
+    allowInsecureImages: true
