@@ -152,7 +152,7 @@ spec:
                 - -c
                 - |
                     set -euxo pipefail
-                    mysqldump --host=${MYSQL_HOST} --port=${MYSQL_PORT} --user=${MYSQL_USER} --password=${MYSQL_PASSWORD} --single-transaction --routines --triggers --all-databases > /scratch/mysqldump.sql
+                    mysqldump --host=${MYSQL_HOST} --port=${MYSQL_PORT} --user=${MYSQL_USER} --single-transaction --routines --triggers --all-databases > /scratch/mysqldump.sql
           containers:
             - name: backup
               image: ghcr.io/bacchus-snu/images/proxmox-backup-client:5575324
