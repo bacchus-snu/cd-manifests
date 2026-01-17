@@ -1,0 +1,23 @@
+engines:
+  local:
+    lvm:
+      enabled: false
+    zfs:
+      enabled: false
+  replicated:
+    mayastor:
+      enabled: false
+
+localpv-provisioner:
+  hostpathClass:
+    isDefaultClass: true
+    xfsQuota:
+      enabled: true
+  localpv:
+    basePath: /var/data
+    # schedule provisioners on control-plane nodes
+    nodeSelector:
+      node-role.kubernetes.io/control-plane: ''
+    tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists

@@ -1,0 +1,130 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: bacchus-sgs
+  name: bacchus-sgs
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  namespace: bacchus-sgs
+  name: bacchus-sgs
+  annotations:
+    kubernetes.io/service-account.name: bacchus-sgs
+type: kubernetes.io/service-account-token
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: bacchus-sgs
+rules:
+  - apiGroups:
+      - apiextensions.k8s.io
+    resources:
+      - customresourcedefinitions
+    verbs:
+      - list
+  - apiGroups:
+      - sgs.snucse.org
+    resources:
+      - workspacesets
+    verbs:
+      - get
+      - patch
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - clusterroles
+    resourceNames:
+      - edit
+    verbs:
+      - bind
+  - apiGroups:
+      - ''
+    resources:
+      - limitranges
+      - namespaces
+      - resourcequotas
+      - secrets
+      - serviceaccounts
+    verbs:
+      - list
+      - get
+      - create
+      - patch
+      - delete
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - rolebindings
+    verbs:
+      - list
+      - get
+      - create
+      - patch
+      - delete
+  # for monitoring
+  - apiGroups:
+      - ''
+    resources:
+      - endpoints
+      - nodes
+      - nodes/metrics
+      - pods
+      - services
+    verbs:
+      - list
+      - get
+      - watch
+  - nonResourceURLs:
+      - /metrics
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: bacchus-sgs
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: bacchus-sgs
+subjects:
+  - kind: ServiceAccount
+    name: bacchus-sgs
+    namespace: bacchus-sgs
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: workspacesets.sgs.snucse.org
+  labels:
+    applyset.kubernetes.io/is-parent-type: 'true'
+spec:
+  scope: Cluster
+  group: sgs.snucse.org
+  names:
+    plural: workspacesets
+    singular: workspaceset
+    kind: WorkspaceSet
+    shortNames:
+      - wss
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+---
+apiVersion: sgs.snucse.org/v1
+kind: WorkspaceSet
+metadata:
+  name: sgs
+  labels:
+    # ref: https://github.com/kubernetes/kubectl/blob/v0.30.0/pkg/cmd/apply/applyset.go#L169
+    applyset.kubernetes.io/id: applyset-eGaq9sV3nwMTqoxoanOqvTcx-fUhHfmcx173gQrutHk-v1
+  annotations:
+    applyset.kubernetes.io/tooling: kubectl/v0.0.0
+    applyset.kubernetes.io/contains-group-kinds: ''

@@ -1,0 +1,57 @@
+# Argocd-related  configurations
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  namespace: argocd
+  name: cocktail
+spec:
+  destinations:
+    - name: in-cluster
+      namespace: '*'
+      server: https://kubernetes.default.svc
+    - name: cocktail
+      namespace: '*'
+      server: https://cocktail.snucse.org:6443
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  sourceRepos:
+    - '*'
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  namespace: argocd
+  name: argocd-clusters-cocktail
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: argocd/clusters/cocktail
+  destination:
+    create: true
+    name: argocd-clusters-cocktail
+    labels:
+      argocd.argoproj.io/secret-type: cluster
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: cocktail-top-level
+spec:
+  project: cocktail
+  destination:
+    name: in-cluster
+    namespace: argocd
+  source:
+    repoURL: https://github.com/bacchus-snu/cd-manifests.git
+    targetRevision: main
+    path: argocd/cocktail
+    directory:
+      recurse: true
+      include: '*/app.yaml'
