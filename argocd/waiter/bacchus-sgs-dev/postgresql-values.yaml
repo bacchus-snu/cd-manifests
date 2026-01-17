@@ -1,0 +1,24 @@
+auth:
+  enablePostgresUser: false
+  username: bacchus-sgs-dev
+  database: bacchus-sgs-dev
+  existingSecret: bacchus-sgs-dev-db-creds
+  secretKeys:
+    userPasswordKey: password
+
+primary:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 128Mi
+
+# Override the default image to use the legacy repository due to Bitnami policy change
+image:
+  registry: docker.io
+  repository: bitnamilegacy/postgresql
+
+global:
+  security:
+    allowInsecureImages: true

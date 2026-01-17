@@ -1,0 +1,68 @@
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: bacchus-sgs-monitoring-dev
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: bacchus-sgs-dev/monitoring
+  destination:
+    create: true
+    name: bacchus-sgs-monitoring-dev
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  name: bacchus-sgs-monitoring-dev
+spec:
+  hostnames:
+    - sgs-dev-dashboard.snucse.org
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: https-snucse-org
+  rules:
+    - backendRefs:
+        - name: bacchus-sgs-monitoring-dev-grafana
+          port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  name: bacchus-sgs-monitoring-dev-internal
+spec:
+  hostnames:
+    - sgs-dev-dashboard.internal.bacchus.io
+  parentRefs:
+    - namespace: cilium-system
+      name: internal-web-gateway
+      sectionName: https-bacchus-io
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /alertmanager
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: alertmanager-operated
+          port: 9093
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /prometheus
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: prometheus-operated
+          port: 9090
