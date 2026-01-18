@@ -1,0 +1,13 @@
+resources:
+  - resources.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: bacchus-sgs-dev
+      app.kubernetes.io/instance: bacchus-sgs-dev
+    includeSelectors: true
+
+images:
+  - name: bacchus-sgs
+    newName: ghcr.io/bacchus-snu/sgs
+    newTag: v1.0.5

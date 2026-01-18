@@ -1,0 +1,23 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: cocktail-waiter-bootstrap
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: cocktail
+  destination:
+    name: cocktail
+    namespace: default
+  syncPolicy:
+    #automated:
+    #  prune: true
+    #  selfHeal: true
+  sources:
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: main
+      path: argocd/sommelier/waiter-bootstrap
+      directory:
+        include: 'resources.yaml'

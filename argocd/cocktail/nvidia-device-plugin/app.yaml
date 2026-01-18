@@ -1,0 +1,41 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: cocktail-nvidia-device-plugin
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: cocktail
+  destination:
+    name: cocktail
+    namespace: nvidia-device-plugin
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+    managedNamespaceMetadata:
+      labels:
+        pod-security.kubernetes.io/enforce: privileged
+        pod-security.kubernetes.io/enforce-version: v1.29
+        pod-security.kubernetes.io/warn: privileged
+        pod-security.kubernetes.io/warn-version: v1.29
+        pod-security.kubernetes.io/audit: privileged
+        pod-security.kubernetes.io/audit-version: v1.29
+  sources:
+    - repoURL: https://nvidia.github.io/k8s-device-plugin
+      targetRevision: 0.17.1
+      chart: nvidia-device-plugin
+      helm:
+        values: |
+          runtimeClassName: nvidia
+          gfd:
+            enabled: true
+          # strictly follow resource request/limits
+          compatWithCPUManager: true
+          deviceListStrategy: volume-mounts
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: main
+      path: argocd/sommelier/nvidia-device-plugin
+      directory:
+        include: 'resources.yaml'

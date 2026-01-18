@@ -1,0 +1,81 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: cocktail-bacchus-sgs
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: cocktail
+  destination:
+    name: cocktail
+    namespace: bacchus-sgs
+  syncPolicy:
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true
+    managedNamespaceMetadata:
+      labels:
+        pod-security.kubernetes.io/enforce: privileged
+        pod-security.kubernetes.io/enforce-version: v1.30
+        pod-security.kubernetes.io/warn: privileged
+        pod-security.kubernetes.io/warn-version: v1.30
+        pod-security.kubernetes.io/audit: privileged
+        pod-security.kubernetes.io/audit-version: v1.30
+  ignoreDifferences:
+    - group: sgs.snucse.org
+      kind: WorkspaceSet
+      name: sgs
+      jsonPointers:
+        - /metadata/annotations
+  sources:
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: main
+      path: argocd/sommelier/bacchus-sgs
+      directory:
+        include: 'resources.yaml'
+    - repoURL: https://nvidia.github.io/dcgm-exporter/helm-charts
+      targetRevision: 4.1.1
+      chart: dcgm-exporter
+      helm:
+        values: |
+          serviceMonitor:
+            enabled: false
+          affinity:
+            nodeAffinity:
+              # same selector as nvidia-device-plugin
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: feature.node.kubernetes.io/pci-10de.present
+                        operator: In
+                        values:
+                          - 'true'
+                  - matchExpressions:
+                      - key: feature.node.kubernetes.io/cpu-model.vendor_id
+                        operator: In
+                        values:
+                          - NVIDIA
+                  - matchExpressions:
+                      - key: nvidia.com/gpu.present
+                        operator: In
+                        values:
+                          - 'true'
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      targetRevision: 4.47.1
+      chart: prometheus-node-exporter
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      targetRevision: 5.37.0
+      chart: kube-state-metrics
+      helm:
+        values: |
+          nodeSelector:
+            node-role.kubernetes.io/control-plane: ''
+          tolerations:
+            - key: node-role.kubernetes.io/control-plane
+              effect: NoSchedule
+              operator: Exists
+          extraArgs:
+            - --metric-labels-allowlist=nodes=[node-restriction.kubernetes.io/nodegroup]

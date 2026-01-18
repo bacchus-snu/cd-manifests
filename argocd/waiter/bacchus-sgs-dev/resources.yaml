@@ -1,0 +1,262 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bacchus-sgs-dev
+spec:
+  template:
+    spec:
+      volumes:
+        - name: kubeconfig-secret
+          secret:
+            secretName: bacchus-sgs-cocktail-creds
+        - name:  kubeconfig
+          emptyDir: {}
+      securityContext:
+        fsGroup: 1337
+      initContainers:
+        - name: secret-chown
+          image: busybox:latest
+          command:
+            - sh
+            - -c
+            - cp /secret/kubeconfig /kubeconfig/kubeconfig && chown 1000:1337 /kubeconfig/kubeconfig && chmod 0400 /kubeconfig/kubeconfig
+          volumeMounts:
+            - name: kubeconfig-secret
+              mountPath: /secret
+            - name: kubeconfig
+              mountPath: /kubeconfig
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+      containers:
+        - name: app
+          image: bacchus-sgs
+          volumeMounts:
+            - name: kubeconfig
+              subPath: kubeconfig
+              mountPath: /kubeconfig
+              readOnly: true
+          env:
+            - name: KUBECONFIG
+              value: /kubeconfig
+            - name: SGS_DEPLOY_APPLY
+              value: 'true'
+          envFrom:
+            - secretRef:
+                name: bacchus-sgs-dev-config
+          ports:
+            - name: http
+              containerPort: 8080
+          livenessProbe:
+            httpGet:
+              port: http
+              path: /healthz
+          readinessProbe:
+            httpGet:
+              port: http
+              path: /healthz
+          resources:
+            requests:
+              cpu: 1000m
+              memory: 128Mi
+            limits:
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bacchus-sgs-dev
+spec:
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  name: bacchus-sgs-dev
+spec:
+  hostnames:
+    - sgs-dev.snucse.org
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: https-snucse-org
+  rules:
+    - backendRefs:
+        - name: bacchus-sgs-dev
+          port: 80
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: default
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: vault-secrets-operator
+    serviceAccount: default
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: bacchus-sgs-cocktail-creds
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: bacchus-sgs-dev/cocktail-creds
+  destination:
+    create: true
+    name: bacchus-sgs-cocktail-creds
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: bacchus-sgs-dev-db-creds
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: bacchus-sgs-dev/db-creds
+  destination:
+    create: true
+    name: bacchus-sgs-dev-db-creds
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: bacchus-sgs-dev-config
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: bacchus-sgs-dev/config
+  destination:
+    create: true
+    name: bacchus-sgs-dev-config
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: bacchus-sgs-dev-pbs
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: bacchus-sgs-dev/pbs
+  destination:
+    create: true
+    name: bacchus-sgs-dev-pbs
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: bacchus-sgs-dev-backup
+spec:
+  schedule: '@daily'
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          volumes:
+            - name: tmp
+              emptyDir: {}
+            - name: scratch
+              ephemeral:
+                volumeClaimTemplate:
+                  spec:
+                    accessModes:
+                      - ReadWriteOncePod
+                    resources:
+                      requests:
+                        storage: 1Gi
+          initContainers:
+            - name: create-pgdump
+              image: docker.io/bitnamilegacy/postgresql:17.2.0-debian-12-r10
+              volumeMounts:
+                - name: scratch
+                  mountPath: /scratch
+              env:
+                - name: PGUSER
+                  value: bacchus-sgs-dev
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      key: password
+                      name: bacchus-sgs-dev-db-creds
+                - name: PGHOST
+                  value: bacchus-sgs-dev-postgresql
+                - name: PGPORT
+                  value: '5432'
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                runAsNonRoot: true
+                runAsUser: 1000
+                seccompProfile:
+                  type: RuntimeDefault
+              args:
+                - /bin/bash
+                - -c
+                - |
+                    set -euxo pipefail
+                    pg_dump bacchus-sgs-dev --clean --if-exists --quote-all-identifiers --file=/scratch/pgdump.sql
+          containers:
+            - name: backup
+              image: ghcr.io/bacchus-snu/images/proxmox-backup-client:5575324
+              envFrom:
+                - secretRef:
+                    name: bacchus-sgs-dev-pbs
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+                - name: scratch
+                  mountPath: /scratch
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 1Gi
+                limits:
+                  cpu: 100m
+                  memory: 1Gi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                runAsNonRoot: true
+                runAsUser: 1000
+                seccompProfile:
+                  type: RuntimeDefault
+              args: ['backup', '--ns=waiter', '--backup-id=bacchus-sgs-dev', '--backup-type=ct', 'pgdump.pxar:/scratch']
+          securityContext:
+            fsGroup: 1337

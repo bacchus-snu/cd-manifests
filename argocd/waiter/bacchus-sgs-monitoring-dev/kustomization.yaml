@@ -1,0 +1,18 @@
+resources:
+  - alertmanager.yaml
+  - metric-alerting.yaml
+  - metric-scraping.yaml
+  - prometheus.yaml
+  - resources.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: bacchus-sgs-monitoring-dev
+      app.kubernetes.io/instance: bacchus-sgs-monitoring-dev
+
+configMapGenerator:
+  - name: bacchus-sgs-dev-dashboards
+    files:
+      - dashboards/sgs-resources.json
+    options:
+      disableNameSuffixHash: true

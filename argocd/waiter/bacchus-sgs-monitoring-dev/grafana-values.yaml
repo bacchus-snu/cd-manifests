@@ -1,0 +1,79 @@
+# avoid conflicting with waiter monitoring
+rbac:
+  namespaced: true
+
+env:
+  GF_SECURITY_DISABLE_INITIAL_ADMIN_CREATION: 'true'
+
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        url: http://prometheus-operated.bacchus-sgs-dev.svc.cluster.local:9090
+        access: proxy
+        isDefault: true
+        jsonData:
+          timeInterval: 1m
+
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+      - name: default
+        disableDeletion: true
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards/default
+      - name: configmap
+        disableDeletion: true
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards/configmap
+
+dashboards:
+  default:
+    node-exporter:
+      gnetId: 1860
+      revision: 37
+      datasource: Prometheus
+
+dashboardsConfigMaps:
+  configmap: bacchus-sgs-dev-dashboards
+
+grafana.ini:
+  analytics:
+    reporting_enabled: false
+    check_for_updates: false
+
+  server:
+    domain: sgs-dev-dashboard.snucse.org
+    root_url: https://%(domain)s
+
+  # auth
+  auth:
+    disable_login_form: true
+  auth.anonymous:
+    enabled: true
+  auth.generic_oauth:
+    enabled: true
+    allow_sign_up: true
+    client_id: bacchus-sgs-monitoring-dev
+    client_secret: '$__file{/etc/secrets/dex-auth/secret}'
+    scopes: openid email profile groups
+    api_url: https://auth.bacchus.io/dex/userinfo
+    auth_url: https://auth.bacchus.io/dex/auth
+    token_url: https://auth.bacchus.io/dex/token
+    # dex does not include indirect groups, we must enumerate every group
+    role_attribute_path: >
+      contains(groups[*], 'regular-members@bacchus.snucse.org') && 'Editor' ||
+      contains(groups[*], 'intern-members@bacchus.snucse.org') && 'Viewer' ||
+      contains(groups[*], 'suspended-members@bacchus.snucse.org') && 'Viewer' ||
+      contains(groups[*], 'alumni-members@bacchus.snucse.org') && 'Viewer'
+
+extraSecretMounts:
+  - name: dex-auth
+    secretName: bacchus-sgs-monitoring-dev
+    mountPath: /etc/secrets/dex-auth
+    readOnly: true
