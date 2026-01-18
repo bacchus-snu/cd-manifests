@@ -33,7 +33,7 @@ spec:
   sources:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
-      path: argocd/cocktail/bacchus-sgs
+      path: argocd/sommelier/bacchus-sgs
       directory:
         include: 'resources.yaml'
     - repoURL: https://nvidia.github.io/dcgm-exporter/helm-charts

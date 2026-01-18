@@ -28,7 +28,7 @@ spec:
       chart: openebs
       helm:
         valueFiles:
-          - $values/argocd/cocktail/openebs/values.yaml
+          - $values/argocd/sommelier/openebs/values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       ref: values

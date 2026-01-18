@@ -18,6 +18,6 @@ spec:
   sources:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
-      path: argocd/cocktail/bacchus-rbac
+      path: argocd/sommelier/bacchus-rbac
       directory:
         include: 'resources.yaml'
