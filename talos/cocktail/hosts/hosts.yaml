@@ -1,0 +1,8 @@
+# cocktail cluster - single control plane
+# interface must match the actual interface name on the node
+
+controlplane:
+  soju:
+    interface: eth0
+    address: 147.46.240.85/24
+worker: {}
