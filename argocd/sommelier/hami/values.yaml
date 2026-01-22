@@ -7,15 +7,6 @@ scheduler:
     nodeSchedulerPolicy: binpack  # Consolidate pods on same nodes
     gpuSchedulerPolicy: spread     # Distribute across different GPUs
 
-  # Scheduler resources
-  resources:
-    limits:
-      cpu: 1000m
-      memory: 1000Mi
-    requests:
-      cpu: 100m
-      memory: 100Mi
-
   tolerations:
       - key: "node-role.kubernetes.io/control-plane"
         operator: "Exists"
@@ -24,39 +15,14 @@ scheduler:
   nodeSelector:
       node-role.kubernetes.io/control-plane: ""
 
-  # Mutating webhook for auto-injection
-  webhook:
-    enabled: true
-    reinvocationPolicy: Never
-    failurePolicy: Ignore
-
 devicePlugin:
   enabled: true
-  # GPU slicing configuration
+  runtimeClassName: nvidia
+
   deviceSplitCount: 10           # Each physical GPU → 10 vGPU slots
-
-  # Memory oversubscription for better utilization
   deviceMemoryScaling: 1.5      # 1.5x memory oversubscription (50% overcommit)
-
-  # Disable core limiting (no core-based resource constraints)
   disablecorelimit: "true"      # Disable GPU core limits entirely
 
-  # Resources for device plugin
-  resources:
-    limits:
-      cpu: 1000m
-      memory: 1000Mi
-    requests:
-      cpu: 100m
-      memory: 100Mi
-
-  # Update strategy
-  updateStrategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: 1
-
-# Global settings
 global:
   imageRegistry: ""
   imageTag: "v2.8.0"

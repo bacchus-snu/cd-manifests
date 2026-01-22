@@ -10,13 +10,8 @@ spec:
     name: cocktail
     namespace: kube-system
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     syncOptions:
       - CreateNamespace=false
-      - ServerSideApply=true
-      - RespectIgnoreDifferences=true
     managedNamespaceMetadata:
       labels:
         pod-security.kubernetes.io/enforce: privileged
@@ -37,9 +32,3 @@ spec:
       path: argocd/sommelier/nvidia-device-plugin
       directory:
         include: 'resources.yaml'
-  ignoreDifferences:
-    - group: admissionregistration.k8s.io
-      kind: MutatingWebhookConfiguration
-      name: hami-mutating-webhook-configuration
-      jsonPointers:
-        - /webhooks/0/clientConfig/caBundle
