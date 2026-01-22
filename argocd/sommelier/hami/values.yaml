@@ -41,10 +41,6 @@ devicePlugin:
   # Disable core limiting (no core-based resource constraints)
   disablecorelimit: "true"      # Disable GPU core limits entirely
 
-  # Node selector - only GPU nodes (using NFD label for NVIDIA PCI devices)
-  nvidiaNodeSelector:
-    feature.node.kubernetes.io/pci-10de.present: "true"  # NVIDIA PCI vendor ID 10de
-
   # Resources for device plugin
   resources:
     limits:
