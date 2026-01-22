@@ -1,0 +1,7 @@
+# additional admission controllers, especially for node-level restrictions
+cluster:
+    apiServer:
+      extraArgs:
+        enable-admission-plugins: PodNodeSelector,NodeRestriction,DenyServiceExternalIPs,AlwaysPullImages
+      admissionControl:
+        - name: PodNodeSelector

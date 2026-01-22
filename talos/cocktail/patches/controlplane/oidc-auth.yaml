@@ -1,0 +1,42 @@
+# Use snucse-id to authenticate
+cluster:
+  apiServer:
+    extraArgs:
+      authentication-config: /auth-config/config.yaml
+      feature-gates: StructuredAuthenticationConfiguration=true
+    extraVolumes:
+      - hostPath: /var/run/snucse-auth
+        mountPath: /auth-config
+        readonly: true
+
+machine:
+  files:
+    - path: /var/run/snucse-auth/config.yaml
+      permissions: 0o644
+      op: create
+      content: |
+        apiVersion: apiserver.config.k8s.io/v1alpha1
+        kind: AuthenticationConfiguration
+        jwt:
+          - issuer:
+              url: https://id.snucse.org/o
+              audiences:
+                - kubernetes-oidc
+            claimMappings:
+              username:
+                claim: username
+                prefix: 'id:'
+              groups:
+                claim: groups
+                prefix: 'id:'
+          - issuer:
+              url: https://auth.bacchus.io/dex
+              audiences:
+                - bacchus-waiter
+            claimMappings:
+              username:
+                claim: email
+                prefix: 'bacchus:'
+              groups:
+                claim: groups
+                prefix: 'bacchus:'

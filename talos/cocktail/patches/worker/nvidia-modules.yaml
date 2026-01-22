@@ -1,0 +1,18 @@
+# ref: https://www.talos.dev/v1.6/talos-guides/configuration/nvidia-gpu-proprietary/
+machine:
+  kernel:
+    modules:
+      - name: nvidia
+      - name: nvidia_uvm
+      - name: nvidia_drm
+      - name: nvidia_modeset
+  sysctls:
+    net.core.bpf_jit_harden: 1
+  files:
+    - path: /etc/cri/conf.d/20-customization.part
+      op: create
+      content: |
+        [plugins]
+          [plugins."io.containerd.grpc.v1.cri"]
+            [plugins."io.containerd.grpc.v1.cri".containerd]
+              default_runtime_name = "nvidia"

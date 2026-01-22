@@ -1,0 +1,11 @@
+machine:
+  network:
+    interfaces:
+      - # addresses configured per-machine
+        routes:
+          - network: 0.0.0.0/0
+            gateway: 147.46.240.1
+        mtu: 1500
+        dhcp: false
+    nameservers:
+      - 147.46.80.1
