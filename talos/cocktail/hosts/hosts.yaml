@@ -3,6 +3,6 @@
 
 controlplane:
   soju:
-    interface: enxbc24115f6187
+    interface: ens18
     address: 147.46.240.85/24
 worker: {}
