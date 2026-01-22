@@ -1,6 +1,6 @@
-NODE := 10.91.0.11
+NODE := 147.46.240.85
 FROM_ENDPOINT := https://127.0.0.1:7445
-TO_ENDPOINT := https://10.91.0.10:6443
+TO_ENDPOINT := https://147.46.240.85:6443
 
 .PHONY: all
 all: bootstrap-kubelet.conf kubelet.conf ca.crt kubelet.yaml
