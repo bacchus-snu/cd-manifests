@@ -2,10 +2,6 @@
 # GPU slicing, resource isolation, and memory oversubscription
 
 scheduler:
-  # Scheduler image must match Kubernetes version
-  kubeScheduler:
-    imageTag: v1.34
-
   # Scheduling policies
   defaultSchedulerPolicy:
     nodeSchedulerPolicy: binpack  # Consolidate pods on same nodes
@@ -20,6 +16,14 @@ scheduler:
       cpu: 100m
       memory: 100Mi
 
+  tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+
+  nodeSelector:
+      node-role.kubernetes.io/control-plane: ""
+
   # Mutating webhook for auto-injection
   webhook:
     enabled: true
@@ -27,6 +31,7 @@ scheduler:
     failurePolicy: Ignore
 
 devicePlugin:
+  enabled: true
   # GPU slicing configuration
   deviceSplitCount: 10           # Each physical GPU → 10 vGPU slots
 
