@@ -50,9 +50,6 @@ devicePlugin:
       cpu: 100m
       memory: 100Mi
 
-  # Runtime compatibility
-  runtimeClassName: nvidia      # Compatible with existing nvidia runtime
-
   # Update strategy
   updateStrategy:
     type: RollingUpdate
