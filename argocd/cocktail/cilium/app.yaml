@@ -48,7 +48,15 @@ spec:
       chart: cilium
       helm:
         valueFiles:
-          - $values/argocd/cocktail/cilium/values.yaml
+          - $values/argocd/sommelier/cilium/values.yaml
+        values: |
+          k8sServiceHost: cocktail.snucse.org
+          operator:
+            replicas: 1
+            podDisruptionBudget:
+              enabled: false
+          l2announcements:
+            enabled: false
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       ref: values
