@@ -1,0 +1,64 @@
+# HAMi Configuration (Shared between Cocktail and Sommelier)
+# GPU slicing, resource isolation, and memory oversubscription
+
+scheduler:
+  # Scheduler image must match Kubernetes version
+  kubeScheduler:
+    imageTag: v1.34
+
+  # Scheduling policies
+  defaultSchedulerPolicy:
+    nodeSchedulerPolicy: binpack  # Consolidate pods on same nodes
+    gpuSchedulerPolicy: spread     # Distribute across different GPUs
+
+  # Scheduler resources
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1000Mi
+    requests:
+      cpu: 100m
+      memory: 100Mi
+
+  # Mutating webhook for auto-injection
+  webhook:
+    enabled: true
+    reinvocationPolicy: Never
+    failurePolicy: Ignore
+
+devicePlugin:
+  # GPU slicing configuration
+  deviceSplitCount: 10           # Each physical GPU → 10 vGPU slots
+
+  # Memory oversubscription for better utilization
+  deviceMemoryScaling: 1.5      # 1.5x memory oversubscription (50% overcommit)
+
+  # Disable core limiting (no core-based resource constraints)
+  disablecorelimit: "true"      # Disable GPU core limits entirely
+
+  # Node selector - only GPU nodes (using NFD label for NVIDIA PCI devices)
+  nvidiaNodeSelector:
+    feature.node.kubernetes.io/pci-10de.present: "true"  # NVIDIA PCI vendor ID 10de
+
+  # Resources for device plugin
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1000Mi
+    requests:
+      cpu: 100m
+      memory: 100Mi
+
+  # Runtime compatibility
+  runtimeClassName: nvidia      # Compatible with existing nvidia runtime
+
+  # Update strategy
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+
+# Global settings
+global:
+  imageRegistry: ""
+  imageTag: "v2.7.1"
