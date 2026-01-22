@@ -148,7 +148,7 @@ spec:
     spec:
       nodeSelector:
         kubernetes.io/os: linux
-        nvidia.com/gpu.present: "true"
+        feature.node.kubernetes.io/pci-10de.present: "true"
       tolerations:
         - effect: NoSchedule
           key: node-role.kubernetes.io/control-plane
