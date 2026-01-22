@@ -61,4 +61,4 @@ devicePlugin:
 # Global settings
 global:
   imageRegistry: ""
-  imageTag: "v2.7.1"
+  imageTag: "v2.8.0"
