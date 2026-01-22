@@ -30,8 +30,13 @@ spec:
         valueFiles:
           - $values/argocd/sommelier/hami/values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
-      targetRevision: HEAD
+      targetRevision: main
       ref: values
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: main
+      path: argocd/sommelier/nvidia-device-plugin
+      directory:
+        include: 'resources.yaml'
   ignoreDifferences:
     - group: admissionregistration.k8s.io
       kind: MutatingWebhookConfiguration
