@@ -10,7 +10,7 @@ spec:
         - name: kubeconfig-secret
           secret:
             secretName: bacchus-sgs-cocktail-creds
-        - name:  kubeconfig
+        - name: kubeconfig
           emptyDir: {}
       securityContext:
         fsGroup: 1337
@@ -47,7 +47,7 @@ spec:
             - name: KUBECONFIG
               value: /kubeconfig
             - name: SGS_DEPLOY_APPLY
-              value: 'true'
+              value: "true"
           envFrom:
             - secretRef:
                 name: bacchus-sgs-dev-config
@@ -64,7 +64,7 @@ spec:
               path: /healthz
           resources:
             requests:
-              cpu: 1000m
+              cpu: 200m
               memory: 128Mi
             limits:
               memory: 128Mi
@@ -172,7 +172,7 @@ kind: CronJob
 metadata:
   name: bacchus-sgs-dev-backup
 spec:
-  schedule: '@daily'
+  schedule: "@daily"
   jobTemplate:
     spec:
       template:
@@ -207,7 +207,7 @@ spec:
                 - name: PGHOST
                   value: bacchus-sgs-dev-postgresql
                 - name: PGPORT
-                  value: '5432'
+                  value: "5432"
               resources:
                 requests:
                   cpu: 100m
@@ -228,8 +228,8 @@ spec:
                 - /bin/bash
                 - -c
                 - |
-                    set -euxo pipefail
-                    pg_dump bacchus-sgs-dev --clean --if-exists --quote-all-identifiers --file=/scratch/pgdump.sql
+                  set -euxo pipefail
+                  pg_dump bacchus-sgs-dev --clean --if-exists --quote-all-identifiers --file=/scratch/pgdump.sql
           containers:
             - name: backup
               image: ghcr.io/bacchus-snu/images/proxmox-backup-client:5575324
@@ -257,6 +257,13 @@ spec:
                 runAsUser: 1000
                 seccompProfile:
                   type: RuntimeDefault
-              args: ['backup', '--ns=waiter', '--backup-id=bacchus-sgs-dev', '--backup-type=ct', 'pgdump.pxar:/scratch']
+              args:
+                [
+                  "backup",
+                  "--ns=waiter",
+                  "--backup-id=bacchus-sgs-dev",
+                  "--backup-type=ct",
+                  "pgdump.pxar:/scratch",
+                ]
           securityContext:
             fsGroup: 1337
