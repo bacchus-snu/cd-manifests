@@ -38,6 +38,7 @@ spec:
       containers:
         - name: app
           image: bacchus-sgs
+          imagePullPolicy: Always
           volumeMounts:
             - name: kubeconfig
               subPath: kubeconfig
