@@ -12,6 +12,8 @@ persistence:
   persistentVolumeClaim:
     registry:
       size: 1024Gi
+    database:
+      size: 8Gi
 
 # otherwise, deployment hangs due to multi-attach error
 updateStrategy:
