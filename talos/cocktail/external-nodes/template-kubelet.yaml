@@ -17,3 +17,42 @@ authorization:
 clusterDNS: []
 clusterDomain: ''
 rotateCertificates: true
+
+# Enable resource pinning for CPU, memory, and NUMA affinity
+# Requires Guaranteed QoS pods (requests = limits) to take effect
+# ref: https://kubernetes.io/docs/concepts/policy/node-resource-managers/
+
+# CPU Manager - allocates exclusive CPUs to Guaranteed pods
+cpuManagerPolicy: "static"
+cpuManagerReconcilePeriod: "10s"
+
+# Topology Manager - coordinates resource placement for NUMA affinity
+topologyManagerPolicy: "best-effort"
+topologyManagerScope: "container"
+
+# Memory Manager - allocates memory with NUMA affinity for Guaranteed pods
+memoryManagerPolicy: "Static"
+reservedMemory:
+  - numaNode: 0
+    limits:
+      # kubeReserved.memory + systemReserved.memory + evictionHard.memory.available
+      memory: "3172Mi"
+
+# Reserve resources for Kubernetes system daemons
+kubeReserved:
+  cpu: "1000m"
+  memory: "2Gi"
+  ephemeral-storage: "1Gi"
+
+# Reserve resources for OS system daemons
+systemReserved:
+  cpu: "500m"
+  memory: "1Gi"
+  ephemeral-storage: "1Gi"
+
+# Enforce reserved resource limits via cgroups (pods only initially)
+enforceNodeAllocatable:
+  - "pods"
+
+evictionHard:
+  memory.available: "100Mi"
