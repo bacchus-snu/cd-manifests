@@ -82,6 +82,11 @@ envVars:
       secretKeyRef:
         name: dex-client-secrets
         key: bacchus-oloroso-backup
+  - name: DEX_CLIENT_BACCHUS_BABANG
+    valueFrom:
+      secretKeyRef:
+        name: dex-client-secrets
+        key: bacchus-babang
 
 volumes:
   - name: dex-google-secret
@@ -161,6 +166,13 @@ config:
       redirectURIs:
         - https://oloroso.snucse.org:8007
       secretEnv: DEX_CLIENT_BACCHUS_OLOROSO_BACKUP
+    - name: Babang
+      id: bacchus-babang
+      redirectURIs:
+        - https://glennfidich.snucse.org:8006
+        - https://genesis.snucse.org:8006
+        - https://horoyoi.snucse.org:8006
+      secretEnv: DEX_CLIENT_BACCHUS_BABANG
 
   connectors:
     - name: Google
