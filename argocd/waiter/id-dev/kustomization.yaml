@@ -6,6 +6,6 @@ resources:
 configMapGenerator:
   - name: id-dev-db-schema
     files:
-      - https://raw.githubusercontent.com/bacchus-snu/id/20f0180dd0ef6a3895c3b677d9694136fe1c9725/schema.sql
+      - https://raw.githubusercontent.com/bacchus-snu/id/6a66a1ee17c3fc42ab0d3172e404cb0a158e0402/schema.sql
     options:
       disableNameSuffixHash: true
