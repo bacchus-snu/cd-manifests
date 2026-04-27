@@ -16,7 +16,7 @@ images:
     newTag: '3.21'
   - name: kubectl
     newName: bitnamilegacy/kubectl
-    newTag: '1.31'
+    newTag: '1.33'
   - name: wg-access-server
     newName: ghcr.io/freifunkmuc/wg-access-server
     newTag: v0.13.0
