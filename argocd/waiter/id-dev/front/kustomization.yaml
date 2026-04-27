@@ -14,4 +14,4 @@ labels:
 images:
   - name: id-front
     newName: ghcr.io/bacchus-snu/bacchus-id/front
-    newTag: 20260409-9b1f97f
+    newTag: 20260410-4e168df
