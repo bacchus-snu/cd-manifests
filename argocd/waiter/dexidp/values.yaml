@@ -122,6 +122,16 @@ config:
         - https://fizz.snucse.org:8006
         - https://gin.snucse.org:8006
         - https://ramos.snucse.org:8006
+        - https://asahi.snucse.org:8006
+        - https://bernini.snucse.org:8006
+        - https://blanc.snucse.org:8006
+        - https://cojito.snucse.org:8006
+        - https://derby.snucse.org:8006
+        - https://eggnog.snucse.org:8006
+        - https://faust.snucse.org:8006
+        - https://jimbeam.snucse.org:8006
+        - https://mimosa.snucse.org:8006
+        - https://rum.snucse.org:8006
       secretEnv: DEX_CLIENT_BACCHUS_BARTENDER
     - name: Vault
       id: bacchus-vault
@@ -159,7 +169,6 @@ config:
       id: bacchus-sandbox
       redirectURIs:
         - https://genesis.snucse.org:8006
-        - https://joker.snucse.org:8006
       secretEnv: DEX_CLIENT_BACCHUS_SANDBOX
     - name: Bacchus Oloroso Backup
       id: bacchus-oloroso-backup
