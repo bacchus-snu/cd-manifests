@@ -132,6 +132,8 @@ config:
         - https://jimbeam.snucse.org:8006
         - https://mimosa.snucse.org:8006
         - https://rum.snucse.org:8006
+        - https://horoyoi.snucse.org:8006
+        - https://genesis.snucse.org:8006
       secretEnv: DEX_CLIENT_BACCHUS_BARTENDER
     - name: Vault
       id: bacchus-vault
@@ -165,11 +167,6 @@ config:
       redirectURIs:
         - https://howto.bacchus.io/oauth2/callback
       secretEnv: DEX_CLIENT_BACCHUS_HOWTO
-    - name: Bacchus Sandbox
-      id: bacchus-sandbox
-      redirectURIs:
-        - https://genesis.snucse.org:8006
-      secretEnv: DEX_CLIENT_BACCHUS_SANDBOX
     - name: Bacchus Oloroso Backup
       id: bacchus-oloroso-backup
       redirectURIs:
@@ -179,8 +176,6 @@ config:
       id: bacchus-babang
       redirectURIs:
         - https://glennfidich.snucse.org:8006
-        - https://genesis.snucse.org:8006
-        - https://horoyoi.snucse.org:8006
       secretEnv: DEX_CLIENT_BACCHUS_BABANG
 
   connectors:
