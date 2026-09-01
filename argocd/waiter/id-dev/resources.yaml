@@ -20,6 +20,24 @@ spec:
     - backendRefs:
         - name: id-core
           port: 80
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Referrer-Policy
+                value: no-referrer
+              - name: Content-Security-Policy
+                value: "default-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+              - name: X-Content-Type-Options
+                value: nosniff
+              - name: X-Frame-Options
+                value: DENY
+              - name: X-XSS-Protection
+                value: "1; mode=block"
+              - name: Cache-Control
+                value: "private, no-cache, no-store, max-age=0, must-revalidate"
+              - name: Pragma
+                value: no-cache
       matches:
         - path:
             type: PathPrefix
