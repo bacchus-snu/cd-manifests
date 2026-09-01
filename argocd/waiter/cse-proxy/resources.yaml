@@ -108,17 +108,36 @@ spec:
             - |
                 set -eu
                 while true; do
+                  chain_count=$(kubectl get \
+                    -n cilium-system \
+                    ciliumenvoyconfigs.cilium.io/cilium-gateway-web-gateway \
+                    -o go-template='{{len (index .spec.resources 0).filterChains}}')
+                  for ((i = 0; i < chain_count; i++)); do
+                    protocol=$(kubectl get \
+                      -n cilium-system \
+                      ciliumenvoyconfigs.cilium.io/cilium-gateway-web-gateway \
+                      -ojsonpath="{.spec.resources[0].filterChains[$i].filterChainMatch.transportProtocol}")
+                    server_names=$(kubectl get \
+                      -n cilium-system \
+                      ciliumenvoyconfigs.cilium.io/cilium-gateway-web-gateway \
+                      -ojsonpath="{.spec.resources[0].filterChains[$i].filterChainMatch.serverNames}")
+                    case "$protocol $server_names" in
+                      *raw_buffer*|*cse.snu.ac.kr*|*id.snucse.org*|*id-dev.bacchus.io*)
+                        transformation=$(kubectl get \
+                          -n cilium-system \
+                          ciliumenvoyconfigs.cilium.io/cilium-gateway-web-gateway \
+                          -ojsonpath="{.spec.resources[0].filterChains[$i].filters[0].typedConfig.serverHeaderTransformation}")
+                        if [[ "$transformation" != "PASS_THROUGH" ]]; then
+                          kubectl patch \
+                            -n cilium-system \
+                            --type=json \
+                            ciliumenvoyconfigs.cilium.io/cilium-gateway-web-gateway \
+                            -p="[{\"op\":\"add\",\"path\":\"/spec/resources/0/filterChains/$i/filters/0/typedConfig/serverHeaderTransformation\",\"value\":\"PASS_THROUGH\"}]"
+                        fi
+                        ;;
+                    esac
+                  done
                   sleep 10
-                  check=$(kubectl get \
-                    -n cilium-system \
-                    ciliumenvoyconfigs.cilium.io/cilium-gateway-web-gateway \
-                    -ojsonpath='{$.spec.resources[0].filterChains[0].filters[0].typedConfig.serverHeaderTransformation}')
-                  [[ "$check" = "PASS_THROUGH" ]] && continue
-                  kubectl patch \
-                    -n cilium-system \
-                    --type=json \
-                    ciliumenvoyconfigs.cilium.io/cilium-gateway-web-gateway \
-                    -p '[{"op":"add","path":"/spec/resources/0/filterChains/0/filters/0/typedConfig/serverHeaderTransformation","value":"PASS_THROUGH"},{"op":"add","path":"/spec/resources/0/filterChains/2/filters/0/typedConfig/serverHeaderTransformation","value":"PASS_THROUGH"}]'
                 done
       containers:
         - name: app-http

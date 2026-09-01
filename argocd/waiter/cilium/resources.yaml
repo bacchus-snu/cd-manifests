@@ -44,6 +44,26 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
+    - name: https-id-snucse-org
+      protocol: HTTPS
+      port: 443
+      hostname: "id.snucse.org"
+      tls:
+        certificateRefs:
+          - name: web-gateway-id-cert
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: https-id-dev-bacchus-io
+      protocol: HTTPS
+      port: 443
+      hostname: "id-dev.bacchus.io"
+      tls:
+        certificateRefs:
+          - name: web-gateway-id-dev-cert
+      allowedRoutes:
+        namespaces:
+          from: All
     - name: https-snucse-org
       protocol: HTTPS
       port: 443

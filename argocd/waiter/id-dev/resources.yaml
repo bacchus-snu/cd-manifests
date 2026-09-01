@@ -8,7 +8,7 @@ spec:
   parentRefs:
     - namespace: cilium-system
       name: web-gateway
-      sectionName: https-bacchus-io
+      sectionName: https-id-dev-bacchus-io
   hostnames:
     - id-dev.bacchus.io
   rules:
@@ -16,6 +16,11 @@ spec:
     - backendRefs:
         - name: id-front
           port: 80
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            remove:
+              - Server
     # backend routes
     - backendRefs:
         - name: id-core
@@ -23,6 +28,8 @@ spec:
       filters:
         - type: ResponseHeaderModifier
           responseHeaderModifier:
+            remove:
+              - Server
             set:
               - name: Referrer-Policy
                 value: no-referrer
