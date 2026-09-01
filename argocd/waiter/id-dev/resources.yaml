@@ -16,20 +16,10 @@ spec:
     - backendRefs:
         - name: id-front
           port: 80
-      filters:
-        - type: ResponseHeaderModifier
-          responseHeaderModifier:
-            remove:
-              - server
     # backend routes
     - backendRefs:
         - name: id-core
           port: 80
-      filters:
-        - type: ResponseHeaderModifier
-          responseHeaderModifier:
-            remove:
-              - server
       matches:
         - path:
             type: PathPrefix
