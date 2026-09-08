@@ -34,14 +34,42 @@ iface vx{{ o.vni }} inet manual
 {% endfor %}
         post-down ip link del vx{{ o.vni }}
 
-auto {{ o.bridge }}
-iface {{ o.bridge }} inet {{ 'static' if name == 'mgmt' else 'manual' }}
-        bridge_ports vx{{ o.vni }}
+{% endfor %}
+{% set m = overlays.mgmt %}
+# Management overlay: the host's own address and the system VMs' management
+# and storage NICs share this bridge (the agent reads its private address from
+# the device the management NICs attach to). Nothing is routed here; the pod
+# gateway is the waiter overlay gateway.
+auto {{ m.bridge }}
+iface {{ m.bridge }} inet static
+        bridge_ports vx{{ m.vni }}
         bridge_fd 0
         bridge_stp off
         bridge_maxwait 1
-{% if name == 'mgmt' %}
-        address {{ mgmt_ip }}/{{ o.prefix }}
-{% endif %}
+        address {{ mgmt_ip }}/{{ m.prefix }}
 
-{% endfor %}
+{% set g = overlays.guest %}
+# Guest overlay, two bridges. The agent's security-group firewall drops routed
+# traffic entering or leaving any bridge that carries VM taps and lets VM
+# frames out only through that bridge's single uplink port, so the taps'
+# bridge holds nothing but taps and one end of a veth. The other end joins the
+# overlay bridge with the VXLAN device and, on gateway hosts, the gateway
+# address: seen from the VMs the router sits beyond the uplink, and routing
+# happens on a bridge the agent does not firewall.
+auto {{ g.overlay_bridge }}
+iface {{ g.overlay_bridge }} inet manual
+        pre-up ip link show up{{ g.vni }} >/dev/null 2>&1 || ip link add up{{ g.vni }} type veth peer name dn{{ g.vni }}
+        pre-up ip link set up{{ g.vni }} mtu 1450
+        pre-up ip link set dn{{ g.vni }} mtu 1450
+        bridge_ports vx{{ g.vni }} dn{{ g.vni }}
+        bridge_fd 0
+        bridge_stp off
+        bridge_maxwait 1
+        post-down ip link del up{{ g.vni }}
+
+auto {{ g.bridge }}
+iface {{ g.bridge }} inet manual
+        bridge_ports up{{ g.vni }}
+        bridge_fd 0
+        bridge_stp off
+        bridge_maxwait 1

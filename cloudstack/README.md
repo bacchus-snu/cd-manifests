@@ -14,6 +14,10 @@ hosts/
 
 ## Usage
 
+The hosts are reachable only from the campus network; from outside, jump through
+martini, e.g. `-e "ansible_ssh_common_args='-J martini'"` or a `ProxyJump` entry
+in `~/.ssh/config` for `derby.snucse.org eggnog.snucse.org faust.snucse.org`.
+
 ```console
 $ cd hosts
 $ ansible-playbook -i inventory.yaml render.yaml            # review hosts/out/<host>/

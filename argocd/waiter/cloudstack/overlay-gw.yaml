@@ -1,5 +1,5 @@
 ---
-# VXLAN endpoint that joins this node to the three CloudStack overlays so that
+# VXLAN endpoint that joins this node to the two CloudStack overlays so that
 # workloads here (management server, bastion, console route) reach hypervisors,
 # system VMs and guests, and so that hypervisor agents and system VMs reach the
 # management server. Traffic leaving towards an overlay is masqueraded to the
@@ -7,6 +7,11 @@
 # of through the hosts' gateway. Packets entering the node on the overlay
 # interfaces bypass Cilium's service load balancing, so agent connections are
 # forwarded to the management pod address with a DNAT that follows the pod.
+# This node is also the router of the management overlay (its pod gateway):
+# the hypervisors cannot route for their own bridges because the agent's
+# security-group firewall drops routed traffic there, and everything the
+# system VMs need beyond that overlay (DNS, template sources) lies on this
+# side. The guest overlay is routed by the hypervisors themselves.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -24,10 +29,13 @@ data:
   overlays: |
     93 10.93.0.254/24
     94 10.94.0.254/16
-    95 10.95.0.254/24
   # management server as seen from the management overlay (the "host" global
   # setting and agent.properties on the hypervisors)
   management-address: 10.93.0.254
+  # pod gateway of the management overlay, routed through the node's uplink to
+  # the Internet only: never into private networks (BacchusNet, pods)
+  management-gateway: 10.93.0.1/24
+  management-network: 10.93.0.0/24
   management-pod: cloudstack-management-0.cloudstack-management-pods.cloudstack.svc.cluster.local
 ---
 apiVersion: apps/v1
@@ -74,12 +82,23 @@ spec:
                 configMapKeyRef:
                   name: overlay-gw
                   key: management-pod
+            - name: MGMT_GW
+              valueFrom:
+                configMapKeyRef:
+                  name: overlay-gw
+                  key: management-gateway
+            - name: MGMT_NET
+              valueFrom:
+                configMapKeyRef:
+                  name: overlay-gw
+                  key: management-network
           command:
             - sh
             - -ec
             - |
                 apk add --no-cache iproute2 iptables
                 sysctl -w net.ipv4.ip_forward=1
+                uplink=$(ip -o route show default | awk '{print $5; exit}')
                 echo "$OVERLAYS" | while read -r vni addr; do
                   [ -n "$vni" ] || continue
                   dev="vx$vni"
@@ -95,15 +114,40 @@ spec:
                   iptables -C INPUT -i "$dev" -p icmp -j ACCEPT 2>/dev/null || iptables -I INPUT 2 -i "$dev" -p icmp -j ACCEPT
                   iptables -C INPUT -i "$dev" -j DROP 2>/dev/null || iptables -A INPUT -i "$dev" -j DROP
                 done
-                echo "overlays up"; ip -br addr show | grep '^vx'
+                # pod gateway of the management overlay, as a second address next to the management server address
+                ip addr replace "$MGMT_GW" dev vx93
+                iptables -t nat -C POSTROUTING -s "$MGMT_NET" -o "$uplink" -j MASQUERADE 2>/dev/null || iptables -t nat -A POSTROUTING -s "$MGMT_NET" -o "$uplink" -j MASQUERADE
+                # Forwarding policy for packets entering from the overlays, in its own
+                # chain ahead of Cilium's: replies pass; the management overlay may reach
+                # the Internet but no private network; nothing else may start a
+                # connection (the guest overlay is routed by the hypervisors, and the
+                # management server connection is allowed by the DNAT loop below).
+                # Traffic from pods into the overlays is not affected: it is accepted by
+                # Cilium's own chain.
+                iptables -N overlay-gw 2>/dev/null || iptables -F overlay-gw
+                iptables -C FORWARD -j overlay-gw 2>/dev/null || iptables -I FORWARD 1 -j overlay-gw
+                for dev in vx93 vx94; do
+                  iptables -A overlay-gw -i "$dev" -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+                  iptables -A overlay-gw -o "$dev" -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+                done
+                for net in 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16; do
+                  iptables -A overlay-gw -i vx93 -d "$net" -j DROP
+                done
+                iptables -A overlay-gw -i vx93 -o "$uplink" -j ACCEPT
+                iptables -A overlay-gw -i vx93 -j DROP
+                iptables -A overlay-gw -i vx94 -j DROP
+                iptables -t nat -N overlay-gw 2>/dev/null || iptables -t nat -F overlay-gw
+                iptables -t nat -C PREROUTING -i vx93 -j overlay-gw 2>/dev/null || iptables -t nat -A PREROUTING -i vx93 -j overlay-gw
+                echo "overlays up, management overlay routed via $uplink"; ip -br addr show | grep '^vx'
                 # forward agent connections (management overlay, port 8250) to the management pod
                 cur=""
                 while true; do
                   pod=$(getent hosts "$MGMT_POD" | awk '{print $1; exit}' || true)
                   if [ -n "$pod" ] && [ "$pod" != "$cur" ]; then
-                    while iptables -t nat -D PREROUTING -i vx93 -d "$MGMT_ADDR" -p tcp --dport 8250 -j DNAT --to-destination "${cur:-0.0.0.0}:8250" 2>/dev/null; do :; done
-                    iptables -t nat -A PREROUTING -i vx93 -d "$MGMT_ADDR" -p tcp --dport 8250 -j DNAT --to-destination "$pod:8250"
-                    iptables -C FORWARD -i vx93 -d "$pod" -p tcp --dport 8250 -j ACCEPT 2>/dev/null || iptables -I FORWARD 1 -i vx93 -d "$pod" -p tcp --dport 8250 -j ACCEPT
+                    iptables -t nat -F overlay-gw
+                    iptables -t nat -A overlay-gw -d "$MGMT_ADDR" -p tcp --dport 8250 -j DNAT --to-destination "$pod:8250"
+                    [ -z "$cur" ] || iptables -D overlay-gw -i vx93 -d "$cur" -p tcp --dport 8250 -j ACCEPT
+                    iptables -I overlay-gw 1 -i vx93 -d "$pod" -p tcp --dport 8250 -j ACCEPT
                     echo "management server 8250 -> $pod"
                     cur=$pod
                   fi

@@ -13,41 +13,40 @@ all:
     # management server address on the management overlay (overlay gateway DNAT)
     management_server: 10.93.0.254
 
-    # the three overlays; the gateway addresses are VRRP VIPs held by the
-    # cloudstack_gateway group
+    # The two overlays. The management overlay is routed by the waiter overlay
+    # gateway, which holds its pod gateway address (10.93.0.1); the guest
+    # overlay is routed by the cloudstack_gateway hosts, which hold its gateway
+    # address as a VRRP VIP.
     overlays:
       mgmt:
         vni: 93
         bridge: cloudbr-mgmt
         network: 10.93.0.0/24
-        gateway: 10.93.0.1
         prefix: 24
       guest:
         vni: 94
+        # bridge the VM taps attach to; the agent's security-group firewall
+        # lets VM frames leave it only through its single uplink port
         bridge: cloudbr1
+        # bridge behind that uplink: the VXLAN device and, on gateway hosts,
+        # the gateway address
+        overlay_bridge: ovl94
         network: 10.94.0.0/16
         gateway: 10.94.0.1
         prefix: 16
-      public:
-        vni: 95
-        bridge: cloudbr-pub
-        network: 10.95.0.0/24
-        gateway: 10.95.0.1
-        prefix: 24
 
-    # networks that guest and public traffic must never reach through the gateway
+    # networks that guests must never reach through the gateway
     guest_blocked_networks:
       - 10.89.0.0/16
       - 10.91.0.0/16
       - 10.92.0.0/16
       - 10.93.0.0/24
-      - 10.95.0.0/24
 
   children:
     cloudstack_hosts:
       hosts:
         derby:
-          ansible_host: 147.46.240.204
+          ansible_host: derby.snucse.org
           campus_ip: 147.46.240.204
           campus_prefix: 24
           campus_gateway: 147.46.240.1
@@ -55,7 +54,7 @@ all:
           mgmt_ip: 10.93.0.11
           vrrp_priority: 150
         eggnog:
-          ansible_host: 147.46.240.145
+          ansible_host: eggnog.snucse.org
           campus_ip: 147.46.240.145
           campus_prefix: 24
           campus_gateway: 147.46.240.1
@@ -63,14 +62,14 @@ all:
           mgmt_ip: 10.93.0.12
           vrrp_priority: 140
         faust:
-          ansible_host: 147.46.241.137
+          ansible_host: faust.snucse.org
           campus_ip: 147.46.241.137
           campus_prefix: 24
           campus_gateway: 147.46.241.1
           campus_mac: 70:85:c2:32:5d:8b
           mgmt_ip: 10.93.0.13
           vrrp_priority: 130
-    # hosts that hold the overlay gateway VIPs and NAT guest traffic to the campus
+    # hosts that hold the guest overlay gateway VIP and NAT guest traffic to the campus
     cloudstack_gateway:
       hosts:
         derby:

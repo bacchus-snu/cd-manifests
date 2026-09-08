@@ -1,6 +1,7 @@
 # Managed by cd-manifests/cloudstack/hosts (Ansible). Do not edit by hand.
-# One VRRP instance carries the gateway address of every overlay, so a single
-# host is the router for all of them at any time.
+# One VRRP instance elects the router of the guest overlay. Adverts travel on
+# the management overlay (unicast between the gateway hosts); the gateway
+# address lives on the guest overlay bridge of the elected host.
 global_defs {
     router_id {{ inventory_hostname }}
     vrrp_skip_check_adv_addr
@@ -19,8 +20,6 @@ vrrp_instance cloudstack {
 {% endfor %}
     }
     virtual_ipaddress {
-{% for name, o in overlays.items() %}
-        {{ o.gateway }}/{{ o.prefix }} dev {{ o.bridge }}
-{% endfor %}
+        {{ overlays.guest.gateway }}/{{ overlays.guest.prefix }} dev {{ overlays.guest.overlay_bridge }}
     }
 }

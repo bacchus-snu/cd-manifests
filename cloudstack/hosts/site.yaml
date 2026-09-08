@@ -1,5 +1,5 @@
 # Configures Debian 13 KVM hosts for CloudStack: packages from repo.snucse.org,
-# the three VXLAN overlays, agent settings, gateway (VRRP + NAT) and NFS
+# the VXLAN overlays, agent settings, guest gateway (VRRP + NAT) and NFS
 # secondary storage. Network changes are written to files only and take effect
 # on the next reboot; the playbook never restarts networking itself.
 #
@@ -21,7 +21,7 @@
     - name: Bacchus apt repository
       ansible.builtin.copy:
         dest: /etc/apt/sources.list.d/bacchus.list
-        content: 'deb [signed-by=/usr/share/keyrings/bacchus-archive-keyring.gpg] {{ apt_repo }} trixie main'
+        content: "deb [signed-by=/usr/share/keyrings/bacchus-archive-keyring.gpg] {{ apt_repo }} trixie main\n"
         mode: '0644'
 
     - name: Upstream CloudStack repository and SHA-1 policy override are gone
@@ -32,6 +32,12 @@
         - /etc/apt/sources.list.d/cloudstack.list
         - /etc/crypto-policies/back-ends/apt-sequoia.config
 
+    - name: python3-apt for the apt module (installed even in check mode)
+      ansible.builtin.command: apt-get install -y python3-apt
+      args:
+        creates: /usr/lib/python3/dist-packages/apt
+      check_mode: false
+
     - name: Packages
       ansible.builtin.apt:
         update_cache: true
@@ -39,6 +45,9 @@
           - bridge-utils
           - chrony
           - nftables
+          # the management server prefixes every command it runs over SSH with sudo,
+          # even when logged in as root; minimal Debian installs lack it
+          - sudo
           - temurin-17-jre
           - cloudstack-common={{ cloudstack_version }}
           - cloudstack-agent={{ cloudstack_version }}
@@ -74,7 +83,10 @@
       loop:
         - { key: host, value: '{{ management_server }}' }
         - { key: private.network.device, value: '{{ overlays.mgmt.bridge }}' }
-        - { key: public.network.device, value: '{{ overlays.public.bridge }}' }
+        # a security-group zone has no Public traffic, but the agent refuses to
+        # start unless the device exists; the guest bridge keeps a stray Public
+        # NIC off the campus
+        - { key: public.network.device, value: '{{ overlays.guest.bridge }}' }
         - { key: guest.network.device, value: '{{ overlays.guest.bridge }}' }
       notify: restart cloudstack-agent
 
@@ -91,7 +103,7 @@
         name: cloudstack-agent
         state: restarted
 
-- name: Overlay gateways (VRRP + NAT)
+- name: Guest overlay gateways (VRRP + NAT)
   hosts: cloudstack_gateway
   tasks:
     - name: Packages
@@ -121,12 +133,17 @@
       loop:
         - keepalived
         - nftables
+      # in check mode the packages above are not really installed yet
+      ignore_errors: '{{ ansible_check_mode }}'
 
   handlers:
+    # the overlay bridge only exists after the reboot that applies the network
+    # files; until then keepalived cannot start and boots on its own later
     - name: restart keepalived
       ansible.builtin.service:
         name: keepalived
         state: restarted
+      when: overlays.guest.overlay_bridge in ansible_facts['interfaces']
     - name: reload nftables
       ansible.builtin.service:
         name: nftables

@@ -7,13 +7,7 @@ table inet cloudstack_gw
 flush table inet cloudstack_gw
 
 table inet cloudstack_gw {
-    set overlay_networks {
-        type ipv4_addr
-        flags interval
-        elements = { {% for name, o in overlays.items() %}{{ o.network }}{{ ", " if not loop.last }}{% endfor %} }
-    }
-
-    # Bacchus internal networks and the other overlays: never reachable from guests
+    # Bacchus internal networks and the management overlay: never reachable from guests
     set guest_blocked {
         type ipv4_addr
         flags interval
@@ -22,11 +16,14 @@ table inet cloudstack_gw {
 
     chain forward {
         type filter hook forward priority filter; policy accept;
-        iifname { "{{ overlays.guest.bridge }}", "{{ overlays.public.bridge }}" } ip daddr @guest_blocked drop
+        iifname "{{ overlays.guest.overlay_bridge }}" ip daddr @guest_blocked drop
+        # the overlays carry 1450-byte frames: size TCP segments at the gateway
+        # instead of relying on path MTU discovery
+        tcp flags syn tcp option maxseg size set 1410
     }
 
     chain postrouting {
         type nat hook postrouting priority srcnat; policy accept;
-        oifname "cloudbr0" ip saddr @overlay_networks masquerade
+        oifname "cloudbr0" ip saddr {{ overlays.guest.network }} masquerade
     }
 }
