@@ -1,0 +1,110 @@
+# Daily MySQL dump to the Proxmox Backup Server. Not included in
+# kustomization.yaml until the backup server is rebuilt.
+---
+# keys: PBS_REPOSITORY, PBS_PASSWORD, PBS_FINGERPRINT (proxmox-backup-client env)
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: cloudstack-pbs
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: cloudstack/pbs
+  destination:
+    create: true
+    name: cloudstack-pbs
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cloudstack-backup
+spec:
+  schedule: '@daily'
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          volumes:
+            - name: tmp
+              emptyDir: {}
+            - name: scratch
+              ephemeral:
+                volumeClaimTemplate:
+                  spec:
+                    accessModes:
+                      - ReadWriteOncePod
+                    resources:
+                      requests:
+                        storage: 4Gi
+          initContainers:
+            - name: create-mysqldump
+              image: docker.io/bitnamilegacy/mysql:8.4.5-debian-12-r0
+              volumeMounts:
+                - name: scratch
+                  mountPath: /scratch
+              env:
+                - name: MYSQL_USER
+                  value: root
+                - name: MYSQL_PWD
+                  valueFrom:
+                    secretKeyRef:
+                      key: mysql-root-password
+                      name: cloudstack-db
+                - name: MYSQL_HOST
+                  value: cloudstack-mysql
+                - name: MYSQL_PORT
+                  value: '3306'
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                runAsNonRoot: true
+                runAsUser: 1000
+                seccompProfile:
+                  type: RuntimeDefault
+              args:
+                - /bin/bash
+                - -c
+                - |
+                    set -euxo pipefail
+                    mysqldump --host=${MYSQL_HOST} --port=${MYSQL_PORT} --user=${MYSQL_USER} --single-transaction --routines --triggers --databases cloud cloud_usage > /scratch/mysqldump.sql
+          containers:
+            - name: backup
+              image: ghcr.io/bacchus-snu/images/proxmox-backup-client:5575324
+              envFrom:
+                - secretRef:
+                    name: cloudstack-pbs
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+                - name: scratch
+                  mountPath: /scratch
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 1Gi
+                limits:
+                  cpu: 100m
+                  memory: 1Gi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                runAsNonRoot: true
+                runAsUser: 1000
+                seccompProfile:
+                  type: RuntimeDefault
+              args: ['backup', '--ns=waiter', '--backup-id=cloudstack', '--backup-type=ct', 'mysqldump.pxar:/scratch']
+          securityContext:
+            fsGroup: 1337

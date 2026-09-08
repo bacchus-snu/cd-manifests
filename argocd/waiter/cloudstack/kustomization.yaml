@@ -1,0 +1,15 @@
+resources:
+  - resources.yaml
+  - management.yaml
+  # - backup.yaml  # enable once the Proxmox Backup Server is rebuilt (needs secret/cloudstack/pbs)
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: cloudstack-management
+      app.kubernetes.io/instance: cloudstack
+    includeSelectors: true
+
+images:
+  - name: cloudstack-management
+    newName: ghcr.io/bacchus-snu/cloudstack/management
+    newTag: 4.23.0.0

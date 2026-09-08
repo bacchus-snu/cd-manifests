@@ -1,0 +1,93 @@
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: default
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: vault-secrets-operator
+    serviceAccount: default
+---
+# keys: mysql-root-password, mysql-password
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: cloudstack-db
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: cloudstack/db
+  destination:
+    create: true
+    name: cloudstack-db
+---
+# keys: cloud-secret-key (encrypts db.properties), db-secret-key (encrypts
+# sensitive values stored in the database). Both must never change once set.
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: cloudstack-keys
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: cloudstack/keys
+  destination:
+    create: true
+    name: cloudstack-keys
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudstack-management
+spec:
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+# Address that hypervisor agents and system VMs connect to (the "host" global
+# setting). Reached from the hosts through the management overlay.
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudstack-management-agent
+  annotations:
+    lbipam.cilium.io/ips: 10.89.0.34
+spec:
+  type: LoadBalancer
+  ports:
+    - name: agent
+      port: 8250
+      targetPort: agent
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  name: cloudstack
+spec:
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: https-snucse-org
+  hostnames:
+    - cloud.snucse.org
+  rules:
+    # the UI and API live under /client
+    - matches:
+        - path:
+            type: Exact
+            value: /
+      filters:
+        - type: RequestRedirect
+          requestRedirect:
+            path:
+              type: ReplaceFullPath
+              replaceFullPath: /client/
+            statusCode: 302
+    - backendRefs:
+        - name: cloudstack-management
+          port: 8080

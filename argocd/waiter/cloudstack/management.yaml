@@ -1,0 +1,99 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cloudstack-management
+spec:
+  serviceName: cloudstack-management
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: app
+          image: cloudstack-management # replaced by kustomize
+          env:
+            - name: DB_HOST
+              value: cloudstack-mysql
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cloudstack-db
+                  key: mysql-password
+            - name: DB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cloudstack-db
+                  key: mysql-root-password
+            - name: CLOUD_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cloudstack-keys
+                  key: cloud-secret-key
+            - name: DB_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cloudstack-keys
+                  key: db-secret-key
+            - name: MS_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: agent
+              containerPort: 8250
+            - name: cluster
+              containerPort: 9090
+          volumeMounts:
+            - name: log
+              mountPath: /var/log/cloudstack/management
+            - name: cache
+              mountPath: /var/cache/cloudstack/management
+            - name: state
+              mountPath: /var/cloudstack
+            - name: tmp
+              mountPath: /var/tmp
+          # /client/ serves static files even when the core module failed to load,
+          # so probe the API: a login attempt with bad credentials answers 531 only
+          # when the API layer and the database are working.
+          startupProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - test "$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:8080/client/api?command=login&username=probe&password=probe&response=json')" = 531
+            periodSeconds: 10
+            failureThreshold: 90
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - test "$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:8080/client/api?command=login&username=probe&password=probe&response=json')" = 531
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              port: http
+              path: /client/
+            periodSeconds: 30
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 700m
+              memory: 2560Mi
+            limits:
+              cpu: 2000m
+              memory: 3Gi
+          securityContext:
+            # mounts NFS secondary storage when seeding the system VM template
+            privileged: true
+      volumes:
+        - name: log
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}
+        - name: state
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
