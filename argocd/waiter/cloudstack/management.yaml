@@ -55,23 +55,26 @@ spec:
             - name: tmp
               mountPath: /var/tmp
           # /client/ serves static files even when the core module failed to load,
-          # so probe the API: a login attempt with bad credentials answers 531 only
-          # when the API layer and the database are working.
+          # so probe the API instead: an unauthenticated API call answers 401 only
+          # once the API layer is up. The first start on an empty database runs the
+          # whole schema upgrade chain and can take well over 15 minutes.
           startupProbe:
             exec:
               command:
                 - sh
                 - -c
-                - test "$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:8080/client/api?command=login&username=probe&password=probe&response=json')" = 531
+                - test "$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:8080/client/api?command=listCapabilities&response=json')" = 401
             periodSeconds: 10
-            failureThreshold: 90
+            timeoutSeconds: 5
+            failureThreshold: 180
           readinessProbe:
             exec:
               command:
                 - sh
                 - -c
-                - test "$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:8080/client/api?command=login&username=probe&password=probe&response=json')" = 531
+                - test "$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:8080/client/api?command=listCapabilities&response=json')" = 401
             periodSeconds: 10
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               port: http
