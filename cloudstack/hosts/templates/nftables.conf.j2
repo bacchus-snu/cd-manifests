@@ -14,6 +14,16 @@ table inet cloudstack_gw {
         elements = { {{ guest_blocked_networks | join(', ') }} }
     }
 
+    # Frames a VM sends beyond the guest network are first seen while bridged
+    # on the security-group bridge (bridge-nf-call-iptables is on). If conntrack
+    # confirmed them there, the NAT decision would be taken before routing and
+    # masquerade would never apply. Track them only once they reach the overlay
+    # bridge, where they are routed.
+    chain prerouting {
+        type filter hook prerouting priority raw; policy accept;
+        iifname "{{ overlays.guest.bridge }}" ip saddr {{ overlays.guest.network }} ip daddr != {{ overlays.guest.network }} notrack
+    }
+
     chain forward {
         type filter hook forward priority filter; policy accept;
         iifname "{{ overlays.guest.overlay_bridge }}" ip daddr @guest_blocked drop
