@@ -81,7 +81,9 @@
         regexp: '^#?{{ item.key }}='
         line: '{{ item.key }}={{ item.value }}'
       loop:
-        - { key: host, value: '{{ management_server }}' }
+        # once connected, the agent rewrites this line as "<servers>@<lb algorithm>"
+        # from the management server's list; write the same form so runs stay idempotent
+        - { key: host, value: '{{ management_server }}@static' }
         - { key: private.network.device, value: '{{ overlays.mgmt.bridge }}' }
         # a security-group zone has no Public traffic, but the agent refuses to
         # start unless the device exists; the guest bridge keeps a stray Public
