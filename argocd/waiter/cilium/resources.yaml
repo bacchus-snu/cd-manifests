@@ -9,8 +9,6 @@ spec:
     - cidr: 10.89.0.31/32
     - cidr: 10.89.0.32/32
     - cidr: 10.89.0.33/32
-    # cloudstack management server (agents, 8250)
-    - cidr: 10.89.0.34/32
     # warpgate ssh bastion
     - cidr: 10.89.0.36/32
 ---

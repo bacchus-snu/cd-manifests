@@ -1,6 +1,7 @@
 resources:
   - resources.yaml
   - management.yaml
+  - overlay-gw.yaml
   # - backup.yaml  # enable once the Proxmox Backup Server is rebuilt (needs secret/cloudstack/pbs)
 
 labels:
@@ -10,6 +11,8 @@ labels:
     includeSelectors: true
 
 images:
+  - name: alpine
+    newTag: '3.21'
   - name: cloudstack-management
     newName: ghcr.io/bacchus-snu/cloudstack/management
     newTag: 4.23.0.0

@@ -1,0 +1,47 @@
+# Managed by cd-manifests/cloudstack/hosts (Ansible). Do not edit by hand.
+# Applied by reboot only; never switch a live network with ifdown/ifup.
+source /etc/network/interfaces.d/*
+
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet manual
+
+# Campus: host address and VXLAN endpoint. The bridge must keep the physical
+# NIC's MAC because the campus network binds addresses to registered MACs.
+auto cloudbr0
+iface cloudbr0 inet static
+        bridge_ports eth0
+        bridge_fd 5
+        bridge_stp off
+        bridge_maxwait 1
+        hwaddress ether {{ campus_mac }}
+        address {{ campus_ip }}/{{ campus_prefix }}
+        gateway {{ campus_gateway }}
+        dns-nameservers {{ campus_dns | join(' ') }}
+        dns-search snucse.org
+
+{% for name, o in overlays.items() %}
+# {{ name }} overlay, VNI {{ o.vni }}: static unicast VXLAN with head-end
+# replication to every other VTEP (no multicast on the campus network)
+auto vx{{ o.vni }}
+iface vx{{ o.vni }} inet manual
+        pre-up ip link show vx{{ o.vni }} >/dev/null 2>&1 || ip link add vx{{ o.vni }} type vxlan id {{ o.vni }} dstport 4789 local {{ campus_ip }} ttl 64
+        pre-up ip link set vx{{ o.vni }} mtu 1450
+{% for peer in vtep_peers %}
+        up bridge fdb append 00:00:00:00:00:00 dev vx{{ o.vni }} dst {{ peer }} || true
+{% endfor %}
+        post-down ip link del vx{{ o.vni }}
+
+auto {{ o.bridge }}
+iface {{ o.bridge }} inet {{ 'static' if name == 'mgmt' else 'manual' }}
+        bridge_ports vx{{ o.vni }}
+        bridge_fd 0
+        bridge_stp off
+        bridge_maxwait 1
+{% if name == 'mgmt' %}
+        address {{ mgmt_ip }}/{{ o.prefix }}
+{% endif %}
+
+{% endfor %}

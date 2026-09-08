@@ -1,0 +1,82 @@
+# CloudStack KVM hosts (Debian 13). See ../README.md.
+all:
+  vars:
+    ansible_user: root
+    cloudstack_version: 4.23.0.0
+    apt_repo: https://repo.snucse.org/debian
+    apt_keyring_url: https://repo.snucse.org/debian/bacchus-archive-keyring.gpg
+    campus_dns: [147.46.80.1, 8.8.8.8]
+
+    # BacchusNet side VTEP as seen from the campus: kerkoporta forwards UDP 4789
+    # to the waiter overlay gateway (worker-1)
+    overlay_vtep_waiter: 147.46.92.174
+    # management server address on the management overlay (overlay gateway DNAT)
+    management_server: 10.93.0.254
+
+    # the three overlays; the gateway addresses are VRRP VIPs held by the
+    # cloudstack_gateway group
+    overlays:
+      mgmt:
+        vni: 93
+        bridge: cloudbr-mgmt
+        network: 10.93.0.0/24
+        gateway: 10.93.0.1
+        prefix: 24
+      guest:
+        vni: 94
+        bridge: cloudbr1
+        network: 10.94.0.0/16
+        gateway: 10.94.0.1
+        prefix: 16
+      public:
+        vni: 95
+        bridge: cloudbr-pub
+        network: 10.95.0.0/24
+        gateway: 10.95.0.1
+        prefix: 24
+
+    # networks that guest and public traffic must never reach through the gateway
+    guest_blocked_networks:
+      - 10.89.0.0/16
+      - 10.91.0.0/16
+      - 10.92.0.0/16
+      - 10.93.0.0/24
+      - 10.95.0.0/24
+
+  children:
+    cloudstack_hosts:
+      hosts:
+        derby:
+          ansible_host: 147.46.240.204
+          campus_ip: 147.46.240.204
+          campus_prefix: 24
+          campus_gateway: 147.46.240.1
+          campus_mac: 70:85:c2:32:5d:81
+          mgmt_ip: 10.93.0.11
+          vrrp_priority: 150
+        eggnog:
+          ansible_host: 147.46.240.145
+          campus_ip: 147.46.240.145
+          campus_prefix: 24
+          campus_gateway: 147.46.240.1
+          campus_mac: 70:85:c2:32:5d:8d
+          mgmt_ip: 10.93.0.12
+          vrrp_priority: 140
+        faust:
+          ansible_host: 147.46.241.137
+          campus_ip: 147.46.241.137
+          campus_prefix: 24
+          campus_gateway: 147.46.241.1
+          campus_mac: 70:85:c2:32:5d:8b
+          mgmt_ip: 10.93.0.13
+          vrrp_priority: 130
+    # hosts that hold the overlay gateway VIPs and NAT guest traffic to the campus
+    cloudstack_gateway:
+      hosts:
+        derby:
+        eggnog:
+        faust:
+    # host that exports the NFS secondary storage
+    cloudstack_secondary_storage:
+      hosts:
+        derby:

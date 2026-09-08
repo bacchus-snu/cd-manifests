@@ -49,16 +49,15 @@ spec:
       port: 8080
       targetPort: http
 ---
-# Address that hypervisor agents and system VMs connect to (the "host" global
-# setting). Reached from the hosts through the management overlay.
+# governing headless service of the StatefulSet; gives the pod a stable DNS name
+# (cloudstack-management-0.cloudstack-management-pods) that the overlay gateway
+# forwards agent connections to
 apiVersion: v1
 kind: Service
 metadata:
-  name: cloudstack-management-agent
-  annotations:
-    lbipam.cilium.io/ips: 10.89.0.34
+  name: cloudstack-management-pods
 spec:
-  type: LoadBalancer
+  clusterIP: None
   ports:
     - name: agent
       port: 8250

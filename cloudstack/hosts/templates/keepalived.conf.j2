@@ -1,0 +1,26 @@
+# Managed by cd-manifests/cloudstack/hosts (Ansible). Do not edit by hand.
+# One VRRP instance carries the gateway address of every overlay, so a single
+# host is the router for all of them at any time.
+global_defs {
+    router_id {{ inventory_hostname }}
+    vrrp_skip_check_adv_addr
+}
+
+vrrp_instance cloudstack {
+    state BACKUP
+    interface {{ overlays.mgmt.bridge }}
+    virtual_router_id {{ overlays.mgmt.vni }}
+    priority {{ vrrp_priority }}
+    advert_int 1
+    unicast_src_ip {{ mgmt_ip }}
+    unicast_peer {
+{% for h in groups['cloudstack_gateway'] if h != inventory_hostname %}
+        {{ hostvars[h].mgmt_ip }}
+{% endfor %}
+    }
+    virtual_ipaddress {
+{% for name, o in overlays.items() %}
+        {{ o.gateway }}/{{ o.prefix }} dev {{ o.bridge }}
+{% endfor %}
+    }
+}

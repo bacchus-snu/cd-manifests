@@ -4,10 +4,14 @@ kind: StatefulSet
 metadata:
   name: cloudstack-management
 spec:
-  serviceName: cloudstack-management
+  # headless: the overlay gateway resolves the pod address through it
+  serviceName: cloudstack-management-pods
   replicas: 1
   template:
     spec:
+      # same node as the overlay gateway, whose routes to the overlays are node-local
+      nodeSelector:
+        cloudstack.snucse.org/overlay-gateway: 'true'
       containers:
         - name: app
           image: cloudstack-management # replaced by kustomize

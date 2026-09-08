@@ -1,0 +1,163 @@
+# Configures Debian 13 KVM hosts for CloudStack: packages from repo.snucse.org,
+# the three VXLAN overlays, agent settings, gateway (VRRP + NAT) and NFS
+# secondary storage. Network changes are written to files only and take effect
+# on the next reboot; the playbook never restarts networking itself.
+#
+#   ansible-playbook -i inventory.yaml site.yaml [--limit derby]
+---
+- name: CloudStack KVM hosts
+  hosts: cloudstack_hosts
+  vars:
+    vtep_peers: >-
+      {{ (groups['cloudstack_hosts'] | map('extract', hostvars, 'campus_ip') | list | difference([campus_ip]))
+         + [overlay_vtep_waiter] }}
+  tasks:
+    - name: Bacchus apt keyring
+      ansible.builtin.get_url:
+        url: '{{ apt_keyring_url }}'
+        dest: /usr/share/keyrings/bacchus-archive-keyring.gpg
+        mode: '0644'
+
+    - name: Bacchus apt repository
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/bacchus.list
+        content: 'deb [signed-by=/usr/share/keyrings/bacchus-archive-keyring.gpg] {{ apt_repo }} trixie main'
+        mode: '0644'
+
+    - name: Upstream CloudStack repository and SHA-1 policy override are gone
+      ansible.builtin.file:
+        path: '{{ item }}'
+        state: absent
+      loop:
+        - /etc/apt/sources.list.d/cloudstack.list
+        - /etc/crypto-policies/back-ends/apt-sequoia.config
+
+    - name: Packages
+      ansible.builtin.apt:
+        update_cache: true
+        name:
+          - bridge-utils
+          - chrony
+          - nftables
+          - temurin-17-jre
+          - cloudstack-common={{ cloudstack_version }}
+          - cloudstack-agent={{ cloudstack_version }}
+
+    - name: Hold CloudStack packages at the pinned version
+      ansible.builtin.dpkg_selections:
+        name: '{{ item }}'
+        selection: hold
+      loop:
+        - cloudstack-common
+        - cloudstack-agent
+
+    - name: IP forwarding
+      ansible.builtin.copy:
+        dest: /etc/sysctl.d/90-cloudstack.conf
+        content: "net.ipv4.ip_forward = 1\n"
+        mode: '0644'
+      notify: apply sysctl
+
+    - name: Network interfaces (takes effect on reboot)
+      ansible.builtin.template:
+        src: templates/interfaces.j2
+        dest: /etc/network/interfaces
+        mode: '0644'
+        backup: true
+      register: interfaces
+
+    - name: Agent settings
+      ansible.builtin.lineinfile:
+        path: /etc/cloudstack/agent/agent.properties
+        regexp: '^#?{{ item.key }}='
+        line: '{{ item.key }}={{ item.value }}'
+      loop:
+        - { key: host, value: '{{ management_server }}' }
+        - { key: private.network.device, value: '{{ overlays.mgmt.bridge }}' }
+        - { key: public.network.device, value: '{{ overlays.public.bridge }}' }
+        - { key: guest.network.device, value: '{{ overlays.guest.bridge }}' }
+      notify: restart cloudstack-agent
+
+    - name: Reboot needed
+      ansible.builtin.debug:
+        msg: '{{ inventory_hostname }}: /etc/network/interfaces changed, reboot to apply (previous file kept as backup)'
+      when: interfaces.changed
+
+  handlers:
+    - name: apply sysctl
+      ansible.builtin.command: sysctl --system
+    - name: restart cloudstack-agent
+      ansible.builtin.service:
+        name: cloudstack-agent
+        state: restarted
+
+- name: Overlay gateways (VRRP + NAT)
+  hosts: cloudstack_gateway
+  tasks:
+    - name: Packages
+      ansible.builtin.apt:
+        name:
+          - keepalived
+          - nftables
+
+    - name: keepalived configuration
+      ansible.builtin.template:
+        src: templates/keepalived.conf.j2
+        dest: /etc/keepalived/keepalived.conf
+        mode: '0644'
+      notify: restart keepalived
+
+    - name: nftables configuration
+      ansible.builtin.template:
+        src: templates/nftables.conf.j2
+        dest: /etc/nftables.conf
+        mode: '0755'
+      notify: reload nftables
+
+    - name: Services enabled
+      ansible.builtin.service:
+        name: '{{ item }}'
+        enabled: true
+      loop:
+        - keepalived
+        - nftables
+
+  handlers:
+    - name: restart keepalived
+      ansible.builtin.service:
+        name: keepalived
+        state: restarted
+    - name: reload nftables
+      ansible.builtin.service:
+        name: nftables
+        state: restarted
+
+- name: NFS secondary storage
+  hosts: cloudstack_secondary_storage
+  tasks:
+    - name: Packages
+      ansible.builtin.apt:
+        name: nfs-kernel-server
+
+    - name: Export directory
+      ansible.builtin.file:
+        path: /srv/secondary
+        state: directory
+        mode: '0755'
+
+    - name: Exports (management overlay only; CloudStack needs no_root_squash)
+      ansible.builtin.copy:
+        dest: /etc/exports
+        content: "/srv/secondary {{ overlays.mgmt.network }}(rw,sync,no_subtree_check,no_root_squash)\n"
+        mode: '0644'
+      notify: reexport
+
+    - name: Service enabled
+      ansible.builtin.service:
+        name: nfs-kernel-server
+        enabled: true
+        state: started
+
+  handlers:
+    - name: reexport
+      ansible.builtin.command: exportfs -ra

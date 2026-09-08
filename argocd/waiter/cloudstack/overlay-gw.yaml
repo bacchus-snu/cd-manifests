@@ -1,0 +1,118 @@
+---
+# VXLAN endpoint that joins this node to the three CloudStack overlays so that
+# workloads here (management server, bastion, console route) reach hypervisors,
+# system VMs and guests, and so that hypervisor agents and system VMs reach the
+# management server. Traffic leaving towards an overlay is masqueraded to the
+# node's address on that overlay, so replies return on the same overlay instead
+# of through the hosts' gateway. Packets entering the node on the overlay
+# interfaces bypass Cilium's service load balancing, so agent connections are
+# forwarded to the management pod address with a DNAT that follows the pod.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: overlay-gw
+data:
+  # VTEP address of this node (worker-1) on BacchusNet; hosts reach it through
+  # the kerkoporta UDP 4789 forward
+  local: 10.89.0.24
+  # hypervisor hosts: campus addresses used as their VTEPs
+  peers: |
+    147.46.240.204
+    147.46.240.145
+    147.46.241.137
+  # vni address/prefix per overlay
+  overlays: |
+    93 10.93.0.254/24
+    94 10.94.0.254/16
+    95 10.95.0.254/24
+  # management server as seen from the management overlay (the "host" global
+  # setting and agent.properties on the hypervisors)
+  management-address: 10.93.0.254
+  management-pod: cloudstack-management-0.cloudstack-management-pods.cloudstack.svc.cluster.local
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: overlay-gw
+spec:
+  template:
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      # the node carrying the overlay endpoint; its BacchusNet address is the
+      # 'local' value below and the target of the kerkoporta UDP 4789 forward
+      nodeSelector:
+        cloudstack.snucse.org/overlay-gateway: 'true'
+      containers:
+        - name: gw
+          image: alpine # replaced by kustomize
+          securityContext:
+            privileged: true
+          env:
+            - name: LOCAL
+              valueFrom:
+                configMapKeyRef:
+                  name: overlay-gw
+                  key: local
+            - name: PEERS
+              valueFrom:
+                configMapKeyRef:
+                  name: overlay-gw
+                  key: peers
+            - name: OVERLAYS
+              valueFrom:
+                configMapKeyRef:
+                  name: overlay-gw
+                  key: overlays
+            - name: MGMT_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: overlay-gw
+                  key: management-address
+            - name: MGMT_POD
+              valueFrom:
+                configMapKeyRef:
+                  name: overlay-gw
+                  key: management-pod
+          command:
+            - sh
+            - -ec
+            - |
+                apk add --no-cache iproute2 iptables
+                sysctl -w net.ipv4.ip_forward=1
+                echo "$OVERLAYS" | while read -r vni addr; do
+                  [ -n "$vni" ] || continue
+                  dev="vx$vni"
+                  ip link show "$dev" >/dev/null 2>&1 || ip link add "$dev" type vxlan id "$vni" dstport 4789 local "$LOCAL" ttl 64
+                  ip link set "$dev" mtu 1450 up
+                  ip addr replace "$addr" dev "$dev"
+                  for peer in $PEERS; do
+                    bridge fdb append 00:00:00:00:00:00 dev "$dev" dst "$peer" 2>/dev/null || true
+                  done
+                  iptables -t nat -C POSTROUTING -o "$dev" -j MASQUERADE 2>/dev/null || iptables -t nat -A POSTROUTING -o "$dev" -j MASQUERADE
+                  # the overlay address belongs to the node namespace: answer only pings and replies
+                  iptables -C INPUT -i "$dev" -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || iptables -I INPUT 1 -i "$dev" -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+                  iptables -C INPUT -i "$dev" -p icmp -j ACCEPT 2>/dev/null || iptables -I INPUT 2 -i "$dev" -p icmp -j ACCEPT
+                  iptables -C INPUT -i "$dev" -j DROP 2>/dev/null || iptables -A INPUT -i "$dev" -j DROP
+                done
+                echo "overlays up"; ip -br addr show | grep '^vx'
+                # forward agent connections (management overlay, port 8250) to the management pod
+                cur=""
+                while true; do
+                  pod=$(getent hosts "$MGMT_POD" | awk '{print $1; exit}' || true)
+                  if [ -n "$pod" ] && [ "$pod" != "$cur" ]; then
+                    while iptables -t nat -D PREROUTING -i vx93 -d "$MGMT_ADDR" -p tcp --dport 8250 -j DNAT --to-destination "${cur:-0.0.0.0}:8250" 2>/dev/null; do :; done
+                    iptables -t nat -A PREROUTING -i vx93 -d "$MGMT_ADDR" -p tcp --dport 8250 -j DNAT --to-destination "$pod:8250"
+                    iptables -C FORWARD -i vx93 -d "$pod" -p tcp --dport 8250 -j ACCEPT 2>/dev/null || iptables -I FORWARD 1 -i vx93 -d "$pod" -p tcp --dport 8250 -j ACCEPT
+                    echo "management server 8250 -> $pod"
+                    cur=$pod
+                  fi
+                  sleep 15
+                done
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi

@@ -1,0 +1,29 @@
+# Renders the per-host files locally into out/<host>/ for review or manual
+# application, without connecting to the hosts.
+#
+#   ansible-playbook -i inventory.yaml render.yaml
+---
+- name: Render host files
+  hosts: cloudstack_hosts
+  connection: local
+  gather_facts: false
+  vars:
+    vtep_peers: >-
+      {{ (groups['cloudstack_hosts'] | map('extract', hostvars, 'campus_ip') | list | difference([campus_ip]))
+         + [overlay_vtep_waiter] }}
+    out: '{{ playbook_dir }}/out/{{ inventory_hostname }}'
+  tasks:
+    - ansible.builtin.file:
+        path: '{{ out }}'
+        state: directory
+    - ansible.builtin.template:
+        src: templates/interfaces.j2
+        dest: '{{ out }}/interfaces'
+    - ansible.builtin.template:
+        src: templates/keepalived.conf.j2
+        dest: '{{ out }}/keepalived.conf'
+      when: inventory_hostname in groups['cloudstack_gateway']
+    - ansible.builtin.template:
+        src: templates/nftables.conf.j2
+        dest: '{{ out }}/nftables.conf'
+      when: inventory_hostname in groups['cloudstack_gateway']

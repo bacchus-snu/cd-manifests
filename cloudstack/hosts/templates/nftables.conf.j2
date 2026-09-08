@@ -1,0 +1,32 @@
+#!/usr/sbin/nft -f
+# Managed by cd-manifests/cloudstack/hosts (Ansible). Do not edit by hand.
+# Only this table is (re)loaded: the CloudStack agent keeps its own security
+# group rules in other tables, which must never be flushed.
+
+table inet cloudstack_gw
+flush table inet cloudstack_gw
+
+table inet cloudstack_gw {
+    set overlay_networks {
+        type ipv4_addr
+        flags interval
+        elements = { {% for name, o in overlays.items() %}{{ o.network }}{{ ", " if not loop.last }}{% endfor %} }
+    }
+
+    # Bacchus internal networks and the other overlays: never reachable from guests
+    set guest_blocked {
+        type ipv4_addr
+        flags interval
+        elements = { {{ guest_blocked_networks | join(', ') }} }
+    }
+
+    chain forward {
+        type filter hook forward priority filter; policy accept;
+        iifname { "{{ overlays.guest.bridge }}", "{{ overlays.public.bridge }}" } ip daddr @guest_blocked drop
+    }
+
+    chain postrouting {
+        type nat hook postrouting priority srcnat; policy accept;
+        oifname "cloudbr0" ip saddr @overlay_networks masquerade
+    }
+}
