@@ -1,11 +1,9 @@
 ---
 # Web console. The console proxy system VM serves noVNC on port 80 and the VNC
-# WebSocket on 8080 at its guest overlay address, which only the overlay
-# gateway node reaches directly (the other nodes reach it through the
-# kerkoporta static route). The gateway terminates TLS for
-# console.cloud.snucse.org on 443 (page) and 8080 (WebSocket) and forwards to
-# the proxy through this selector-less Service, whose EndpointSlice the sync
-# job keeps at the current proxy address. The gateway itself cannot reach the
+# WebSocket on 8080 at its guest overlay address. The gateway terminates TLS
+# for console.cloud.snucse.org on 443 and forwards page and WebSocket alike to
+# the relay, which reaches the proxy through this selector-less Service, whose
+# EndpointSlice the sync job keeps at the current proxy address. The gateway itself cannot reach the
 # overlay (its proxy's upstream connections never arrive; cause not pinned
 # down), so the routes point at a relay pod in front of this Service.
 apiVersion: v1
@@ -45,8 +43,6 @@ spec:
           ports:
             - name: http
               containerPort: 8081
-            - name: websocket
-              containerPort: 8082
           volumeMounts:
             - name: nginx
               mountPath: /etc/nginx/conf.d
@@ -87,9 +83,6 @@ spec:
     - name: http
       port: 80
       targetPort: http
-    - name: websocket
-      port: 8080
-      targetPort: websocket
 ---
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: HTTPRoute
@@ -106,19 +99,3 @@ spec:
     - backendRefs:
         - name: console-relay
           port: 80
----
-apiVersion: gateway.networking.k8s.io/v1beta1
-kind: HTTPRoute
-metadata:
-  name: console-proxy-websocket
-spec:
-  parentRefs:
-    - namespace: cilium-system
-      name: web-gateway
-      sectionName: https-console-websocket
-  hostnames:
-    - console.cloud.snucse.org
-  rules:
-    - backendRefs:
-        - name: console-relay
-          port: 8080

@@ -76,21 +76,10 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
-    # CloudStack: the wildcard above does not cover second-level names, and the
-    # console's VNC WebSocket needs its own port (see argocd/waiter/cloudstack/console.yaml)
+    # CloudStack: the wildcard above does not cover second-level names
     - name: https-cloud-snucse-org
       protocol: HTTPS
       port: 443
-      hostname: "*.cloud.snucse.org"
-      tls:
-        certificateRefs:
-          - name: web-gateway-cloud-certs
-      allowedRoutes:
-        namespaces:
-          from: All
-    - name: https-console-websocket
-      protocol: HTTPS
-      port: 8080
       hostname: "*.cloud.snucse.org"
       tls:
         certificateRefs:
