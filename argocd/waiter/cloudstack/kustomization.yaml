@@ -49,6 +49,23 @@ configMapGenerator:
       - IDP_NAME=SNUCSE ID
       - IDP_URL=https://id.snucse.org
       - CONTACT=Bacchus
+  # overlay gateway (overlay-gw.yaml); generated so that a change rolls the
+  # DaemonSet. local: VTEP address of worker-1 on BacchusNet (hosts reach it
+  # through the kerkoporta UDP 4789 forward); peers: hypervisor campus
+  # addresses, their VTEPs; overlays: vni address/prefix; management-address:
+  # the management server as the hosts see it ("host" global setting,
+  # agent.properties); management-gateway: pod gateway of the management
+  # overlay, routed to the Internet only, never into private networks
+  - name: overlay-gw
+    files:
+      - peers=overlay-gw/peers
+      - overlays=overlay-gw/overlays
+    literals:
+      - local=10.89.0.24
+      - management-address=10.93.0.254
+      - management-gateway=10.93.0.1/24
+      - management-network=10.93.0.0/24
+      - management-pod=cloudstack-management-0.cloudstack-management-pods.cloudstack.svc.cluster.local
   # UI branding and notices: the whole config.json is shipped, so diff it
   # against the upstream file again when the management image changes
   - name: cloudstack-ui

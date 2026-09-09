@@ -12,33 +12,7 @@
 # security-group firewall drops routed traffic there, and everything the
 # system VMs need beyond that overlay (DNS, template sources) lies on this
 # side. The guest overlay is routed by the hypervisors themselves.
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: overlay-gw
-data:
-  # VTEP address of this node (worker-1) on BacchusNet; hosts reach it through
-  # the kerkoporta UDP 4789 forward
-  local: 10.89.0.24
-  # hypervisor hosts: campus addresses used as their VTEPs
-  peers: |
-    147.46.240.204
-    147.46.240.145
-    147.46.241.137
-    147.46.240.221
-  # vni address/prefix per overlay
-  overlays: |
-    93 10.93.0.254/24
-    94 10.94.0.254/16
-  # management server as seen from the management overlay (the "host" global
-  # setting and agent.properties on the hypervisors)
-  management-address: 10.93.0.254
-  # pod gateway of the management overlay, routed through the node's uplink to
-  # the Internet only: never into private networks (BacchusNet, pods)
-  management-gateway: 10.93.0.1/24
-  management-network: 10.93.0.0/24
-  management-pod: cloudstack-management-0.cloudstack-management-pods.cloudstack.svc.cluster.local
----
+# Its settings come from the overlay-gw ConfigMap (kustomization.yaml).
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
