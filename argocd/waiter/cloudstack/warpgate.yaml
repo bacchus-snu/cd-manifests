@@ -193,7 +193,10 @@ spec:
       port: 8888
       targetPort: https
 ---
-# SSH entry point: kerkoporta forwards WAN 2222 here
+# SSH entry point: kerkoporta forwards WAN 2222 here. Clients must keep their
+# own address: Warpgate's login protection blocks by source IP, and with the
+# cluster-wide policy every client shares the node's address, so Internet
+# scanners get everyone blocked.
 apiVersion: v1
 kind: Service
 metadata:
@@ -202,6 +205,7 @@ metadata:
     lbipam.cilium.io/ips: 10.89.0.36
 spec:
   type: LoadBalancer
+  externalTrafficPolicy: Local
   selector:
     app.kubernetes.io/name: cloudstack-management
     app.kubernetes.io/instance: cloudstack
