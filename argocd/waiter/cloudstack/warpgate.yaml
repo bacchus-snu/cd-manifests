@@ -201,6 +201,9 @@ apiVersion: v1
 kind: Service
 metadata:
   name: warpgate-ssh
+  labels:
+    # announced from the overlay gateway node (see the cilium app's L2 policies)
+    cloudstack.snucse.org/announce-from: overlay-gateway
   annotations:
     lbipam.cilium.io/ips: 10.89.0.36
 spec:
