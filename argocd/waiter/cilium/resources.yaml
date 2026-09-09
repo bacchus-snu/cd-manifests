@@ -76,6 +76,40 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
+    # CloudStack: the wildcard above does not cover second-level names, and the
+    # console's VNC WebSocket needs its own port (see argocd/waiter/cloudstack/console.yaml)
+    - name: https-cloud-snucse-org
+      protocol: HTTPS
+      port: 443
+      hostname: "*.cloud.snucse.org"
+      tls:
+        certificateRefs:
+          - name: web-gateway-cloud-certs
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: https-console-websocket
+      protocol: HTTPS
+      port: 8080
+      hostname: "console.cloud.snucse.org"
+      tls:
+        certificateRefs:
+          - name: web-gateway-cloud-certs
+      allowedRoutes:
+        namespaces:
+          from: All
+    # Warpgate terminates its own TLS (argocd/waiter/warpgate)
+    - name: tls-login-cloud-snucse-org
+      protocol: TLS
+      port: 443
+      hostname: "login.cloud.snucse.org"
+      tls:
+        mode: Passthrough
+      allowedRoutes:
+        namespaces:
+          from: All
+        kinds:
+          - kind: TLSRoute
     - name: apex-snucse-org
       protocol: HTTPS
       port: 443

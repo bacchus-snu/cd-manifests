@@ -1,0 +1,31 @@
+# Warpgate configuration. Rendered over /data/warpgate.yaml by the init
+# container, which substitutes ${OIDC_CLIENT_SECRET} from the Secret.
+# Recording, host-key verification mode and the admin user live in the database
+# after first boot and are managed through the admin API, not here.
+external_host: login.cloud.snucse.org
+database_url: sqlite:/data/db
+
+ssh:
+  enable: true
+  listen: "0.0.0.0:2222"
+  keys: /data/ssh-keys
+  host_key_verification: auto_accept
+
+http:
+  listen: "0.0.0.0:8888"
+  # the gateway passes TLS through to us on 443
+  external_port: 443
+  certificate: /tls/tls.crt
+  key: /tls/tls.key
+
+sso_providers:
+  - name: snucse
+    label: SNUCSE ID
+    # users and their e-mail credentials are created by the CloudStack sync job
+    auto_create_users: false
+    provider:
+      type: custom
+      client_id: warpgate
+      client_secret: ${OIDC_CLIENT_SECRET}
+      issuer_url: https://id.snucse.org/o
+      scopes: [openid, email, profile]

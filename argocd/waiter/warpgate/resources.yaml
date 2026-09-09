@@ -1,0 +1,217 @@
+---
+# Warpgate: SSH bastion in front of the CloudStack guests. Users log in with
+# SNUCSE ID (SSO, through the web UI link Warpgate prints in the terminal) and
+# reach their VMs on the guest overlay; targets, roles and users follow
+# CloudStack through the sync job in the cloudstack namespace.
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: default
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: vault-secrets-operator
+    serviceAccount: default
+---
+# keys: admin_password (web admin user, created on first boot), admin_token
+# (admin API token for the sync job), oidc_client_secret (client "warpgate" at
+# id.snucse.org)
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: warpgate
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: cloudstack/warpgate
+  destination:
+    create: true
+    name: warpgate
+---
+# Warpgate terminates its own TLS (the HTTP listener refuses to run without a
+# certificate); the gateway passes login.cloud.snucse.org through untouched
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: warpgate-tls
+spec:
+  secretName: warpgate-tls
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-prod
+  privateKey:
+    algorithm: ECDSA
+  dnsNames:
+    - login.cloud.snucse.org
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: warpgate-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: warpgate
+spec:
+  serviceName: warpgate
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: warpgate
+      app.kubernetes.io/instance: warpgate
+  template:
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        runAsNonRoot: true
+      initContainers:
+        # first boot: host keys, database and the admin user; every boot: our
+        # configuration with the secret filled in
+        - name: setup
+          image: warpgate # replaced by kustomize
+          command:
+            - sh
+            - -ec
+            - |
+              if [ ! -f /data/warpgate.yaml ]; then
+                warpgate --config /data/warpgate.yaml unattended-setup \
+                  --data-path /data --http-port 8888 --ssh-port 2222 \
+                  --external-host login.cloud.snucse.org --host-key-verification auto_accept
+              fi
+              sed "s|\${OIDC_CLIENT_SECRET}|$OIDC_CLIENT_SECRET|" /config/warpgate.yaml > /data/warpgate.yaml
+              chmod 600 /data/warpgate.yaml
+          env:
+            - name: WARPGATE_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: warpgate
+                  key: admin_password
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: warpgate
+                  key: oidc_client_secret
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: config
+              mountPath: /config
+      containers:
+        - name: warpgate
+          image: warpgate # replaced by kustomize
+          args: [--config, /data/warpgate.yaml, run, --enable-admin-token]
+          env:
+            - name: WARPGATE_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: warpgate
+                  key: admin_token
+          ports:
+            - name: ssh
+              containerPort: 2222
+            - name: https
+              containerPort: 8888
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tls
+              mountPath: /tls
+              readOnly: true
+          readinessProbe:
+            tcpSocket:
+              port: ssh
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: warpgate-data
+        - name: config
+          configMap:
+            name: warpgate-config
+        - name: tls
+          secret:
+            secretName: warpgate-tls
+---
+# web UI and admin API (TLS, Warpgate's own certificate)
+apiVersion: v1
+kind: Service
+metadata:
+  name: warpgate
+spec:
+  selector:
+    app.kubernetes.io/name: warpgate
+    app.kubernetes.io/instance: warpgate
+  ports:
+    - name: https
+      port: 8888
+      targetPort: https
+---
+# SSH entry point: kerkoporta forwards WAN 2222 here
+apiVersion: v1
+kind: Service
+metadata:
+  name: warpgate-ssh
+  annotations:
+    lbipam.cilium.io/ips: 10.89.0.36
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: warpgate
+    app.kubernetes.io/instance: warpgate
+  ports:
+    - name: ssh
+      port: 22
+      targetPort: ssh
+---
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: TLSRoute
+metadata:
+  name: warpgate
+spec:
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: tls-login-cloud-snucse-org
+  hostnames:
+    - login.cloud.snucse.org
+  rules:
+    - backendRefs:
+        - name: warpgate
+          port: 8888
+---
+# plain HTTP only redirects; this route also makes external-dns publish the name
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  name: warpgate
+spec:
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: http
+  hostnames:
+    - login.cloud.snucse.org
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
