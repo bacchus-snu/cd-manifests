@@ -37,11 +37,24 @@ configMapGenerator:
     literals:
       - OIDC_ISSUER=https://id.snucse.org/o
       - EXTERNAL_URL=https://cloud.snucse.org/gate
+      - DOCS_URL=https://docs.cloud.snucse.org/
       - ALLOWED_GROUPS=major
       - ADMIN_GROUPS=bacchus
+      # until the service opens, members get CloudStack's built-in read-only
+      # role (list/get only); switch to User at launch and quotas take over
+      - ROLE_USER=Read-Only User - Default
+      # the bastion reaches instances through the overlay gateway, which
+      # masquerades to its guest overlay address (overlay-gw.yaml)
+      - SSH_SOURCE_CIDR=10.94.0.254/32
       - IDP_NAME=SNUCSE ID
       - IDP_URL=https://id.snucse.org
       - CONTACT=Bacchus
+  # UI branding and notices: the whole config.json is shipped, so diff it
+  # against the upstream file again when the management image changes
+  - name: cloudstack-ui
+    files:
+      - ui/config.json
+      - ui/bacchus.png
 
 images:
   - name: alpine

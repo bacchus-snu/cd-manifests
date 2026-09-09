@@ -134,14 +134,28 @@ def warpgate(method, path, body=None):
 def sync_warpgate():
     """Role per CloudStack account, user per CloudStack user (SSO credential =
     the user's e-mail, which the sign-in gate keeps equal to the identity
-    provider's claim), target per VM; membership follows the account and root
-    administrators reach every target. Objects created here carry a
-    'cloudstack:' description and are removed when their source disappears."""
+    provider's claim), target per VM; a VM is reachable by its account, or by
+    every member account of the project that owns it, and root administrators
+    reach every target. Objects created here carry a 'cloudstack:' description
+    and are removed when their source disappears."""
     users = [u for u in cloudstack("listUsers", listall="true").get("user", [])
              if u.get("state") == "enabled" and u["account"] not in BUILTIN_ACCOUNTS and u.get("email")]
+    # project-owned VMs are only listed when asked for explicitly
     vms = cloudstack("listVirtualMachines", listall="true").get("virtualmachine", [])
+    vms += cloudstack("listVirtualMachines", listall="true", projectid=-1).get("virtualmachine", [])
+    vms = list({vm["id"]: vm for vm in vms}.values())
+    members = {}  # project id -> member account names
+    for p in cloudstack("listProjects", listall="true").get("project", []):
+        members[p["id"]] = {m["account"] for m in cloudstack("listProjectAccounts", projectid=p["id"]).get("projectaccount", [])}
+
+    def reachers(vm):
+        if vm.get("projectid"):
+            return {f"account-{a}" for a in members.get(vm["projectid"], set())}
+        return {f"account-{vm['account']}"}
+
     # accounts that have someone who can log in or something to log in to
-    relevant = {u["account"] for u in users} | {vm["account"] for vm in vms}
+    relevant = {u["account"] for u in users} | {vm["account"] for vm in vms if not vm.get("projectid")}
+    relevant |= set().union(*members.values()) if members else set()
     accounts = {a["name"]: a for a in cloudstack("listAccounts", listall="true").get("account", [])
                 if a["name"] in relevant}
 
@@ -189,13 +203,13 @@ def sync_warpgate():
     # names within a network and there is one guest network), so the target is
     # simply the VM name: ssh <user>:<vm>@...
     wg_targets = {t["name"]: t for t in warpgate("GET", "/targets")[1]}
-    wanted, owner = {}, {}
+    wanted, reach = {}, {}
     for vm in vms:
         ip = next((n["ipaddress"] for n in vm.get("nic", []) if n.get("ipaddress")), None)
         if not ip:
             continue
         name = vm["name"].lower()
-        owner[name] = vm["account"]
+        reach[name] = reachers(vm)
         wanted[name] = {
             "name": name,
             "description": f"{MANAGED}vm:{vm['id']}",
@@ -211,10 +225,15 @@ def sync_warpgate():
             warpgate("PUT", f"/targets/{t['id']}", spec)
             print(f"warpgate target {name} -> {spec['options']['host']} updated")
         if t is not None:
-            have = {r["name"] for r in warpgate("GET", f"/targets/{t['id']}/roles")[1]}
-            for rname in (f"account-{owner[name]}", ADMINS_ROLE):
-                if rname in roles and rname not in have:
-                    warpgate("POST", f"/targets/{t['id']}/roles/{roles[rname]['id']}", {})
+            wanted_roles = {r for r in reach[name] if r in roles} | {ADMINS_ROLE}
+            have = {r["name"]: r for r in warpgate("GET", f"/targets/{t['id']}/roles")[1]}
+            for rname in wanted_roles - have.keys():
+                warpgate("POST", f"/targets/{t['id']}/roles/{roles[rname]['id']}", {})
+                print(f"warpgate target {name}: role {rname}")
+            for rname, r in have.items():  # membership that ended, e.g. someone left the project
+                if rname not in wanted_roles and (r.get("description") or "").startswith(MANAGED):
+                    warpgate("DELETE", f"/targets/{t['id']}/roles/{r['id']}")
+                    print(f"warpgate target {name}: role {rname} removed")
     for name, t in wg_targets.items():
         if (t.get("description") or "").startswith(MANAGED) and name not in wanted:
             warpgate("DELETE", f"/targets/{t['id']}")
@@ -227,7 +246,7 @@ def sync_warpgate():
     live_roles = {f"account-{a}" for a in accounts} | {ADMINS_ROLE}
     for name, r in roles.items():
         if (r.get("description") or "").startswith(MANAGED) and name not in live_roles:
-            warpgate("DELETE", f"/role/{r['id']}")
+            warpgate("DELETE", f"/roles/{r['id']}")
             print(f"warpgate role {name} removed")
 
 

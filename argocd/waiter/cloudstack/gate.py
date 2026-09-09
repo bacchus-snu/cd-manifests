@@ -40,9 +40,14 @@ ROLE_ADMIN = os.environ.get("ROLE_ADMIN", "Root Admin")
 IDP_NAME = os.environ.get("IDP_NAME", "SNUCSE ID")
 IDP_URL = os.environ.get("IDP_URL", "https://id.snucse.org")
 CONTACT = os.environ.get("CONTACT", "Bacchus")
+DOCS_URL = os.environ.get("DOCS_URL", "").strip()  # user documentation; unset: not mentioned
+# where the SSH bastion comes from, as the instances see it; unset: no rule
+SSH_SOURCE_CIDR = os.environ.get("SSH_SOURCE_CIDR", "").strip()
 LISTEN_PORT = int(os.environ.get("LISTEN_PORT", "8080"))
 MANAGED = "gate"  # accountdetails key marking accounts this service owns
-ZERO_LIMIT_TYPES = [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 16]  # every countable resource
+# every countable resource except projects: users create those themselves, and a
+# new project starts with the (zero) global project limits
+ZERO_LIMIT_TYPES = [0, 2, 3, 4, 6, 7, 8, 9, 10, 11, 16]
 STATE_KEY = hashlib.sha256(CLIENT_SECRET.encode()).digest()
 
 
@@ -96,6 +101,7 @@ class Provisioner:
                     except RuntimeError as e:
                         log(f"{username}: limit type {t}: {e}")
             log(f"{username}: account created ({'admin' if admin else 'user'})")
+            self.allow_ssh(username)
             return None
 
         details = account.get("accountdetails") or {}
@@ -117,7 +123,30 @@ class Provisioner:
         if (user.get("email") or "").lower() != email.lower():
             cloudstack("updateUser", id=user["id"], email=email)
             log(f"{username}: email updated")
+        self.allow_ssh(username)
         return None
+
+    def allow_ssh(self, username):
+        """Let the SSH bastion reach the account's instances: an ingress rule on
+        the account's default security group. Idempotent, and never blocks the
+        login: the group is created with the account, and a rule that is still
+        missing is added at the next login."""
+        if not SSH_SOURCE_CIDR:
+            return
+        try:
+            groups = cloudstack("listSecurityGroups", account=username, domainid=self.root_domain,
+                                securitygroupname="default").get("securitygroup", [])
+            if not groups:
+                log(f"{username}: no default security group yet")
+                return
+            for r in groups[0].get("ingressrule", []):
+                if (r.get("protocol"), r.get("startport"), r.get("endport"), r.get("cidr")) == ("tcp", 22, 22, SSH_SOURCE_CIDR):
+                    return
+            cloudstack("authorizeSecurityGroupIngress", securitygroupname="default", account=username,
+                       domainid=self.root_domain, protocol="tcp", startport=22, endport=22, cidrlist=SSH_SOURCE_CIDR)
+            log(f"{username}: ssh from {SSH_SOURCE_CIDR} allowed")
+        except RuntimeError as e:
+            log(f"{username}: ssh rule: {e}")
 
     def release_stale(self, username, email):
         """The identity provider verified that the address belongs to this user
@@ -191,12 +220,13 @@ PAGE = """<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>{tit
 <style>body{{font-family:sans-serif;max-width:40em;margin:4em auto;padding:0 1em;line-height:1.6}}</style></head>
 <body><h1>{title}</h1>{body}</body></html>"""
 
-NOT_ELIGIBLE = """<p>SNUCSE 클라우드(cloud.snucse.org)와 SSH 접속(Warpgate)은 <b>{idp}에서 컴퓨터공학부 주전공 인증을 마친 회원</b>만 쓸 수 있습니다.</p>
+NOT_ELIGIBLE = """<p>SNUCSE Cloud(cloud.snucse.org)와 SSH 접속(Warpgate)은 <b>컴퓨터공학부 주전공 회원과 허가된 외부 회원</b>만 쓸 수 있습니다.</p>
 <ol>
 <li><a href="{idp_url}">{idp}</a>에 로그인해 <b>주전공 인증</b>을 진행하세요(SNU 계정으로 학과를 확인합니다).</li>
 <li>인증이 끝나면 다시 <a href="{back}">로그인</a>하세요. 첫 로그인에서 계정이 자동으로 만들어집니다.</li>
 </ol>
-<p>주전공이 아니지만 사용 허가가 필요하면 {contact}에 문의하세요. 허용 그룹에 추가되면 같은 방법으로 로그인할 수 있습니다.</p>"""
+<p>주전공이 아니지만 사용 허가가 필요하면 {contact}에 문의하세요. 외부 회원을 위한 게스트 그룹을 {idp}에 신설할 예정이며, 허용 그룹에 추가되면 같은 방법으로 로그인할 수 있습니다.</p>
+{docs}"""
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
@@ -266,6 +296,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.server.provisioner.revoke(username)
             self.send_page(403, "아직 사용할 수 없는 계정입니다", NOT_ELIGIBLE.format(
                 idp=html.escape(IDP_NAME), idp_url=html.escape(IDP_URL), contact=html.escape(CONTACT),
+                docs=f'<p>자세한 내용은 <a href="{html.escape(DOCS_URL)}">사용 안내</a>를 보세요.</p>' if DOCS_URL else "",
                 back=html.escape(payload["q"]["redirect_uri"].split("?")[0])))
             return
         self.server.provisioner.release_stale(username, email)

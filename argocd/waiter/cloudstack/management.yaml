@@ -65,6 +65,14 @@ spec:
               mountPath: /var/cloudstack
             - name: tmp
               mountPath: /var/tmp
+            - name: ui
+              mountPath: /usr/share/cloudstack-management/webapp/config.json
+              subPath: config.json
+              readOnly: true
+            - name: ui
+              mountPath: /usr/share/cloudstack-management/webapp/assets/bacchus.png
+              subPath: bacchus.png
+              readOnly: true
           # /client/ serves static files even when the core module failed to load,
           # so probe the API instead: an unauthenticated API call answers 401 only
           # once the API layer is up. The first start on an empty database runs the
@@ -111,3 +119,6 @@ spec:
           emptyDir: {}
         - name: tmp
           emptyDir: {}
+        - name: ui
+          configMap:
+            name: cloudstack-ui
