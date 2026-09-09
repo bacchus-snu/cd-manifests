@@ -31,7 +31,8 @@ EXTERNAL_URL = os.environ["EXTERNAL_URL"].rstrip("/")  # this service, as seen b
 API_URL = os.environ["CLOUDSTACK_API_URL"]
 API_KEY = os.environ["CLOUDSTACK_API_KEY"].strip()
 SECRET_KEY = os.environ["CLOUDSTACK_SECRET_KEY"].strip()
-# identity provider groups that grant access, and the ones that make an administrator
+# identity provider groups that grant access, and the ones that make an
+# administrator (administrators are admitted regardless of the former)
 ALLOWED_GROUPS = {g for g in os.environ.get("ALLOWED_GROUPS", "").split(",") if g}
 ADMIN_GROUPS = {g for g in os.environ.get("ADMIN_GROUPS", "").split(",") if g}
 ROLE_USER = os.environ.get("ROLE_USER", "User")
@@ -254,7 +255,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_page(500, "로그인 처리 중 오류", "<p>계정 정보를 읽지 못했습니다. 관리자에게 문의하세요.</p>")
             return
         original = urllib.parse.urlencode(payload["q"])
-        if not groups & ALLOWED_GROUPS:
+        if not groups & (ALLOWED_GROUPS | ADMIN_GROUPS):
             self.server.provisioner.revoke(username)
             self.send_page(403, "아직 사용할 수 없는 계정입니다", NOT_ELIGIBLE.format(
                 idp=html.escape(IDP_NAME), idp_url=html.escape(IDP_URL), contact=html.escape(CONTACT),
