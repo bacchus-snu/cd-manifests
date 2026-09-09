@@ -3,20 +3,22 @@
 # service as its authorize URL, so every SNUCSE ID login passes through here
 # first and the person's own account is created or updated before the identity
 # provider hands the code to CloudStack. Group names are parameters
-# (ConfigMap gate-config); the OIDC client is "cloudstack-gate" at id.snucse.org.
+# (ConfigMap gate-config). The gate uses CloudStack's own OIDC client
+# ("cloudstack", with /gate/callback as a second redirect URI) so that the
+# user consents once for both.
 # keys: client_id, client_secret
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
 metadata:
-  name: gate-oauth
+  name: cloudstack-oauth
 spec:
   vaultAuthRef: default
   type: kv-v2
   mount: secret
-  path: cloudstack/oauth-gate
+  path: cloudstack/oauth-snucse-id
   destination:
     create: true
-    name: gate-oauth
+    name: cloudstack-oauth
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -50,12 +52,12 @@ spec:
             - name: OIDC_CLIENT_ID
               valueFrom:
                 secretKeyRef:
-                  name: gate-oauth
+                  name: cloudstack-oauth
                   key: client_id
             - name: OIDC_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: gate-oauth
+                  name: cloudstack-oauth
                   key: client_secret
             - name: CLOUDSTACK_API_URL
               value: http://cloudstack-management:8080/client/api

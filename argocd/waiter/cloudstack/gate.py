@@ -88,7 +88,7 @@ class Provisioner:
             cloudstack("createAccount", username=username, account=username, email=email,
                        firstname=name, lastname="-", password=secrets.token_urlsafe(24),
                        roleid=role, domainid=self.root_domain,
-                       **{"accountdetails[0].key": MANAGED, "accountdetails[0].value": "true"})
+                       **{f"accountdetails[0].{MANAGED}": "true"})
             if not admin:
                 for t in ZERO_LIMIT_TYPES:
                     try:
@@ -102,8 +102,7 @@ class Provisioner:
         if account["state"] != "enabled":
             if details.get(MANAGED) == "true" and details.get("disabledby") == MANAGED:
                 # updateAccount replaces the whole detail map: keep our marker, drop the reason
-                cloudstack("updateAccount", id=account["id"],
-                           **{"accountdetails[0].key": MANAGED, "accountdetails[0].value": "true"})
+                cloudstack("updateAccount", id=account["id"], **{f"accountdetails[0].{MANAGED}": "true"})
                 cloudstack("enableAccount", id=account["id"])
                 log(f"{username}: account re-enabled")
             else:
@@ -115,10 +114,19 @@ class Provisioner:
         user = next((u for u in users if u["username"] == username), None)
         if user is None:
             return "계정에 로그인 사용자가 없습니다. 관리자에게 문의하세요."
-        if (user.get("email") or "").lower() != email:
+        if (user.get("email") or "").lower() != email.lower():
             cloudstack("updateUser", id=user["id"], email=email)
             log(f"{username}: email updated")
         return None
+
+    def release_stale(self, username, email):
+        """The identity provider verified that the address belongs to this user
+        now; any other user still carrying it holds a stale value that would
+        make the address match two users. Park it until that user logs in."""
+        for u in cloudstack("listUsers", domainid=self.root_domain, listall="true").get("user", []):
+            if u["username"] != username and (u.get("email") or "").lower() == email.lower():
+                cloudstack("updateUser", id=u["id"], email=f"{u['username']}@stale.invalid")
+                log(f"{u['username']}: stale email {email} released to {username}")
 
     def revoke(self, username):
         """The person lost the group: keep the account and its data, stop it."""
@@ -129,8 +137,7 @@ class Provisioner:
         details = account.get("accountdetails") or {}
         if details.get(MANAGED) == "true" and account["state"] == "enabled":
             cloudstack("updateAccount", id=account["id"],
-                       **{"accountdetails[0].key": MANAGED, "accountdetails[0].value": "true",
-                          "accountdetails[1].key": "disabledby", "accountdetails[1].value": MANAGED})
+                       **{f"accountdetails[0].{MANAGED}": "true", "accountdetails[0].disabledby": MANAGED})
             cloudstack("disableAccount", id=account["id"], lock="false")
             log(f"{username}: account disabled (left the group)")
 
@@ -249,7 +256,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         info = exchange_code(self.server.oidc, query["code"])
         username = (info.get("username") or "").strip()
-        email = (info.get("email") or "").strip().lower()
+        email = (info.get("email") or "").strip()  # kept as presented: Warpgate compares it verbatim
         groups = set(info.get("groups") or [])
         if not username or not email:
             self.send_page(500, "로그인 처리 중 오류", "<p>계정 정보를 읽지 못했습니다. 관리자에게 문의하세요.</p>")
@@ -261,6 +268,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 idp=html.escape(IDP_NAME), idp_url=html.escape(IDP_URL), contact=html.escape(CONTACT),
                 back=html.escape(payload["q"]["redirect_uri"].split("?")[0])))
             return
+        self.server.provisioner.release_stale(username, email)
         problem = self.server.provisioner.ensure(username, email, info.get("name") or username, bool(groups & ADMIN_GROUPS))
         if problem:
             self.send_page(403, "로그인할 수 없습니다", f"<p>{html.escape(problem)}</p>")

@@ -166,12 +166,12 @@ def sync_warpgate():
         wu = wg_users.get(u["username"])
         if not wu:
             continue
-        email = u["email"].lower()
+        email = u["email"]  # as the identity provider presents it: Warpgate compares verbatim
         creds = warpgate("GET", f"/users/{wu['id']}/credentials/sso")[1]
         for c in creds:  # the address may change: keep exactly one, current credential
-            if c.get("provider") in (None, WARPGATE_SSO) and c["email"].lower() != email:
+            if c.get("provider") in (None, WARPGATE_SSO) and c["email"] != email:
                 warpgate("DELETE", f"/users/{wu['id']}/credentials/sso/{c['id']}")
-        if not any(c["email"].lower() == email and c.get("provider") in (None, WARPGATE_SSO) for c in creds):
+        if not any(c["email"] == email and c.get("provider") in (None, WARPGATE_SSO) for c in creds):
             warpgate("POST", f"/users/{wu['id']}/credentials/sso", {"provider": WARPGATE_SSO, "email": email})
             print(f"warpgate user {u['username']}: sso credential {email}")
         wanted_roles = {f"account-{u['account']}"}
