@@ -221,16 +221,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if path.endswith("/healthz"):
                 self.send_page(200, "ok", "<p>ok</p>")
             elif path.endswith("/authorize"):
-                self.start(query)
+                self.begin_login(query)
             elif path.endswith("/callback"):
-                self.finish(query)
+                self.complete_login(query)
             else:
                 self.send_page(404, "Not found", "<p>Not found</p>")
         except Exception as e:
             log(f"error: {e!r}")
             self.send_page(500, "로그인 처리 중 오류", "<p>잠시 후 다시 시도하세요. 계속되면 관리자에게 문의하세요.</p>")
 
-    def start(self, query):
+    def begin_login(self, query):
         """CloudStack sent the browser here instead of the identity provider."""
         if not query.get("client_id") or not query.get("redirect_uri"):
             self.send_page(400, "잘못된 요청", "<p>로그인 화면에서 다시 시작하세요.</p>")
@@ -242,7 +242,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         })
         self.redirect(f"{self.server.oidc['authorization_endpoint']}?{params}")
 
-    def finish(self, query):
+    def complete_login(self, query):
         payload = verify_state(query.get("state", ""))
         if payload is None or "code" not in query:
             self.send_page(400, "로그인 시간이 지났습니다", "<p>로그인 화면에서 다시 시작하세요.</p>")
