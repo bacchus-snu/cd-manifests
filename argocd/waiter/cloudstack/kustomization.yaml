@@ -5,6 +5,7 @@ resources:
   - console.yaml
   - sync.yaml
   - warpgate.yaml
+  - gate.yaml
   # - backup.yaml  # enable once the Proxmox Backup Server is rebuilt (needs secret/cloudstack/pbs)
 
 labels:
@@ -28,6 +29,19 @@ configMapGenerator:
   - name: console-relay
     files:
       - console-relay.conf
+  - name: cloudstack-gate
+    files:
+      - gate.py
+  # groups at the identity provider that grant access / administrator role
+  - name: gate-config
+    literals:
+      - OIDC_ISSUER=https://id.snucse.org/o
+      - EXTERNAL_URL=https://cloud.snucse.org/gate
+      - ALLOWED_GROUPS=major
+      - ADMIN_GROUPS=bacchus
+      - IDP_NAME=SNUCSE ID
+      - IDP_URL=https://id.snucse.org
+      - CONTACT=Bacchus
 
 images:
   - name: alpine

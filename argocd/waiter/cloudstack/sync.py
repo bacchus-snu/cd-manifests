@@ -28,12 +28,9 @@ WARPGATE_TOKEN = (os.environ.get("BASTION_TOKEN") or "").strip()
 WARPGATE_SSO = os.environ.get("BASTION_SSO", "snucse")
 # what Warpgate logs in as on the guests: the templates' default user
 GUEST_USER = os.environ.get("GUEST_USER", "ubuntu")
-# The identity key is the SNUCSE ID username. CloudStack's OAuth login and
-# Warpgate's SSO both match on the IdP's "email" claim, so the IdP presents
-# <username>@<this domain> to them and the same value is written here.
-IDENTITY_DOMAIN = os.environ.get("IDENTITY_DOMAIN", "id.snucse.org")
 # CloudStack's built-in accounts, never mirrored
 BUILTIN_ACCOUNTS = {"system", "baremetal-system-account"}
+ADMINS_ROLE = "admins"  # Warpgate role of CloudStack root administrators: every target
 MANAGED = "cloudstack:"  # description prefix of the Warpgate objects this job owns
 
 
@@ -135,12 +132,13 @@ def warpgate(method, path, body=None):
 
 
 def sync_warpgate():
-    """Role per CloudStack account, user per CloudStack user (SSO credential
-    <username>@IDENTITY_DOMAIN), target per VM; membership follows the account.
-    Objects created here carry a 'cloudstack:' description and are removed when
-    their source disappears."""
+    """Role per CloudStack account, user per CloudStack user (SSO credential =
+    the user's e-mail, which the sign-in gate keeps equal to the identity
+    provider's claim), target per VM; membership follows the account and root
+    administrators reach every target. Objects created here carry a
+    'cloudstack:' description and are removed when their source disappears."""
     users = [u for u in cloudstack("listUsers", listall="true").get("user", [])
-             if u.get("state") == "enabled" and u["account"] not in BUILTIN_ACCOUNTS]
+             if u.get("state") == "enabled" and u["account"] not in BUILTIN_ACCOUNTS and u.get("email")]
     vms = cloudstack("listVirtualMachines", listall="true").get("virtualmachine", [])
     # accounts that have someone who can log in or something to log in to
     relevant = {u["account"] for u in users} | {vm["account"] for vm in vms}
@@ -153,6 +151,9 @@ def sync_warpgate():
         if role not in roles:
             warpgate("POST", "/roles", {"name": role, "description": f"{MANAGED}account:{accounts[name]['id']}"})
             print(f"warpgate role {role} created")
+    if ADMINS_ROLE not in roles:
+        warpgate("POST", "/roles", {"name": ADMINS_ROLE, "description": f"{MANAGED}admins"})
+        print(f"warpgate role {ADMINS_ROLE} created")
     roles = {r["name"]: r for r in warpgate("GET", "/roles")[1]}
 
     wg_users = {u["username"]: u for u in warpgate("GET", "/users")[1]}
@@ -165,16 +166,24 @@ def sync_warpgate():
         wu = wg_users.get(u["username"])
         if not wu:
             continue
-        email = f"{u['username'].lower()}@{IDENTITY_DOMAIN}"
+        email = u["email"].lower()
         creds = warpgate("GET", f"/users/{wu['id']}/credentials/sso")[1]
+        for c in creds:  # the address may change: keep exactly one, current credential
+            if c.get("provider") in (None, WARPGATE_SSO) and c["email"].lower() != email:
+                warpgate("DELETE", f"/users/{wu['id']}/credentials/sso/{c['id']}")
         if not any(c["email"].lower() == email and c.get("provider") in (None, WARPGATE_SSO) for c in creds):
             warpgate("POST", f"/users/{wu['id']}/credentials/sso", {"provider": WARPGATE_SSO, "email": email})
             print(f"warpgate user {u['username']}: sso credential {email}")
-        role = roles[f"account-{u['account']}"]
+        wanted_roles = {f"account-{u['account']}"}
+        if u.get("accounttype") == 1:
+            wanted_roles.add(ADMINS_ROLE)
         have = {r["name"] for r in warpgate("GET", f"/users/{wu['id']}/roles")[1]}
-        if role["name"] not in have:
-            warpgate("POST", f"/users/{wu['id']}/roles/{role['id']}", {})
-            print(f"warpgate user {u['username']}: role {role['name']}")
+        for name in wanted_roles - have:
+            warpgate("POST", f"/users/{wu['id']}/roles/{roles[name]['id']}", {})
+            print(f"warpgate user {u['username']}: role {name}")
+        for name in (have & {ADMINS_ROLE}) - wanted_roles:
+            warpgate("DELETE", f"/users/{wu['id']}/roles/{roles[name]['id']}")
+            print(f"warpgate user {u['username']}: role {name} removed")
 
     # VM names are unique across the zone (CloudStack rejects duplicate host
     # names within a network and there is one guest network), so the target is
@@ -201,11 +210,11 @@ def sync_warpgate():
         elif t["options"].get("host") != spec["options"]["host"]:
             warpgate("PUT", f"/targets/{t['id']}", spec)
             print(f"warpgate target {name} -> {spec['options']['host']} updated")
-        role = roles.get(f"account-{owner[name]}")
-        if role and t is not None:
+        if t is not None:
             have = {r["name"] for r in warpgate("GET", f"/targets/{t['id']}/roles")[1]}
-            if role["name"] not in have:
-                warpgate("POST", f"/targets/{t['id']}/roles/{role['id']}", {})
+            for rname in (f"account-{owner[name]}", ADMINS_ROLE):
+                if rname in roles and rname not in have:
+                    warpgate("POST", f"/targets/{t['id']}/roles/{roles[rname]['id']}", {})
     for name, t in wg_targets.items():
         if (t.get("description") or "").startswith(MANAGED) and name not in wanted:
             warpgate("DELETE", f"/targets/{t['id']}")
@@ -215,7 +224,7 @@ def sync_warpgate():
         if (wu.get("description") or "").startswith(MANAGED) and name not in live_users:
             warpgate("DELETE", f"/users/{wu['id']}")
             print(f"warpgate user {name} removed")
-    live_roles = {f"account-{a}" for a in accounts}
+    live_roles = {f"account-{a}" for a in accounts} | {ADMINS_ROLE}
     for name, r in roles.items():
         if (r.get("description") or "").startswith(MANAGED) and name not in live_roles:
             warpgate("DELETE", f"/role/{r['id']}")

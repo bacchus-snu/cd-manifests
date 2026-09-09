@@ -1,0 +1,107 @@
+---
+# Sign-in gate (gate.py): CloudStack's OAuth provider is configured with this
+# service as its authorize URL, so every SNUCSE ID login passes through here
+# first and the person's own account is created or updated before the identity
+# provider hands the code to CloudStack. Group names are parameters
+# (ConfigMap gate-config); the OIDC client is "cloudstack-gate" at id.snucse.org.
+# keys: client_id, client_secret
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: gate-oauth
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: cloudstack/oauth-gate
+  destination:
+    create: true
+    name: gate-oauth
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gate
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudstack-management
+      app.kubernetes.io/instance: cloudstack
+      app.kubernetes.io/component: gate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: gate
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+      containers:
+        - name: gate
+          image: python # replaced by kustomize
+          command: [python3, /opt/gate/gate.py]
+          envFrom:
+            - configMapRef:
+                name: gate-config
+          env:
+            - name: OIDC_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: gate-oauth
+                  key: client_id
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: gate-oauth
+                  key: client_secret
+            - name: CLOUDSTACK_API_URL
+              value: http://cloudstack-management:8080/client/api
+            - name: CLOUDSTACK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cloudstack-api
+                  key: api_key
+            - name: CLOUDSTACK_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cloudstack-api
+                  key: secret_key
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /gate/healthz
+              port: http
+            periodSeconds: 10
+          volumeMounts:
+            - name: script
+              mountPath: /opt/gate
+          resources:
+            requests:
+              cpu: 20m
+              memory: 48Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+      volumes:
+        - name: script
+          configMap:
+            name: cloudstack-gate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gate
+spec:
+  selector:
+    app.kubernetes.io/name: cloudstack-management
+    app.kubernetes.io/instance: cloudstack
+    app.kubernetes.io/component: gate
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
