@@ -57,6 +57,8 @@ spec:
       template:
         spec:
           serviceAccountName: cloudstack-sync
+          # no Docker-style *_PORT variables for the namespace's Services
+          enableServiceLinks: false
           restartPolicy: Never
           containers:
             - name: sync
@@ -75,11 +77,11 @@ spec:
                     secretKeyRef:
                       name: cloudstack-api
                       key: secret_key
-                - name: WARPGATE_HOST
+                - name: BASTION_HOST
                   value: warpgate
-                - name: WARPGATE_TLS_NAME
+                - name: BASTION_TLS_NAME
                   value: login.cloud.snucse.org
-                - name: WARPGATE_TOKEN
+                - name: BASTION_TOKEN
                   valueFrom:
                     secretKeyRef:
                       name: warpgate

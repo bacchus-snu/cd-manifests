@@ -80,7 +80,7 @@ spec:
               if [ ! -f /data/warpgate.yaml ]; then
                 warpgate --config /data/warpgate.yaml unattended-setup \
                   --data-path /data --http-port 8888 --ssh-port 2222 \
-                  --external-host login.cloud.snucse.org --host-key-verification auto_accept
+                  --external-host login.cloud.snucse.org --host-key-verification auto-accept
               fi
               sed "s|\${OIDC_CLIENT_SECRET}|$OIDC_CLIENT_SECRET|" /config/warpgate-config.yaml > /data/warpgate.yaml
               chmod 600 /data/warpgate.yaml
