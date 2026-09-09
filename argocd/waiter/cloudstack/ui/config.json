@@ -92,7 +92,6 @@
   "plugins": [
     {
       "name": "사용 안내",
-      "icon": "read-outlined",
       "path": "https://docs.cloud.snucse.org/",
       "isExternalLink": "true"
     }
