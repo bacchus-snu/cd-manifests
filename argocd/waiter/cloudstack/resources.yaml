@@ -44,6 +44,9 @@ kind: Service
 metadata:
   name: cloudstack-management
 spec:
+  selector:
+    app.kubernetes.io/name: cloudstack-management
+    app.kubernetes.io/instance: cloudstack
   ports:
     - name: http
       port: 8080
@@ -58,6 +61,9 @@ metadata:
   name: cloudstack-management-pods
 spec:
   clusterIP: None
+  selector:
+    app.kubernetes.io/name: cloudstack-management
+    app.kubernetes.io/instance: cloudstack
   ports:
     - name: agent
       port: 8250

@@ -43,6 +43,10 @@ kind: DaemonSet
 metadata:
   name: overlay-gw
 spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudstack-management
+      app.kubernetes.io/instance: cloudstack
   template:
     spec:
       hostNetwork: true

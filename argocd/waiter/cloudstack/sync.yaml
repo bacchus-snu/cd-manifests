@@ -1,0 +1,114 @@
+---
+# Periodic reconciliation of state that follows CloudStack (see sync.py).
+# Authenticates to the CloudStack API with the admin user's API keys.
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: cloudstack-api
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: cloudstack/api
+  destination:
+    create: true
+    name: cloudstack-api
+---
+# key: admin_token (Warpgate admin API); same Vault secret as the warpgate app
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: warpgate-admin
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: cloudstack/warpgate
+  destination:
+    create: true
+    name: warpgate-admin
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cloudstack-sync
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cloudstack-sync
+rules:
+  - apiGroups: [discovery.k8s.io]
+    resources: [endpointslices]
+    verbs: [get, create, update]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cloudstack-sync
+subjects:
+  - kind: ServiceAccount
+    name: cloudstack-sync
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cloudstack-sync
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cloudstack-sync
+spec:
+  schedule: '* * * * *'
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 30
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 50
+      template:
+        spec:
+          serviceAccountName: cloudstack-sync
+          restartPolicy: Never
+          containers:
+            - name: sync
+              image: python # replaced by kustomize
+              command: [python3, /opt/sync/sync.py]
+              env:
+                - name: CLOUDSTACK_API_URL
+                  value: http://cloudstack-management:8080/client/api
+                - name: CLOUDSTACK_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: cloudstack-api
+                      key: api_key
+                - name: CLOUDSTACK_SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: cloudstack-api
+                      key: secret_key
+                - name: WARPGATE_HOST
+                  value: warpgate.warpgate
+                - name: WARPGATE_TLS_NAME
+                  value: login.cloud.snucse.org
+                - name: WARPGATE_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: warpgate-admin
+                      key: admin_token
+              volumeMounts:
+                - name: script
+                  mountPath: /opt/sync
+              resources:
+                requests:
+                  cpu: 20m
+                  memory: 32Mi
+                limits:
+                  cpu: 200m
+                  memory: 128Mi
+          volumes:
+            - name: script
+              configMap:
+                name: cloudstack-sync
