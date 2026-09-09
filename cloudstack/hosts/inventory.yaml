@@ -69,12 +69,21 @@ all:
           campus_mac: 70:85:c2:32:5d:8b
           mgmt_ip: 10.93.0.13
           vrrp_priority: 130
+        cojito:
+          ansible_host: cojito.snucse.org
+          campus_ip: 147.46.240.221
+          campus_prefix: 24
+          campus_gateway: 147.46.240.1
+          campus_mac: 70:85:c2:32:5d:c9
+          mgmt_ip: 10.93.0.14
+          vrrp_priority: 120
     # hosts that hold the guest overlay gateway VIP and NAT guest traffic to the campus
     cloudstack_gateway:
       hosts:
         derby:
         eggnog:
         faust:
+        cojito:
     # host that exports the NFS secondary storage
     cloudstack_secondary_storage:
       hosts:
