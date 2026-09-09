@@ -25,6 +25,9 @@ configMapGenerator:
   - name: warpgate-nginx
     files:
       - warpgate-nginx.conf
+  - name: console-relay
+    files:
+      - console-relay.conf
 
 images:
   - name: alpine

@@ -5,7 +5,9 @@
 # kerkoporta static route). The gateway terminates TLS for
 # console.cloud.snucse.org on 443 (page) and 8080 (WebSocket) and forwards to
 # the proxy through this selector-less Service, whose EndpointSlice the sync
-# job keeps at the current proxy address.
+# job keeps at the current proxy address. The gateway itself cannot reach the
+# overlay (its proxy's upstream connections never arrive; cause not pinned
+# down), so the routes point at a relay pod in front of this Service.
 apiVersion: v1
 kind: Service
 metadata:
@@ -16,6 +18,78 @@ spec:
       port: 80
     - name: websocket
       port: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: console-relay
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudstack-management
+      app.kubernetes.io/instance: cloudstack
+      app.kubernetes.io/component: console-relay
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: console-relay
+    spec:
+      securityContext:
+        runAsUser: 101
+        runAsGroup: 101
+        runAsNonRoot: true
+      containers:
+        - name: relay
+          image: nginx # replaced by kustomize
+          ports:
+            - name: http
+              containerPort: 8081
+            - name: websocket
+              containerPort: 8082
+          volumeMounts:
+            - name: nginx
+              mountPath: /etc/nginx/conf.d
+              readOnly: true
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+      volumes:
+        - name: nginx
+          configMap:
+            name: console-relay
+            items:
+              - key: console-relay.conf
+                path: default.conf
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: console-relay
+spec:
+  selector:
+    app.kubernetes.io/name: cloudstack-management
+    app.kubernetes.io/instance: cloudstack
+    app.kubernetes.io/component: console-relay
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+    - name: websocket
+      port: 8080
+      targetPort: websocket
 ---
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: HTTPRoute
@@ -30,7 +104,7 @@ spec:
     - console.cloud.snucse.org
   rules:
     - backendRefs:
-        - name: console-proxy
+        - name: console-relay
           port: 80
 ---
 apiVersion: gateway.networking.k8s.io/v1beta1
@@ -46,5 +120,5 @@ spec:
     - console.cloud.snucse.org
   rules:
     - backendRefs:
-        - name: console-proxy
+        - name: console-relay
           port: 8080
