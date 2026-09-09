@@ -49,6 +49,10 @@
           # even when logged in as root; minimal Debian installs lack it
           - sudo
           - temurin-17-jre
+          # GPU discovery (gpudiscovery.sh) shells out to lspci and xmlstarlet,
+          # which the agent package does not depend on
+          - pciutils
+          - xmlstarlet
           - cloudstack-common={{ cloudstack_version }}
           - cloudstack-agent={{ cloudstack_version }}
 
@@ -59,6 +63,19 @@
       loop:
         - cloudstack-common
         - cloudstack-agent
+
+    # The agent's GPU discovery script only reports PCI classes "3D controller",
+    # "Processing accelerators" and "Display controller"; GPUs with a display
+    # output enumerate as "VGA compatible controller" and are silently skipped
+    # although the script's own sample output shows such a card (4.23.0.0
+    # scripts/vm/hypervisor/kvm/gpudiscovery.sh). The package overwrites the
+    # script on upgrade, so this is re-applied after every version change.
+    - name: GPU discovery also reports VGA-class GPUs
+      ansible.builtin.replace:
+        path: /usr/share/cloudstack-common/scripts/vm/hypervisor/kvm/gpudiscovery.sh
+        regexp: '\(3D\\ controller\|Processing\\ accelerators\|Display\\ controller\)'
+        replace: '(VGA\\ compatible\\ controller|3D\\ controller|Processing\\ accelerators|Display\\ controller)'
+      notify: restart cloudstack-agent
 
     - name: IP forwarding
       ansible.builtin.copy:
