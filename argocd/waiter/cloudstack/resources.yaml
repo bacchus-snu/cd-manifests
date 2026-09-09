@@ -47,6 +47,7 @@ spec:
   selector:
     app.kubernetes.io/name: cloudstack-management
     app.kubernetes.io/instance: cloudstack
+    app.kubernetes.io/component: management
   ports:
     - name: http
       port: 8080
@@ -64,6 +65,7 @@ spec:
   selector:
     app.kubernetes.io/name: cloudstack-management
     app.kubernetes.io/instance: cloudstack
+    app.kubernetes.io/component: management
   ports:
     - name: agent
       port: 8250

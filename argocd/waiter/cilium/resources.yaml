@@ -91,25 +91,13 @@ spec:
     - name: https-console-websocket
       protocol: HTTPS
       port: 8080
-      hostname: "console.cloud.snucse.org"
+      hostname: "*.cloud.snucse.org"
       tls:
         certificateRefs:
           - name: web-gateway-cloud-certs
       allowedRoutes:
         namespaces:
           from: All
-    # Warpgate terminates its own TLS (argocd/waiter/warpgate)
-    - name: tls-login-cloud-snucse-org
-      protocol: TLS
-      port: 443
-      hostname: "login.cloud.snucse.org"
-      tls:
-        mode: Passthrough
-      allowedRoutes:
-        namespaces:
-          from: All
-        kinds:
-          - kind: TLSRoute
     - name: apex-snucse-org
       protocol: HTTPS
       port: 443

@@ -12,6 +12,9 @@ spec:
       app.kubernetes.io/name: cloudstack-management
       app.kubernetes.io/instance: cloudstack
   template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: management
     spec:
       # same node as the overlay gateway, whose routes to the overlays are node-local
       nodeSelector:

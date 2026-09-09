@@ -4,6 +4,7 @@ resources:
   - overlay-gw.yaml
   - console.yaml
   - sync.yaml
+  - warpgate.yaml
   # - backup.yaml  # enable once the Proxmox Backup Server is rebuilt (needs secret/cloudstack/pbs)
 
 labels:
@@ -18,12 +19,23 @@ configMapGenerator:
   - name: cloudstack-sync
     files:
       - sync.py
+  - name: warpgate-config
+    files:
+      - warpgate-config.yaml
+  - name: warpgate-nginx
+    files:
+      - warpgate-nginx.conf
 
 images:
   - name: alpine
     newTag: '3.21'
   - name: python
     newTag: 3.13-alpine
+  - name: warpgate
+    newName: ghcr.io/warp-tech/warpgate
+    newTag: 0.28.6
+  - name: nginx
+    newTag: 1.27-alpine
   - name: cloudstack-management
     newName: ghcr.io/bacchus-snu/cloudstack/management
     newTag: 4.23.0.0

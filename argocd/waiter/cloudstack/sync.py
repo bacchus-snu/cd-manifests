@@ -15,14 +15,14 @@ import urllib.parse
 import urllib.request
 
 API_URL = os.environ["CLOUDSTACK_API_URL"]
-API_KEY = os.environ["CLOUDSTACK_API_KEY"]
-SECRET_KEY = os.environ["CLOUDSTACK_SECRET_KEY"]
+API_KEY = os.environ["CLOUDSTACK_API_KEY"].strip()
+SECRET_KEY = os.environ["CLOUDSTACK_SECRET_KEY"].strip()
 CONSOLE_SERVICE = os.environ.get("CONSOLE_SERVICE", "console-proxy")
 SA_DIR = "/var/run/secrets/kubernetes.io/serviceaccount"
 WARPGATE_HOST = os.environ.get("WARPGATE_HOST")  # service name; unset: skip the bastion
 WARPGATE_PORT = int(os.environ.get("WARPGATE_PORT", "8888"))
 WARPGATE_TLS_NAME = os.environ.get("WARPGATE_TLS_NAME")  # name on Warpgate's certificate
-WARPGATE_TOKEN = os.environ.get("WARPGATE_TOKEN")
+WARPGATE_TOKEN = (os.environ.get("WARPGATE_TOKEN") or "").strip()
 WARPGATE_SSO = os.environ.get("WARPGATE_SSO", "snucse")
 # what Warpgate logs in as on the guests: the templates' default user
 GUEST_USER = os.environ.get("GUEST_USER", "ubuntu")

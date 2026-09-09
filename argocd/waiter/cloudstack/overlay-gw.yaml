@@ -48,6 +48,9 @@ spec:
       app.kubernetes.io/name: cloudstack-management
       app.kubernetes.io/instance: cloudstack
   template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: overlay-gateway
     spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet

@@ -14,20 +14,6 @@ spec:
     create: true
     name: cloudstack-api
 ---
-# key: admin_token (Warpgate admin API); same Vault secret as the warpgate app
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultStaticSecret
-metadata:
-  name: warpgate-admin
-spec:
-  vaultAuthRef: default
-  type: kv-v2
-  mount: secret
-  path: cloudstack/warpgate
-  destination:
-    create: true
-    name: warpgate-admin
----
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -90,13 +76,13 @@ spec:
                       name: cloudstack-api
                       key: secret_key
                 - name: WARPGATE_HOST
-                  value: warpgate.warpgate
+                  value: warpgate
                 - name: WARPGATE_TLS_NAME
                   value: login.cloud.snucse.org
                 - name: WARPGATE_TOKEN
                   valueFrom:
                     secretKeyRef:
-                      name: warpgate-admin
+                      name: warpgate
                       key: admin_token
               volumeMounts:
                 - name: script

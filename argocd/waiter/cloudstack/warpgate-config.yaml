@@ -13,7 +13,7 @@ ssh:
 
 http:
   listen: "0.0.0.0:8888"
-  # the gateway passes TLS through to us on 443
+  # public port: the gateway terminates TLS and the sidecar re-encrypts to us
   external_port: 443
   certificate: /tls/tls.crt
   key: /tls/tls.key
@@ -21,7 +21,7 @@ http:
 sso_providers:
   - name: snucse
     label: SNUCSE ID
-    # users and their e-mail credentials are created by the CloudStack sync job
+    # users and their e-mail credentials are created by the sync job
     auto_create_users: false
     provider:
       type: custom

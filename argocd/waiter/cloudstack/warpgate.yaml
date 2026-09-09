@@ -1,19 +1,8 @@
 ---
-# Warpgate: SSH bastion in front of the CloudStack guests. Users log in with
-# SNUCSE ID (SSO, through the web UI link Warpgate prints in the terminal) and
-# reach their VMs on the guest overlay; targets, roles and users follow
-# CloudStack through the sync job in the cloudstack namespace.
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultAuth
-metadata:
-  name: default
-spec:
-  method: kubernetes
-  mount: kubernetes
-  kubernetes:
-    role: vault-secrets-operator
-    serviceAccount: default
----
+# Warpgate: SSH bastion in front of the guests. Users log in with SNUCSE ID
+# (SSO, through the web UI link Warpgate prints in the terminal) and reach
+# their VMs on the guest overlay; targets, roles and users follow CloudStack
+# through the sync job (sync.py).
 # keys: admin_password (web admin user, created on first boot), admin_token
 # (admin API token for the sync job), oidc_client_secret (client "warpgate" at
 # id.snucse.org)
@@ -30,8 +19,8 @@ spec:
     create: true
     name: warpgate
 ---
-# Warpgate terminates its own TLS (the HTTP listener refuses to run without a
-# certificate); the gateway passes login.cloud.snucse.org through untouched
+# Warpgate refuses to serve HTTP without a certificate, and the sync job and the
+# sidecar verify it by this name
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
@@ -66,9 +55,13 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: warpgate
-      app.kubernetes.io/instance: warpgate
+      app.kubernetes.io/name: cloudstack-management
+      app.kubernetes.io/instance: cloudstack
+      app.kubernetes.io/component: bastion
   template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: bastion
     spec:
       securityContext:
         runAsUser: 1000
@@ -89,7 +82,7 @@ spec:
                   --data-path /data --http-port 8888 --ssh-port 2222 \
                   --external-host login.cloud.snucse.org --host-key-verification auto_accept
               fi
-              sed "s|\${OIDC_CLIENT_SECRET}|$OIDC_CLIENT_SECRET|" /config/warpgate.yaml > /data/warpgate.yaml
+              sed "s|\${OIDC_CLIENT_SECRET}|$OIDC_CLIENT_SECRET|" /config/warpgate-config.yaml > /data/warpgate.yaml
               chmod 600 /data/warpgate.yaml
           env:
             - name: WARPGATE_ADMIN_PASSWORD
@@ -139,6 +132,27 @@ spec:
             limits:
               cpu: 1000m
               memory: 1Gi
+        # plain HTTP for the gateway, re-encrypted to Warpgate on the loopback
+        - name: proxy
+          image: nginx # replaced by kustomize
+          ports:
+            - name: web
+              containerPort: 8080
+          volumeMounts:
+            - name: nginx
+              mountPath: /etc/nginx/conf.d
+              readOnly: true
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
       volumes:
         - name: data
           persistentVolumeClaim:
@@ -149,17 +163,32 @@ spec:
         - name: tls
           secret:
             secretName: warpgate-tls
+        - name: nginx
+          configMap:
+            name: warpgate-nginx
+            items:
+              - key: warpgate-nginx.conf
+                path: default.conf
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}
 ---
-# web UI and admin API (TLS, Warpgate's own certificate)
+# web UI and admin API: "web" for the gateway (plain HTTP via the sidecar),
+# "https" for the sync job (Warpgate's own TLS)
 apiVersion: v1
 kind: Service
 metadata:
   name: warpgate
 spec:
   selector:
-    app.kubernetes.io/name: warpgate
-    app.kubernetes.io/instance: warpgate
+    app.kubernetes.io/name: cloudstack-management
+    app.kubernetes.io/instance: cloudstack
+    app.kubernetes.io/component: bastion
   ports:
+    - name: web
+      port: 8080
+      targetPort: web
     - name: https
       port: 8888
       targetPort: https
@@ -174,30 +203,14 @@ metadata:
 spec:
   type: LoadBalancer
   selector:
-    app.kubernetes.io/name: warpgate
-    app.kubernetes.io/instance: warpgate
+    app.kubernetes.io/name: cloudstack-management
+    app.kubernetes.io/instance: cloudstack
+    app.kubernetes.io/component: bastion
   ports:
     - name: ssh
       port: 22
       targetPort: ssh
 ---
-apiVersion: gateway.networking.k8s.io/v1alpha2
-kind: TLSRoute
-metadata:
-  name: warpgate
-spec:
-  parentRefs:
-    - namespace: cilium-system
-      name: web-gateway
-      sectionName: tls-login-cloud-snucse-org
-  hostnames:
-    - login.cloud.snucse.org
-  rules:
-    - backendRefs:
-        - name: warpgate
-          port: 8888
----
-# plain HTTP only redirects; this route also makes external-dns publish the name
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: HTTPRoute
 metadata:
@@ -206,12 +219,10 @@ spec:
   parentRefs:
     - namespace: cilium-system
       name: web-gateway
-      sectionName: http
+      sectionName: https-cloud-snucse-org
   hostnames:
     - login.cloud.snucse.org
   rules:
-    - filters:
-        - type: RequestRedirect
-          requestRedirect:
-            scheme: https
-            statusCode: 301
+    - backendRefs:
+        - name: warpgate
+          port: 8080
