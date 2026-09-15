@@ -9,11 +9,16 @@
 #
 # ostype must be an exact `listOsTypes` description. user is the image's
 # default account, which the SSH bastion logs in as.
+#
+# URLs must answer 200 directly: the secondary storage VM does not follow
+# redirects, so redirector hosts (download.fedoraproject.org,
+# download.opensuse.org, cloud.debian.org, Ubuntu's version-number paths)
+# are replaced by the host they redirect to.
 
 [[template]]
 name = "ubuntu-26.04-20260823"
 display = "Ubuntu 26.04 LTS"
-url = "https://cloud-images.ubuntu.com/releases/26.04/release-20260823/ubuntu-26.04-server-cloudimg-amd64.img"
+url = "https://cloud-images.ubuntu.com/releases/resolute/release-20260823/ubuntu-26.04-server-cloudimg-amd64.img"
 checksum = "{SHA-256}8196be9d7958059cb56c6c75c80fdf6cee8a8885bc149ea791d7db1c7ef93035"
 ostype = "Other Ubuntu (64-bit)"
 user = "ubuntu"
@@ -22,7 +27,7 @@ featured = true
 [[template]]
 name = "ubuntu-24.04-20260911"
 display = "Ubuntu 24.04 LTS"
-url = "https://cloud-images.ubuntu.com/releases/24.04/release-20260911/ubuntu-24.04-server-cloudimg-amd64.img"
+url = "https://cloud-images.ubuntu.com/releases/noble/release-20260911/ubuntu-24.04-server-cloudimg-amd64.img"
 checksum = "{SHA-256}612b2c0cc1bc413a6cb8c38fd611794caf0f2b436c50013d8b3794db12ad7354"
 ostype = "Ubuntu 24.04 LTS"
 user = "ubuntu"
@@ -30,7 +35,7 @@ user = "ubuntu"
 [[template]]
 name = "debian-13-20260914"
 display = "Debian 13"
-url = "https://cloud.debian.org/images/cloud/trixie/20260914-2601/debian-13-genericcloud-amd64-20260914-2601.qcow2"
+url = "https://saimei.ftp.acc.umu.se/images/cloud/trixie/20260914-2601/debian-13-genericcloud-amd64-20260914-2601.qcow2"
 checksum = "{SHA-512}95e110dfcdbd0ed8a82a75ed9579802f9950cabf51a810dcc6388e81bc778188713878b9f28d583a0ea602fbf48b35996ae9ad37f584166d8fbd6489df248f53"
 ostype = "Other Linux (64-bit)"
 user = "debian"
@@ -38,7 +43,7 @@ user = "debian"
 [[template]]
 name = "debian-12-20260909"
 display = "Debian 12"
-url = "https://cloud.debian.org/images/cloud/bookworm/20260909-2596/debian-12-genericcloud-amd64-20260909-2596.qcow2"
+url = "https://laotzu.ftp.acc.umu.se/images/cloud/bookworm/20260909-2596/debian-12-genericcloud-amd64-20260909-2596.qcow2"
 checksum = "{SHA-512}08fea112563461f251f3c95a5c5cf8cb25eb60f74cec03e85a97ff91d3efef3059d35837598bbb476008f20db6d3bdc7143c5f2f2a9a6da394a0acc601fd5986"
 ostype = "Debian GNU/Linux 12 (64-bit)"
 user = "debian"
@@ -46,7 +51,7 @@ user = "debian"
 [[template]]
 name = "fedora-44-1.7"
 display = "Fedora 44"
-url = "https://download.fedoraproject.org/pub/fedora/linux/releases/44/Cloud/x86_64/images/Fedora-Cloud-Base-Generic-44-1.7.x86_64.qcow2"
+url = "https://dl.fedoraproject.org/pub/fedora/linux/releases/44/Cloud/x86_64/images/Fedora-Cloud-Base-Generic-44-1.7.x86_64.qcow2"
 checksum = "{SHA-256}28680fe5b371a5a82ebf43a31926e086a168e59949d03969c5093e7071f90b7f"
 ostype = "Fedora Linux (64 bit)"
 user = "fedora"
@@ -54,7 +59,7 @@ user = "fedora"
 [[template]]
 name = "fedora-43-1.6"
 display = "Fedora 43"
-url = "https://download.fedoraproject.org/pub/fedora/linux/releases/43/Cloud/x86_64/images/Fedora-Cloud-Base-Generic-43-1.6.x86_64.qcow2"
+url = "https://dl.fedoraproject.org/pub/fedora/linux/releases/43/Cloud/x86_64/images/Fedora-Cloud-Base-Generic-43-1.6.x86_64.qcow2"
 checksum = "{SHA-256}846574c8a97cd2d8dc1f231062d73107cc85cbbbda56335e264a46e3a6c8ab2f"
 ostype = "Fedora Linux (64 bit)"
 user = "fedora"
@@ -94,7 +99,7 @@ user = "almalinux"
 [[template]]
 name = "opensuse-16.0-build18.7"
 display = "openSUSE Leap 16.0"
-url = "https://download.opensuse.org/distribution/leap/16.0/appliances/Leap-16.0-Minimal-VM.x86_64-Cloud-Build18.7.qcow2"
+url = "https://downloadcontent.opensuse.org/distribution/leap/16.0/appliances/Leap-16.0-Minimal-VM.x86_64-Cloud-Build18.7.qcow2"
 checksum = "{SHA-256}c5cd6904632c86d5368dea3896da8c17571c238ef96a0e2c8b0ca1835d796e07"
 ostype = "OpenSUSE Linux (64 bit)"
 user = "opensuse"
@@ -102,7 +107,7 @@ user = "opensuse"
 [[template]]
 name = "opensuse-15.6-build19.146"
 display = "openSUSE Leap 15.6"
-url = "https://download.opensuse.org/distribution/leap/15.6/appliances/openSUSE-Leap-15.6-Minimal-VM.x86_64-15.6.0-Cloud-Build19.146.qcow2"
+url = "https://downloadcontent.opensuse.org/distribution/leap/15.6/appliances/openSUSE-Leap-15.6-Minimal-VM.x86_64-15.6.0-Cloud-Build19.146.qcow2"
 checksum = "{SHA-256}0a5720416d423f98aacaa793a57d56ec045e3dd25cd88713952660ad00da53bd"
 ostype = "OpenSUSE Linux (64 bit)"
 user = "opensuse"
