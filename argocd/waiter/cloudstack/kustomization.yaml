@@ -40,10 +40,10 @@ configMapGenerator:
       - DOCS_URL=https://docs.cloud.snucse.org/
       - ALLOWED_GROUPS=major
       - ADMIN_GROUPS=bacchus
-      # until the service opens, members get a read-only role (list/get only);
-      # switch to "SNUCSE User" at launch and quotas take over. Both roles are
-      # the built-in ones minus the project APIs: projects are not offered
-      - ROLE_USER=SNUCSE Read-Only User
+      # the built-in User role minus projects, templates, security groups,
+      # key pairs and networking; before launch the zero default quotas keep
+      # members from creating anything
+      - ROLE_USER=SNUCSE User
       # the bastion reaches instances through the overlay gateway, which
       # masquerades to its guest overlay address (overlay-gw.yaml)
       - SSH_SOURCE_CIDR=10.94.0.254/32
