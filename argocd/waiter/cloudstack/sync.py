@@ -78,7 +78,8 @@ def sync_console_endpoints():
 
     path = f"/apis/discovery.k8s.io/v1/namespaces/{namespace}/endpointslices/{CONSOLE_SERVICE}"
     status, current = kube("GET", path)
-    have = sorted(a for e in current.get("endpoints", []) for a in e["addresses"]) if status == 200 else None
+    # an empty endpoint list is stored as null, not []
+    have = sorted(a for e in (current.get("endpoints") or []) for a in e["addresses"]) if status == 200 else None
     if have == addresses:
         return
     desired = {
