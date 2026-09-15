@@ -12,6 +12,7 @@ import os
 import re
 import ssl
 import sys
+import tomllib
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -37,6 +38,7 @@ MANAGED = "cloudstack:"  # description prefix of the Warpgate objects this job o
 GUEST_TAG_PREFIX = "ssh.account."  # VM tag: <prefix><linux username> = comma-separated user names
 USERNAME_RE = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
 USERDATA_PREFIX = "warpgate-ssh"  # user data objects with this name prefix are managed here
+CATALOG_PATH = os.environ.get("TEMPLATE_CATALOG", "/opt/sync/templates.toml")
 
 
 def cloudstack(command, **params):
@@ -190,8 +192,9 @@ def render_trust_script(public_keys):
         f"cat > /etc/ssh/warpgate_keys <<'EOF'\n{keys}\nEOF\n"
         "chmod 644 /etc/ssh/warpgate_keys\n"
         "mkdir -p /etc/ssh/sshd_config.d\n"
+        "grep -qs '^Include /etc/ssh/sshd_config.d/' /etc/ssh/sshd_config || sed -i '1i Include /etc/ssh/sshd_config.d/*.conf' /etc/ssh/sshd_config\n"
         "printf 'AuthorizedKeysFile .ssh/authorized_keys /etc/ssh/warpgate_keys\\n' > /etc/ssh/sshd_config.d/50-warpgate.conf\n"
-        "systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true\n"
+        "systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || rc-service sshd reload 2>/dev/null || true\n"
     )
 
 
@@ -199,13 +202,72 @@ def userdata_name(script):
     return f"{USERDATA_PREFIX}-{hashlib.sha256(script.encode()).hexdigest()[:8]}"
 
 
-def plan_targets(vms, members, guest_user=GUEST_USER):
+def load_catalog(path=CATALOG_PATH):
+    """Operator-provided templates: name, display text, pinned image URL and
+    checksum, guest OS type, the guest's default user (what the bastion logs
+    in as) and whether it is the featured pick. No file means nothing managed."""
+    try:
+        with open(path, "rb") as f:
+            raw = tomllib.load(f).get("template", [])
+    except FileNotFoundError:
+        return []
+    catalog = []
+    for entry in raw:
+        missing = [k for k in ("name", "display", "url", "checksum", "ostype", "user") if not entry.get(k)]
+        if missing:
+            raise ValueError(f"template {entry.get('name', '?')}: missing {missing}")
+        catalog.append({**entry, "featured": bool(entry.get("featured", False))})
+    return catalog
+
+
+def sync_templates(catalog):
+    """Register catalogued templates that are missing, keep their public and
+    featured flags, and hide user templates that are not in the catalog.
+    Returns template id -> guest user for the catalogued ones. Templates are
+    never deleted here: an old one may still back a VM's reinstall."""
+    def user_templates():
+        return [t for t in cloudstack("listTemplates", templatefilter="all", listall="true").get("template", [])
+                if t.get("templatetype") == "USER"]
+    templates = user_templates()
+    by_name = {t["name"]: t for t in templates}
+    ostypes = {o["description"]: o["id"] for o in cloudstack("listOsTypes").get("ostype", [])}
+    zone = cloudstack("listZones").get("zone", [{}])[0].get("id")
+    users = {}
+    for entry in catalog:
+        t = by_name.get(entry["name"])
+        featured = "true" if entry["featured"] else "false"
+        if t is None:
+            if entry["ostype"] not in ostypes:
+                print(f"template {entry['name']}: unknown OS type {entry['ostype']!r}, skipped")
+                continue
+            cloudstack("registerTemplate", name=entry["name"], displaytext=entry["display"], url=entry["url"], checksum=entry["checksum"],
+                       format="QCOW2", hypervisor="KVM", zoneid=zone, ostypeid=ostypes[entry["ostype"]], passwordenabled="true",
+                       requireshvm="true", isextractable="false", ispublic="true", isfeatured=featured)
+            print(f"template {entry['name']} registered from {entry['url']}")
+            by_name = {t["name"]: t for t in user_templates()}
+            t = by_name.get(entry["name"])
+        elif (bool(t.get("ispublic")), bool(t.get("isfeatured"))) != (True, entry["featured"]):
+            cloudstack("updateTemplatePermissions", id=t["id"], ispublic="true", isfeatured=featured)
+            print(f"template {entry['name']}: public, featured={featured}")
+        if t:
+            users[t["id"]] = entry["user"]
+    names = {e["name"] for e in catalog}
+    for t in templates:
+        if t["name"] not in names and (t.get("ispublic") or t.get("isfeatured")):
+            cloudstack("updateTemplatePermissions", id=t["id"], ispublic="false", isfeatured="false")
+            print(f"template {t['name']}: not in the catalog, hidden")
+    return users
+
+
+def plan_targets(vms, members, user_by_template=None, guest_user=GUEST_USER):
     """Warpgate targets a set of VMs should have, and the roles that reach each.
     One target per VM for its co-owners (the account, or every member account
-    of the owning project) plus one per tagged guest account, reachable only
-    by the tagged names. VM names are unique across the zone, so the VM name
-    is the target name; the colon form selects the guest account."""
+    of the owning project), logging in as the template's default user, plus
+    one per tagged guest account, reachable only by the tagged names. VM names
+    are unique across the zone, so the VM name is the target name; the colon
+    form selects the guest account."""
     wanted, reach = {}, {}
+    user_by_template = user_by_template or {}
     for vm in vms:
         ip = next((n["ipaddress"] for n in vm.get("nic", []) if n.get("ipaddress")), None)
         if not ip:
@@ -224,7 +286,7 @@ def plan_targets(vms, members, guest_user=GUEST_USER):
                             "auth": {"kind": "PublicKey", "key_id": None}},
             }
 
-        wanted[name] = spec(name, guest_user, f"{MANAGED}vm:{vm['id']}")
+        wanted[name] = spec(name, user_by_template.get(vm.get("templateid"), guest_user), f"{MANAGED}vm:{vm['id']}")
         reach[name] = owners
         for username, ids in guest_accounts(vm).items():
             target = f"{name}:{username}"
@@ -258,7 +320,8 @@ def sync_warpgate():
     for p in cloudstack("listProjects", listall="true").get("project", []):
         members[p["id"]] = {m["account"] for m in cloudstack("listProjectAccounts", projectid=p["id"]).get("projectaccount", [])}
 
-    wanted, reach = plan_targets(vms, members)
+    user_by_template = sync_templates(load_catalog())
+    wanted, reach = plan_targets(vms, members, user_by_template)
     guests = {i for vm in vms for ids in guest_accounts(vm).values() for i in ids}
     # accounts that have someone who can log in or something to log in to
     relevant = {u["account"] for u in users} | {vm["account"] for vm in vms if not vm.get("projectid")}

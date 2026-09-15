@@ -9,7 +9,7 @@
   hosts: cloudstack_hosts
   vars:
     vtep_peers: >-
-      {{ (groups['cloudstack_hosts'] | map('extract', hostvars, 'campus_ip') | list | difference([campus_ip]))
+      {{ (groups['cloudstack_hosts'] | map('extract', hostvars, 'campus_ip') | list | difference([campus_ip]) | sort)
          + [overlay_vtep_waiter] }}
   tasks:
     - name: Bacchus apt keyring
@@ -107,6 +107,9 @@
         # NIC off the campus
         - { key: public.network.device, value: '{{ overlays.guest.bridge }}' }
         - { key: guest.network.device, value: '{{ overlays.guest.bridge }}' }
+        # guests see the host CPU (all hosts are the same model and local
+        # storage rules out live migration), so x86-64-v2/v3 images boot
+        - { key: guest.cpu.mode, value: host-passthrough }
       notify: restart cloudstack-agent
 
     - name: Reboot needed

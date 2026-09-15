@@ -20,6 +20,7 @@ configMapGenerator:
   - name: cloudstack-sync
     files:
       - sync.py
+      - templates.toml
   - name: warpgate-config
     files:
       - warpgate-config.yaml

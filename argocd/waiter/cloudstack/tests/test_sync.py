@@ -157,5 +157,85 @@ class TemplateUserDataTest(unittest.TestCase):
         self.assertEqual([p["id"] for p in deletes], ["ud-old"])
 
 
+class CatalogTest(unittest.TestCase):
+    def test_loads_entries_and_defaults(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile("w", suffix=".toml", delete=False) as f:
+            f.write('[[template]]\nname = "ubuntu-24.04-20260911"\ndisplay = "Ubuntu 24.04 LTS"\n'
+                    'url = "https://example/u.img"\nchecksum = "{SHA-256}ab"\nostype = "Ubuntu 24.04 LTS"\nuser = "ubuntu"\n'
+                    '[[template]]\nname = "debian-13-20260914"\ndisplay = "Debian 13"\nurl = "https://example/d.qcow2"\n'
+                    'checksum = "{SHA-512}cd"\nostype = "Other Linux (64-bit)"\nuser = "debian"\nfeatured = true\n')
+        try:
+            cat = sync.load_catalog(f.name)
+        finally:
+            os.unlink(f.name)
+        self.assertEqual([c["name"] for c in cat], ["ubuntu-24.04-20260911", "debian-13-20260914"])
+        self.assertFalse(cat[0]["featured"])
+        self.assertTrue(cat[1]["featured"])
+
+    def test_missing_file_is_empty(self):
+        self.assertEqual(sync.load_catalog("/nonexistent/templates.toml"), [])
+
+
+class TemplateUserTest(unittest.TestCase):
+    def test_base_target_uses_template_user(self):
+        vms = [{"id": "vm-1", "name": "a", "account": "alice", "templateid": "t-deb", "nic": [{"ipaddress": "10.94.1.5"}]},
+               {"id": "vm-2", "name": "b", "account": "alice", "templateid": "t-unknown", "nic": [{"ipaddress": "10.94.1.6"}]}]
+        wanted, _ = sync.plan_targets(vms, {}, {"t-deb": "debian"})
+        self.assertEqual(wanted["a"]["options"]["username"], "debian")
+        self.assertEqual(wanted["b"]["options"]["username"], "ubuntu")
+
+
+class SyncTemplatesTest(unittest.TestCase):
+    def setUp(self):
+        self.calls = []
+        self.templates = [
+            {"id": "t-old", "name": "ubuntu-24.04", "templatetype": "USER", "ispublic": True, "isfeatured": False},
+            {"id": "t-deb", "name": "debian-13-20260914", "templatetype": "USER", "ispublic": False, "isfeatured": False},
+            {"id": "t-sys", "name": "SystemVM", "templatetype": "SYSTEM", "ispublic": True},
+        ]
+
+        def fake_cs(command, **params):
+            self.calls.append((command, params))
+            if command == "listTemplates":
+                return {"template": list(self.templates)}
+            if command == "listOsTypes":
+                return {"ostype": [{"id": "os-ubu", "description": "Ubuntu 24.04 LTS"}, {"id": "os-other", "description": "Other Linux (64-bit)"}]}
+            if command == "listZones":
+                return {"zone": [{"id": "z-1"}]}
+            if command == "registerTemplate":
+                self.templates.append({"id": "t-new", "name": params["name"], "templatetype": "USER", "ispublic": True, "isfeatured": params["isfeatured"] == "true"})
+                return {}
+            return {}
+        self._orig = sync.cloudstack
+        sync.cloudstack = fake_cs
+
+    def tearDown(self):
+        sync.cloudstack = self._orig
+
+    def test_registers_fixes_flags_and_hides_uncatalogued(self):
+        catalog = [
+            {"name": "ubuntu-24.04-20260911", "display": "Ubuntu 24.04 LTS", "url": "https://example/u.img", "checksum": "{SHA-256}ab", "ostype": "Ubuntu 24.04 LTS", "user": "ubuntu", "featured": True},
+            {"name": "debian-13-20260914", "display": "Debian 13", "url": "https://example/d.qcow2", "checksum": "{SHA-512}cd", "ostype": "Other Linux (64-bit)", "user": "debian", "featured": False},
+        ]
+        users = sync.sync_templates(catalog)
+        reg = [p for c, p in self.calls if c == "registerTemplate"]
+        self.assertEqual(len(reg), 1)
+        self.assertEqual(reg[0]["name"], "ubuntu-24.04-20260911")
+        self.assertEqual(reg[0]["ostypeid"], "os-ubu")
+        self.assertEqual((reg[0]["ispublic"], reg[0]["isfeatured"], reg[0]["passwordenabled"]), ("true", "true", "true"))
+        perms = [p for c, p in self.calls if c == "updateTemplatePermissions"]
+        self.assertIn({"id": "t-deb", "ispublic": "true", "isfeatured": "false"}, perms)
+        self.assertIn({"id": "t-old", "ispublic": "false", "isfeatured": "false"}, perms)
+        self.assertEqual(users, {"t-new": "ubuntu", "t-deb": "debian"})
+
+
+class TrustScriptIncludeTest(unittest.TestCase):
+    def test_script_ensures_include_and_openrc(self):
+        script = sync.render_trust_script(["ssh-ed25519 AAA warpgate"])
+        self.assertIn("Include /etc/ssh/sshd_config.d/*.conf", script)
+        self.assertIn("rc-service sshd reload", script)
+
+
 if __name__ == "__main__":
     unittest.main()
