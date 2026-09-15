@@ -28,6 +28,15 @@ class GuestAccountsTest(unittest.TestCase):
     def test_no_tags(self):
         self.assertEqual(sync.guest_accounts({}), {})
 
+    def test_numbered_continuation_tags_merge_in_order(self):
+        vm = {"tags": [
+            {"key": "ssh.account.student.2", "value": "eve,alice"},
+            {"key": "ssh.account.student", "value": "alice,bob"},
+            {"key": "ssh.account.student.1", "value": "carol, dave"},
+            {"key": "ssh.account.student.x", "value": "mallory"},
+        ]}
+        self.assertEqual(sync.guest_accounts(vm), {"student": ["alice", "bob", "carol", "dave", "eve"]})
+
 
 class PlanTargetsTest(unittest.TestCase):
     def test_base_and_guest_targets(self):

@@ -152,21 +152,28 @@ def close_sessions(target_id, usernames=None):
 
 def guest_accounts(vm):
     """Linux username -> SNUCSE IDs allowed to log in as it, from the VM's tags.
-    Only the shape is checked: which accounts a co-owner opens is their call."""
-    result = {}
+    A tag value holds at most 255 characters, so a long list continues in
+    tags whose key carries a numeric suffix (name, name.1, name.2, ...); the
+    username itself cannot contain a dot, so the split is unambiguous. Only
+    the shape is checked: which accounts a co-owner opens is their call."""
+    parts = {}  # username -> [(sequence, ids)]
     for tag in vm.get("tags", []):
         key = tag.get("key", "")
         if not key.startswith(GUEST_TAG_PREFIX):
             continue
-        username = key[len(GUEST_TAG_PREFIX):]
-        if not USERNAME_RE.match(username):
+        username, _, suffix = key[len(GUEST_TAG_PREFIX):].partition(".")
+        if not USERNAME_RE.match(username) or (suffix and not suffix.isdigit()):
             print(f"vm {vm.get('name')}: tag {key} ignored: invalid username")
             continue
+        ids = [part.strip().lower() for part in (tag.get("value") or "").split(",")]
+        parts.setdefault(username, []).append((int(suffix) if suffix else 0, [i for i in ids if i]))
+    result = {}
+    for username, chunks in parts.items():
         ids = []
-        for part in (tag.get("value") or "").split(","):
-            name = part.strip().lower()
-            if name and name not in ids:
-                ids.append(name)
+        for _, chunk in sorted(chunks, key=lambda c: c[0]):
+            for name in chunk:
+                if name not in ids:
+                    ids.append(name)
         if ids:
             result[username] = ids
     return result
