@@ -1,6 +1,7 @@
 """Reconcile state that follows CloudStack: the console proxy endpoints in
-Kubernetes and the users, roles and targets of the Warpgate bastion. Runs once
-per invocation; the CronJob provides the cadence."""
+Kubernetes, the users, roles and targets of the Warpgate bastion, and the
+user data that makes templates trust the bastion. Runs once per invocation;
+the CronJob provides the cadence."""
 
 import base64
 import hashlib
@@ -8,6 +9,7 @@ import hmac
 import http.client
 import json
 import os
+import re
 import ssl
 import sys
 import urllib.error
@@ -32,6 +34,9 @@ GUEST_USER = os.environ.get("GUEST_USER", "ubuntu")
 BUILTIN_ACCOUNTS = {"system", "baremetal-system-account"}
 ADMINS_ROLE = "admins"  # Warpgate role of CloudStack root administrators: every target
 MANAGED = "cloudstack:"  # description prefix of the Warpgate objects this job owns
+GUEST_TAG_PREFIX = "ssh.account."  # VM tag: <prefix><linux username> = comma-separated user names
+USERNAME_RE = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
+USERDATA_PREFIX = "warpgate-ssh"  # user data objects with this name prefix are managed here
 
 
 def cloudstack(command, **params):
@@ -131,31 +136,126 @@ def warpgate(method, path, body=None):
     return resp.status, (json.loads(raw) if raw else None)
 
 
+def close_sessions(target_id, usernames=None):
+    """End live sessions on a target once the right to it is gone; role removal
+    alone only stops new logins."""
+    sessions = warpgate("GET", "/sessions?active_only=true&limit=1000")[1] or {}
+    for s in sessions.get("items", []):
+        if s.get("target_id") != target_id:
+            continue
+        if usernames is not None and s.get("username") not in usernames:
+            continue
+        warpgate("POST", f"/sessions/{s['id']}/close", {})
+        print(f"warpgate session {s['id']} ({s.get('username')}) closed")
+
+
+def guest_accounts(vm):
+    """Linux username -> SNUCSE IDs allowed to log in as it, from the VM's tags.
+    Only the shape is checked: which accounts a co-owner opens is their call."""
+    result = {}
+    for tag in vm.get("tags", []):
+        key = tag.get("key", "")
+        if not key.startswith(GUEST_TAG_PREFIX):
+            continue
+        username = key[len(GUEST_TAG_PREFIX):]
+        if not USERNAME_RE.match(username):
+            print(f"vm {vm.get('name')}: tag {key} ignored: invalid username")
+            continue
+        ids = []
+        for part in (tag.get("value") or "").split(","):
+            name = part.strip().lower()
+            if name and name not in ids:
+                ids.append(name)
+        if ids:
+            result[username] = ids
+    return result
+
+
+def render_trust_script(public_keys):
+    """First-boot script that makes every local account accept the bastion's
+    key: an absolute AuthorizedKeysFile without a %u token applies to all users.
+    Which accounts the bastion connects to is decided by its targets, not here."""
+    keys = "\n".join(sorted(public_keys))
+    return (
+        "#!/bin/sh\n"
+        "set -e\n"
+        f"cat > /etc/ssh/warpgate_keys <<'EOF'\n{keys}\nEOF\n"
+        "chmod 644 /etc/ssh/warpgate_keys\n"
+        "mkdir -p /etc/ssh/sshd_config.d\n"
+        "printf 'AuthorizedKeysFile .ssh/authorized_keys /etc/ssh/warpgate_keys\\n' > /etc/ssh/sshd_config.d/50-warpgate.conf\n"
+        "systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true\n"
+    )
+
+
+def userdata_name(script):
+    return f"{USERDATA_PREFIX}-{hashlib.sha256(script.encode()).hexdigest()[:8]}"
+
+
+def plan_targets(vms, members, guest_user=GUEST_USER):
+    """Warpgate targets a set of VMs should have, and the roles that reach each.
+    One target per VM for its co-owners (the account, or every member account
+    of the owning project) plus one per tagged guest account, reachable only
+    by the tagged names. VM names are unique across the zone, so the VM name
+    is the target name; the colon form selects the guest account."""
+    wanted, reach = {}, {}
+    for vm in vms:
+        ip = next((n["ipaddress"] for n in vm.get("nic", []) if n.get("ipaddress")), None)
+        if not ip:
+            continue
+        name = vm["name"].lower()
+        if vm.get("projectid"):
+            owners = {f"account-{a}" for a in members.get(vm["projectid"], set())}
+        else:
+            owners = {f"account-{vm['account']}"}
+
+        def spec(target, username, description):
+            return {
+                "name": target,
+                "description": description,
+                "options": {"kind": "Ssh", "host": ip, "port": 22, "username": username,
+                            "auth": {"kind": "PublicKey", "key_id": None}},
+            }
+
+        wanted[name] = spec(name, guest_user, f"{MANAGED}vm:{vm['id']}")
+        reach[name] = owners
+        for username, ids in guest_accounts(vm).items():
+            target = f"{name}:{username}"
+            wanted[target] = spec(target, username, f"{MANAGED}vm:{vm['id']}:guest:{username}")
+            reach[target] = {f"account-{i}" for i in ids}
+    return wanted, reach
+
+
 def sync_warpgate():
     """Role per CloudStack account, user per CloudStack user (SSO credential =
     the user's e-mail, which the sign-in gate keeps equal to the identity
-    provider's claim), target per VM; a VM is reachable by its account, or by
-    every member account of the project that owns it, and root administrators
-    reach every target. Objects created here carry a 'cloudstack:' description
-    and are removed when their source disappears."""
+    provider's claim), target per VM plus one per guest account a co-owner has
+    tagged on it. A VM is reachable by its account, or by every member account
+    of the project that owns it; a guest target only by the tagged accounts;
+    root administrators reach every target. Objects created here carry a
+    'cloudstack:' description and are removed when their source disappears."""
     users = [u for u in cloudstack("listUsers", listall="true").get("user", [])
              if u.get("state") == "enabled" and u["account"] not in BUILTIN_ACCOUNTS and u.get("email")]
     # project-owned VMs are only listed when asked for explicitly
     vms = cloudstack("listVirtualMachines", listall="true").get("virtualmachine", [])
     vms += cloudstack("listVirtualMachines", listall="true", projectid=-1).get("virtualmachine", [])
     vms = list({vm["id"]: vm for vm in vms}.values())
+    per_account, users_of_role = {}, {}
+    for u in users:
+        per_account.setdefault(u["account"], []).append(u["username"])
+        users_of_role.setdefault(f"account-{u['account']}", set()).add(u["username"])
+    for account, names in per_account.items():
+        if len(names) > 1:  # roles are per account: every user of it would share access
+            print(f"warning: account {account} has {len(names)} users: {sorted(names)}")
     members = {}  # project id -> member account names
     for p in cloudstack("listProjects", listall="true").get("project", []):
         members[p["id"]] = {m["account"] for m in cloudstack("listProjectAccounts", projectid=p["id"]).get("projectaccount", [])}
 
-    def reachers(vm):
-        if vm.get("projectid"):
-            return {f"account-{a}" for a in members.get(vm["projectid"], set())}
-        return {f"account-{vm['account']}"}
-
+    wanted, reach = plan_targets(vms, members)
+    guests = {i for vm in vms for ids in guest_accounts(vm).values() for i in ids}
     # accounts that have someone who can log in or something to log in to
     relevant = {u["account"] for u in users} | {vm["account"] for vm in vms if not vm.get("projectid")}
     relevant |= set().union(*members.values()) if members else set()
+    relevant |= guests
     accounts = {a["name"]: a for a in cloudstack("listAccounts", listall="true").get("account", [])
                 if a["name"] in relevant}
 
@@ -199,29 +299,14 @@ def sync_warpgate():
             warpgate("DELETE", f"/users/{wu['id']}/roles/{roles[name]['id']}")
             print(f"warpgate user {u['username']}: role {name} removed")
 
-    # VM names are unique across the zone (CloudStack rejects duplicate host
-    # names within a network and there is one guest network), so the target is
-    # simply the VM name: ssh <user>:<vm>@...
     wg_targets = {t["name"]: t for t in warpgate("GET", "/targets")[1]}
-    wanted, reach = {}, {}
-    for vm in vms:
-        ip = next((n["ipaddress"] for n in vm.get("nic", []) if n.get("ipaddress")), None)
-        if not ip:
-            continue
-        name = vm["name"].lower()
-        reach[name] = reachers(vm)
-        wanted[name] = {
-            "name": name,
-            "description": f"{MANAGED}vm:{vm['id']}",
-            "options": {"kind": "Ssh", "host": ip, "port": 22, "username": GUEST_USER,
-                        "auth": {"kind": "PublicKey", "key_id": None}},
-        }
     for name, spec in wanted.items():
         t = wg_targets.get(name)
         if t is None:
             status, t = warpgate("POST", "/targets", spec)
             print(f"warpgate target {name} -> {spec['options']['host']} created")
-        elif t["options"].get("host") != spec["options"]["host"]:
+        elif (t["options"].get("host") != spec["options"]["host"]
+              or t["options"].get("username") != spec["options"]["username"]):
             warpgate("PUT", f"/targets/{t['id']}", spec)
             print(f"warpgate target {name} -> {spec['options']['host']} updated")
         if t is not None:
@@ -234,13 +319,18 @@ def sync_warpgate():
                 if rname not in wanted_roles and (r.get("description") or "").startswith(MANAGED):
                     warpgate("DELETE", f"/targets/{t['id']}/roles/{r['id']}")
                     print(f"warpgate target {name}: role {rname} removed")
+                    close_sessions(t["id"], users_of_role.get(rname, set()))
     for name, t in wg_targets.items():
         if (t.get("description") or "").startswith(MANAGED) and name not in wanted:
+            close_sessions(t["id"])
             warpgate("DELETE", f"/targets/{t['id']}")
             print(f"warpgate target {name} removed")
     live_users = {u["username"] for u in users}
     for name, wu in wg_users.items():
         if (wu.get("description") or "").startswith(MANAGED) and name not in live_users:
+            for s in (warpgate("GET", f"/sessions?active_only=true&limit=1000&username={urllib.parse.quote(name)}")[1] or {}).get("items", []):
+                warpgate("POST", f"/sessions/{s['id']}/close", {})
+                print(f"warpgate session {s['id']} ({name}) closed")
             warpgate("DELETE", f"/users/{wu['id']}")
             print(f"warpgate user {name} removed")
     live_roles = {f"account-{a}" for a in accounts} | {ADMINS_ROLE}
@@ -250,10 +340,54 @@ def sync_warpgate():
             print(f"warpgate role {name} removed")
 
 
+def sync_template_userdata():
+    """Every user template gets the bastion trust script as appended user data,
+    so a VM from any template accepts the bastion without anyone copying keys.
+    A template that links some other user data is someone's deliberate choice
+    and is left alone. Stale managed scripts are removed once unlinked."""
+    keys = warpgate("GET", "/ssh/own-keys")[1] or []
+    public = [k["public_key"] for k in keys if k.get("is_default")] or [k["public_key"] for k in keys]
+    if not public:
+        print("warning: warpgate has no client keys; template user data not managed")
+        return
+    script = render_trust_script(public)
+    name = userdata_name(script)
+
+    existing = {u["name"]: u for u in cloudstack("listUserData", listall="true").get("userdata", [])}
+    if name not in existing:
+        cloudstack("registerUserData", name=name, userdata=base64.b64encode(script.encode()).decode())
+        print(f"cloudstack user data {name} registered")
+        existing = {u["name"]: u for u in cloudstack("listUserData", listall="true").get("userdata", [])}
+    current = existing[name]["id"]
+
+    linked = set()
+    for t in cloudstack("listTemplates", templatefilter="all", listall="true").get("template", []):
+        if t.get("templatetype") != "USER":
+            continue
+        have, have_name = t.get("userdataid"), t.get("userdataname") or ""
+        if have == current:
+            linked.add(have)
+            continue
+        if have and not have_name.startswith(USERDATA_PREFIX):
+            print(f"template {t['name']}: links user data {have_name}, left alone")
+            linked.add(have)
+            continue
+        cloudstack("linkUserDataToTemplate", templateid=t["id"], userdataid=current, userdatapolicy="APPEND")
+        print(f"template {t['name']}: user data {name} linked (append)")
+    for uname, u in existing.items():
+        if uname.startswith(USERDATA_PREFIX) and uname != name and u["id"] not in linked:
+            try:
+                cloudstack("deleteUserData", id=u["id"])
+                print(f"cloudstack user data {uname} removed")
+            except urllib.error.HTTPError as e:  # still referenced by a VM: retry next run
+                print(f"cloudstack user data {uname}: not removed: {e}")
+
+
 def main():
     sync_console_endpoints()
     if WARPGATE_HOST and WARPGATE_TLS_NAME and WARPGATE_TOKEN:
         sync_warpgate()
+        sync_template_userdata()
 
 
 if __name__ == "__main__":
