@@ -41,7 +41,7 @@ IDP_NAME = os.environ.get("IDP_NAME", "SNUCSE ID")
 IDP_URL = os.environ.get("IDP_URL", "https://id.snucse.org")
 CONTACT = os.environ.get("CONTACT", "Bacchus")
 DOCS_URL = os.environ.get("DOCS_URL", "").strip()  # user documentation; unset: not mentioned
-# where the SSH bastion comes from, as the instances see it; unset: no rule
+# where the SSH bastion comes from, as the instances see it; unset: no SSH rule
 SSH_SOURCE_CIDR = os.environ.get("SSH_SOURCE_CIDR", "").strip()
 LISTEN_PORT = int(os.environ.get("LISTEN_PORT", "8080"))
 MANAGED = "gate"  # accountdetails key marking accounts this service owns
@@ -101,7 +101,7 @@ class Provisioner:
                     except RuntimeError as e:
                         log(f"{username}: limit type {t}: {e}")
             log(f"{username}: account created ({'admin' if admin else 'user'})")
-            self.allow_ssh(username)
+            self.ensure_default_rules(username)
             return None
 
         details = account.get("accountdetails") or {}
@@ -123,30 +123,36 @@ class Provisioner:
         if (user.get("email") or "").lower() != email.lower():
             cloudstack("updateUser", id=user["id"], email=email)
             log(f"{username}: email updated")
-        self.allow_ssh(username)
+        self.ensure_default_rules(username)
         return None
 
-    def allow_ssh(self, username):
-        """Let the SSH bastion reach the account's instances: an ingress rule on
-        the account's default security group. Idempotent, and never blocks the
-        login: the group is created with the account, and a rule that is still
-        missing is added at the next login."""
-        if not SSH_SOURCE_CIDR:
-            return
+    def ensure_default_rules(self, username):
+        """The account's default security group is fixed policy, not user
+        configuration: the SSH bastion may reach the instances, and the
+        account's own instances may reach each other on any port; nothing else
+        gets in. Idempotent, and never blocks the login: the group is created
+        with the account, and a rule that is still missing is added at the next
+        login."""
         try:
             groups = cloudstack("listSecurityGroups", account=username, domainid=self.root_domain,
                                 securitygroupname="default").get("securitygroup", [])
             if not groups:
                 log(f"{username}: no default security group yet")
                 return
-            for r in groups[0].get("ingressrule", []):
-                if (r.get("protocol"), r.get("startport"), r.get("endport"), r.get("cidr")) == ("tcp", 22, 22, SSH_SOURCE_CIDR):
-                    return
-            cloudstack("authorizeSecurityGroupIngress", securitygroupname="default", account=username,
-                       domainid=self.root_domain, protocol="tcp", startport=22, endport=22, cidrlist=SSH_SOURCE_CIDR)
-            log(f"{username}: ssh from {SSH_SOURCE_CIDR} allowed")
+            rules = groups[0].get("ingressrule", [])
+            if SSH_SOURCE_CIDR and not any((r.get("protocol"), r.get("startport"), r.get("endport"), r.get("cidr"))
+                                           == ("tcp", 22, 22, SSH_SOURCE_CIDR) for r in rules):
+                cloudstack("authorizeSecurityGroupIngress", securitygroupname="default", account=username,
+                           domainid=self.root_domain, protocol="tcp", startport=22, endport=22, cidrlist=SSH_SOURCE_CIDR)
+                log(f"{username}: ssh from {SSH_SOURCE_CIDR} allowed")
+            if not any(r.get("protocol") == "all" and r.get("account") == username and r.get("securitygroupname") == "default"
+                       for r in rules):
+                cloudstack("authorizeSecurityGroupIngress", securitygroupname="default", account=username,
+                           domainid=self.root_domain, protocol="all",
+                           **{"usersecuritygrouplist[0].account": username, "usersecuritygrouplist[0].group": "default"})
+                log(f"{username}: traffic between own instances allowed")
         except RuntimeError as e:
-            log(f"{username}: ssh rule: {e}")
+            log(f"{username}: security group rules: {e}")
 
     def release_stale(self, username, email):
         """The identity provider verified that the address belongs to this user
