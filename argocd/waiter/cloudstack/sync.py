@@ -337,7 +337,7 @@ def sync_warpgate():
     live_roles = {f"account-{a}" for a in accounts} | {ADMINS_ROLE}
     for name, r in roles.items():
         if (r.get("description") or "").startswith(MANAGED) and name not in live_roles:
-            warpgate("DELETE", f"/roles/{r['id']}")
+            warpgate("DELETE", f"/role/{r['id']}")  # single-role routes are singular
             print(f"warpgate role {name} removed")
 
 
