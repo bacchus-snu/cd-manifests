@@ -182,17 +182,21 @@ def guest_accounts(vm):
     return result
 
 
-def render_password_script():
+def render_password_script(domain=None):
     """Applies a password set through CloudStack when cloud-init did not: its
     client shells out to GNU wget, which some images lack. The router hands the
     password out once and answers "saved_password" after the acknowledgement,
     so asking on every boot is harmless. The account is cloud-init's default
-    user, the one CloudStack's own path would set."""
+    user, the one CloudStack's own path would set. The router is named under
+    the guest domain when one is known: a resolver that does not apply the
+    DHCP search domain to single-label names (systemd-networkd's default)
+    would not find the bare name."""
+    vr = f"http://data-server.{domain}:8080/" if domain else "http://data-server:8080/"
     return (
         "#!/bin/sh\n"
         "ask() {\n"
-        "  if command -v curl >/dev/null 2>&1; then curl -s -m 20 -H \"DomU_Request: $1\" http://data-server:8080/\n"
-        "  else wget -q -T 20 -O - --header \"DomU_Request: $1\" http://data-server:8080/; fi 2>/dev/null\n"
+        f"  if command -v curl >/dev/null 2>&1; then curl -s -m 20 -H \"DomU_Request: $1\" {vr}\n"
+        f"  else wget -q -T 20 -O - --header \"DomU_Request: $1\" {vr}; fi 2>/dev/null\n"
         "}\n"
         "pw=$(ask send_my_password)\n"
         "case \"$pw\" in ''|saved_password|bad_request) exit 0 ;; esac\n"
@@ -203,7 +207,7 @@ def render_password_script():
     )
 
 
-def render_trust_script(public_keys):
+def render_trust_script(public_keys, domain=None):
     """First-boot script that makes every local account accept the bastion's
     key: an absolute AuthorizedKeysFile without a %u token applies to all users.
     Which accounts the bastion connects to is decided by its targets, not here.
@@ -223,7 +227,7 @@ def render_trust_script(public_keys):
         "printf 'AuthorizedKeysFile .ssh/authorized_keys /etc/ssh/warpgate_keys\\n' > /etc/ssh/sshd_config.d/50-warpgate.conf\n"
         "systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || rc-service sshd reload 2>/dev/null || true\n"
         f"mkdir -p {os.path.dirname(PASSWORD_SCRIPT)}\n"
-        f"cat > {PASSWORD_SCRIPT} <<'EOF'\n{render_password_script()}EOF\n"
+        f"cat > {PASSWORD_SCRIPT} <<'EOF'\n{render_password_script(domain)}EOF\n"
         f"chmod 755 {PASSWORD_SCRIPT}\n"
         f"{PASSWORD_SCRIPT} || true\n"
     )
@@ -486,7 +490,8 @@ def sync_template_userdata():
     if not public:
         print("warning: warpgate has no client keys; template user data not managed")
         return
-    script = render_trust_script(public)
+    domains = {n["networkdomain"] for n in cloudstack("listNetworks", listall="true").get("network", []) if n.get("networkdomain")}
+    script = render_trust_script(public, domains.pop() if len(domains) == 1 else None)
     name = userdata_name(script)
 
     existing = {u["name"]: u for u in cloudstack("listUserData", listall="true").get("userdata", [])}

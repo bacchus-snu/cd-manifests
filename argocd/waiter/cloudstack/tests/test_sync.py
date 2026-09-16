@@ -136,6 +136,8 @@ class TemplateUserDataTest(unittest.TestCase):
                 return {}
             if command == "listTemplates":
                 return {"template": self.templates}
+            if command == "listNetworks":
+                return {"network": [{"name": "guest", "networkdomain": "vm.example"}]}
             return {}
 
         def fake_wg(method, path, body=None):
@@ -155,6 +157,9 @@ class TemplateUserDataTest(unittest.TestCase):
         self.assertTrue(all(p["userdataid"] == "ud-new" and p["userdatapolicy"] == "APPEND" for p in links))
         deletes = [p for c, p in self.calls if c == "deleteUserData"]
         self.assertEqual([p["id"] for p in deletes], ["ud-old"])
+        import base64
+        registered = base64.b64decode(next(p["userdata"] for c, p in self.calls if c == "registerUserData")).decode()
+        self.assertIn("http://data-server.vm.example:8080/", registered)
 
 
 class CatalogTest(unittest.TestCase):
@@ -254,6 +259,9 @@ class TrustScriptIncludeTest(unittest.TestCase):
         self.assertIn(f"{sync.PASSWORD_SCRIPT} || true\n", script)
         self.assertTrue(sync.PASSWORD_SCRIPT.startswith("/var/lib/cloud/scripts/per-boot/"))
         self.assertIn("DomU_Request: $1", hook)
+        self.assertIn("http://data-server:8080/", hook)
+        self.assertIn("http://data-server.vm.example:8080/", sync.render_password_script("vm.example"))
+        self.assertIn("data-server.vm.example:8080", sync.render_trust_script(["k"], "vm.example"))
         self.assertIn("saved_password", hook)
         self.assertIn("chpasswd", hook)
         self.assertNotIn("\nEOF\n", hook)  # would end the heredoc early
