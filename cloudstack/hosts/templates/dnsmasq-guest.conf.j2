@@ -1,0 +1,21 @@
+# Managed by cd-manifests/cloudstack/hosts (Ansible). Do not edit by hand.
+# DNS for guests on the overlay gateway address. It knows exactly one name,
+# "data-server", which cloud-init resolves to reach the metadata server, and
+# forwards every other query upstream, so guests cannot look each other up.
+# The guest domain is answered here, never forwarded: the public zone returns
+# an empty answer for names under it, and musl's resolver stops its search on
+# an empty answer (glibc goes on to the bare name), so "data-server" must be
+# found under the search domain as well.
+listen-address={{ overlays.guest.gateway }}
+bind-dynamic
+port=53
+no-hosts
+no-resolv
+domain-needed
+bogus-priv
+cache-size=1000
+{% for s in campus_dns %}
+server={{ s }}
+{% endfor %}
+local=/{{ overlays.guest.domain }}/
+host-record=data-server,data-server.{{ overlays.guest.domain }},{{ overlays.guest.metadata_server }}

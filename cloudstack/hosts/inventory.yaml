@@ -34,6 +34,15 @@ all:
         network: 10.94.0.0/16
         gateway: 10.94.0.1
         prefix: 16
+        # the guest address of CloudStack's virtual router: the first address
+        # of the network's IP range, which the router takes before any instance
+        # exists. The gateway hosts resolve "data-server" to it so cloud-init
+        # finds metadata without the router serving DNS (see templates/dnsmasq-guest.conf.j2)
+        metadata_server: 10.94.1.1
+        # the network's domain, which the router hands to guests as their DNS
+        # search domain; the gateway hosts answer for it so a short name is
+        # never sent upstream (see templates/dnsmasq-guest.conf.j2)
+        domain: vm.cloud.snucse.org
 
     # networks that guests must never reach through the gateway
     guest_blocked_networks:

@@ -190,8 +190,8 @@ class SyncTemplatesTest(unittest.TestCase):
     def setUp(self):
         self.calls = []
         self.templates = [
-            {"id": "t-old", "name": "ubuntu-24.04", "templatetype": "USER", "ispublic": True, "isfeatured": False},
-            {"id": "t-deb", "name": "debian-13-20260914", "templatetype": "USER", "ispublic": False, "isfeatured": False},
+            {"id": "t-old", "name": "ubuntu-24.04", "templatetype": "USER", "ispublic": True, "isfeatured": False, "ostypeid": "os-ubu"},
+            {"id": "t-deb", "name": "debian-13-20260914", "templatetype": "USER", "ispublic": False, "isfeatured": False, "ostypeid": "os-other"},
             {"id": "t-sys", "name": "SystemVM", "templatetype": "SYSTEM", "ispublic": True},
         ]
 
@@ -200,11 +200,13 @@ class SyncTemplatesTest(unittest.TestCase):
             if command == "listTemplates":
                 return {"template": list(self.templates)}
             if command == "listOsTypes":
-                return {"ostype": [{"id": "os-ubu", "description": "Ubuntu 24.04 LTS"}, {"id": "os-other", "description": "Other Linux (64-bit)"}]}
+                return {"ostype": [{"id": "os-ubu", "description": "Ubuntu 24.04 LTS"}, {"id": "os-other", "description": "Other Linux (64-bit)"},
+                                   {"id": "os-deb12", "description": "Debian GNU/Linux 12 (64-bit)"}]}
             if command == "listZones":
                 return {"zone": [{"id": "z-1"}]}
             if command == "registerTemplate":
-                self.templates.append({"id": "t-new", "name": params["name"], "templatetype": "USER", "ispublic": True, "isfeatured": params["isfeatured"] == "true"})
+                self.templates.append({"id": "t-new", "name": params["name"], "templatetype": "USER", "ispublic": True,
+                                       "isfeatured": params["isfeatured"] == "true", "ostypeid": params["ostypeid"]})
                 return {}
             return {}
         self._orig = sync.cloudstack
@@ -228,13 +230,58 @@ class SyncTemplatesTest(unittest.TestCase):
         self.assertIn({"id": "t-deb", "ispublic": "true", "isfeatured": "false"}, perms)
         self.assertIn({"id": "t-old", "ispublic": "false", "isfeatured": "false"}, perms)
         self.assertEqual(users, {"t-new": "ubuntu", "t-deb": "debian"})
+        self.assertEqual([c for c, _ in self.calls if c == "updateTemplate"], [])
+
+    def test_os_type_follows_the_catalog(self):
+        catalog = [{"name": "debian-13-20260914", "display": "Debian 13", "url": "https://example/d.qcow2", "checksum": "{SHA-512}cd",
+                    "ostype": "Debian GNU/Linux 12 (64-bit)", "user": "debian", "featured": False}]
+        sync.sync_templates(catalog)
+        updates = [p for c, p in self.calls if c == "updateTemplate"]
+        self.assertEqual(updates, [{"id": "t-deb", "ostypeid": "os-deb12"}])
 
 
 class TrustScriptIncludeTest(unittest.TestCase):
     def test_script_ensures_include_and_openrc(self):
         script = sync.render_trust_script(["ssh-ed25519 AAA warpgate"])
         self.assertIn("Include /etc/ssh/sshd_config.d/*.conf", script)
+        self.assertIn("[ -f /etc/ssh/sshd_config ]", script)  # openSUSE keeps the vendor file elsewhere
         self.assertIn("rc-service sshd reload", script)
+
+    def test_script_installs_and_runs_the_password_hook(self):
+        script = sync.render_trust_script(["ssh-ed25519 AAA warpgate"])
+        hook = sync.render_password_script()
+        self.assertIn(f"cat > {sync.PASSWORD_SCRIPT} <<'EOF'\n{hook}EOF\n", script)
+        self.assertIn(f"{sync.PASSWORD_SCRIPT} || true\n", script)
+        self.assertTrue(sync.PASSWORD_SCRIPT.startswith("/var/lib/cloud/scripts/per-boot/"))
+        self.assertIn("DomU_Request: $1", hook)
+        self.assertIn("saved_password", hook)
+        self.assertIn("chpasswd", hook)
+        self.assertNotIn("\nEOF\n", hook)  # would end the heredoc early
+
+
+class RootVolumeTest(unittest.TestCase):
+    def test_owner_target_carries_root_volume(self):
+        vms = [{"id": "vm-1", "name": "a", "account": "alice", "nic": [{"ipaddress": "10.94.1.5"}],
+                "tags": [{"key": "ssh.account.foo", "value": "bob"}]},
+               {"id": "vm-2", "name": "b", "account": "alice", "nic": [{"ipaddress": "10.94.1.6"}]}]
+        wanted, _ = sync.plan_targets(vms, {}, root_by_vm={"vm-1": "vol-9"})
+        self.assertEqual(wanted["a"]["description"], "cloudstack:vm:vm-1:root:vol-9")
+        self.assertEqual(wanted["a:foo"]["description"], "cloudstack:vm:vm-1:guest:foo")
+        self.assertEqual(wanted["b"]["description"], "cloudstack:vm:vm-2")
+
+
+class StaleKnownHostsTest(unittest.TestCase):
+    def test_drops_unused_and_refreshed_addresses(self):
+        known = [{"id": "k1", "host": "10.94.1.5", "port": 22},
+                 {"id": "k2", "host": "10.94.1.6", "port": 22},
+                 {"id": "k3", "host": "10.94.1.7", "port": 22},
+                 {"id": "k4", "host": "10.94.1.5", "port": 2222}]
+        targets = [{"name": "a", "options": {"kind": "Ssh", "host": "10.94.1.5", "port": 22}},
+                   {"name": "a:foo", "options": {"kind": "Ssh", "host": "10.94.1.5", "port": 22}},
+                   {"name": "b", "options": {"kind": "Ssh", "host": "10.94.1.6", "port": 22}},
+                   {"name": "web", "options": {"kind": "Http", "url": "https://10.94.1.7"}}]
+        stale = sync.stale_known_hosts(known, targets, refreshed={("10.94.1.6", 22)})
+        self.assertEqual([k["id"] for k in stale], ["k2", "k3", "k4"])
 
 
 if __name__ == "__main__":

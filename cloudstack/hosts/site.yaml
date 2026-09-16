@@ -125,14 +125,33 @@
         name: cloudstack-agent
         state: restarted
 
-- name: Guest overlay gateways (VRRP + NAT)
+- name: Guest overlay gateways (VRRP + NAT + resolver)
   hosts: cloudstack_gateway
   tasks:
+    # guests get the gateway address as their DNS server: it resolves only
+    # "data-server" (the metadata server cloud-init looks for) and forwards
+    # everything else, so instance names stay private. Written before the
+    # package is installed so the service never starts with the stock
+    # listen-everywhere configuration.
+    - name: Guest resolver directory
+      ansible.builtin.file:
+        path: /etc/dnsmasq.d
+        state: directory
+        mode: '0755'
+
+    - name: Guest resolver configuration
+      ansible.builtin.template:
+        src: templates/dnsmasq-guest.conf.j2
+        dest: /etc/dnsmasq.d/cloudstack-guest.conf
+        mode: '0644'
+      notify: restart dnsmasq
+
     - name: Packages
       ansible.builtin.apt:
         name:
           - keepalived
           - nftables
+          - dnsmasq
 
     - name: keepalived configuration
       ansible.builtin.template:
@@ -155,6 +174,7 @@
       loop:
         - keepalived
         - nftables
+        - dnsmasq
       # in check mode the packages above are not really installed yet
       ignore_errors: '{{ ansible_check_mode }}'
 
@@ -170,6 +190,12 @@
       ansible.builtin.service:
         name: nftables
         state: restarted
+    - name: restart dnsmasq
+      ansible.builtin.service:
+        name: dnsmasq
+        state: restarted
+      # in check mode the package is not really installed yet
+      ignore_errors: '{{ ansible_check_mode }}'
 
 - name: NFS secondary storage
   hosts: cloudstack_secondary_storage

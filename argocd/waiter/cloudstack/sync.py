@@ -38,6 +38,7 @@ MANAGED = "cloudstack:"  # description prefix of the Warpgate objects this job o
 GUEST_TAG_PREFIX = "ssh.account."  # VM tag: <prefix><linux username> = comma-separated user names
 USERNAME_RE = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
 USERDATA_PREFIX = "warpgate-ssh"  # user data objects with this name prefix are managed here
+PASSWORD_SCRIPT = "/var/lib/cloud/scripts/per-boot/cloudstack-password"
 CATALOG_PATH = os.environ.get("TEMPLATE_CATALOG", "/opt/sync/templates.toml")
 
 
@@ -181,10 +182,36 @@ def guest_accounts(vm):
     return result
 
 
+def render_password_script():
+    """Applies a password set through CloudStack when cloud-init did not: its
+    client shells out to GNU wget, which some images lack. The router hands the
+    password out once and answers "saved_password" after the acknowledgement,
+    so asking on every boot is harmless. The account is cloud-init's default
+    user, the one CloudStack's own path would set."""
+    return (
+        "#!/bin/sh\n"
+        "ask() {\n"
+        "  if command -v curl >/dev/null 2>&1; then curl -s -m 20 -H \"DomU_Request: $1\" http://data-server:8080/\n"
+        "  else wget -q -T 20 -O - --header \"DomU_Request: $1\" http://data-server:8080/; fi 2>/dev/null\n"
+        "}\n"
+        "pw=$(ask send_my_password)\n"
+        "case \"$pw\" in ''|saved_password|bad_request) exit 0 ;; esac\n"
+        "user=$(python3 -c 'import yaml; print(yaml.safe_load(open(\"/etc/cloud/cloud.cfg\"))[\"system_info\"][\"default_user\"][\"name\"])' 2>/dev/null)\n"
+        "[ -n \"$user\" ] || user=$(getent passwd 1000 | cut -d: -f1)\n"
+        "[ -n \"$user\" ] || exit 0\n"
+        "printf '%s:%s\\n' \"$user\" \"$pw\" | chpasswd && ask saved_password >/dev/null\n"
+    )
+
+
 def render_trust_script(public_keys):
     """First-boot script that makes every local account accept the bastion's
     key: an absolute AuthorizedKeysFile without a %u token applies to all users.
-    Which accounts the bastion connects to is decided by its targets, not here."""
+    Which accounts the bastion connects to is decided by its targets, not here.
+    The password script is installed for later boots and run once now, as the
+    per-boot hook has already fired on this one. It stays a shell script rather
+    than a cloud-config: CloudStack appends template user data to the
+    instance's own part by part and concatenates parts of one type as text,
+    so a cloud-config here would override keys of a user's cloud-config."""
     keys = "\n".join(sorted(public_keys))
     return (
         "#!/bin/sh\n"
@@ -192,9 +219,13 @@ def render_trust_script(public_keys):
         f"cat > /etc/ssh/warpgate_keys <<'EOF'\n{keys}\nEOF\n"
         "chmod 644 /etc/ssh/warpgate_keys\n"
         "mkdir -p /etc/ssh/sshd_config.d\n"
-        "grep -qs '^Include /etc/ssh/sshd_config.d/' /etc/ssh/sshd_config || sed -i '1i Include /etc/ssh/sshd_config.d/*.conf' /etc/ssh/sshd_config\n"
+        "if [ -f /etc/ssh/sshd_config ] && ! grep -qs '^Include /etc/ssh/sshd_config.d/' /etc/ssh/sshd_config; then sed -i '1i Include /etc/ssh/sshd_config.d/*.conf' /etc/ssh/sshd_config; fi\n"
         "printf 'AuthorizedKeysFile .ssh/authorized_keys /etc/ssh/warpgate_keys\\n' > /etc/ssh/sshd_config.d/50-warpgate.conf\n"
         "systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || rc-service sshd reload 2>/dev/null || true\n"
+        f"mkdir -p {os.path.dirname(PASSWORD_SCRIPT)}\n"
+        f"cat > {PASSWORD_SCRIPT} <<'EOF'\n{render_password_script()}EOF\n"
+        f"chmod 755 {PASSWORD_SCRIPT}\n"
+        f"{PASSWORD_SCRIPT} || true\n"
     )
 
 
@@ -249,6 +280,10 @@ def sync_templates(catalog):
         elif (bool(t.get("ispublic")), bool(t.get("isfeatured"))) != (True, entry["featured"]):
             cloudstack("updateTemplatePermissions", id=t["id"], ispublic="true", isfeatured=featured)
             print(f"template {entry['name']}: public, featured={featured}")
+        if t and entry["ostype"] in ostypes and t.get("ostypeid") != ostypes[entry["ostype"]]:
+            # the OS type picks the virtual hardware (virtio or IDE and e1000) of new instances
+            cloudstack("updateTemplate", id=t["id"], ostypeid=ostypes[entry["ostype"]])
+            print(f"template {entry['name']}: OS type {entry['ostype']}")
         if t:
             users[t["id"]] = entry["user"]
     names = {e["name"] for e in catalog}
@@ -259,15 +294,18 @@ def sync_templates(catalog):
     return users
 
 
-def plan_targets(vms, members, user_by_template=None, guest_user=GUEST_USER):
+def plan_targets(vms, members, user_by_template=None, guest_user=GUEST_USER, root_by_vm=None):
     """Warpgate targets a set of VMs should have, and the roles that reach each.
     One target per VM for its co-owners (the account, or every member account
     of the owning project), logging in as the template's default user, plus
     one per tagged guest account, reachable only by the tagged names. VM names
     are unique across the zone, so the VM name is the target name; the colon
-    form selects the guest account."""
+    form selects the guest account. The VM's root volume id rides in the
+    owner target's description: a reinstall replaces the volume, and with it
+    the guest's SSH host key."""
     wanted, reach = {}, {}
     user_by_template = user_by_template or {}
+    root_by_vm = root_by_vm or {}
     for vm in vms:
         ip = next((n["ipaddress"] for n in vm.get("nic", []) if n.get("ipaddress")), None)
         if not ip:
@@ -286,13 +324,26 @@ def plan_targets(vms, members, user_by_template=None, guest_user=GUEST_USER):
                             "auth": {"kind": "PublicKey", "key_id": None}},
             }
 
-        wanted[name] = spec(name, user_by_template.get(vm.get("templateid"), guest_user), f"{MANAGED}vm:{vm['id']}")
+        root = f":root:{root_by_vm[vm['id']]}" if vm["id"] in root_by_vm else ""
+        wanted[name] = spec(name, user_by_template.get(vm.get("templateid"), guest_user), f"{MANAGED}vm:{vm['id']}{root}")
         reach[name] = owners
         for username, ids in guest_accounts(vm).items():
             target = f"{name}:{username}"
             wanted[target] = spec(target, username, f"{MANAGED}vm:{vm['id']}:guest:{username}")
             reach[target] = {f"account-{i}" for i in ids}
     return wanted, reach
+
+
+def stale_known_hosts(known, targets, refreshed):
+    """Warpgate pins a guest's SSH host key on first contact and refuses a
+    changed one. Entries to drop: those of addresses no SSH target uses, and
+    those of addresses whose instance was created or reinstalled since the
+    last run (a fresh disk means fresh host keys), so the next connection
+    pins the new key. Address takeover by another tenant is what the guest
+    network's anti-spoofing rules prevent, not this pinning."""
+    in_use = {(t["options"].get("host"), t["options"].get("port", 22))
+              for t in targets if (t.get("options") or {}).get("kind") == "Ssh"}
+    return [k for k in known if (k["host"], k["port"]) not in in_use or (k["host"], k["port"]) in refreshed]
 
 
 def sync_warpgate():
@@ -321,7 +372,10 @@ def sync_warpgate():
         members[p["id"]] = {m["account"] for m in cloudstack("listProjectAccounts", projectid=p["id"]).get("projectaccount", [])}
 
     user_by_template = sync_templates(load_catalog())
-    wanted, reach = plan_targets(vms, members, user_by_template)
+    volumes = cloudstack("listVolumes", type="ROOT", listall="true").get("volume", [])
+    volumes += cloudstack("listVolumes", type="ROOT", listall="true", projectid=-1).get("volume", [])
+    root_by_vm = {v["virtualmachineid"]: v["id"] for v in volumes if v.get("virtualmachineid")}
+    wanted, reach = plan_targets(vms, members, user_by_template, root_by_vm=root_by_vm)
     guests = {i for vm in vms for ids in guest_accounts(vm).values() for i in ids}
     # accounts that have someone who can log in or something to log in to
     relevant = {u["account"] for u in users} | {vm["account"] for vm in vms if not vm.get("projectid")}
@@ -371,15 +425,22 @@ def sync_warpgate():
             print(f"warpgate user {u['username']}: role {name} removed")
 
     wg_targets = {t["name"]: t for t in warpgate("GET", "/targets")[1]}
+    refreshed = set()  # (host, port) of instances created or reinstalled: their host keys are new
     for name, spec in wanted.items():
         t = wg_targets.get(name)
+        owner = ":guest:" not in spec["description"]
         if t is None:
             status, t = warpgate("POST", "/targets", spec)
             print(f"warpgate target {name} -> {spec['options']['host']} created")
+            if owner:
+                refreshed.add((spec["options"]["host"], 22))
         elif (t["options"].get("host") != spec["options"]["host"]
-              or t["options"].get("username") != spec["options"]["username"]):
+              or t["options"].get("username") != spec["options"]["username"]
+              or (t.get("description") or "") != spec["description"]):
             warpgate("PUT", f"/targets/{t['id']}", spec)
             print(f"warpgate target {name} -> {spec['options']['host']} updated")
+            if owner:
+                refreshed.add((spec["options"]["host"], 22))
         if t is not None:
             wanted_roles = {r for r in reach[name] if r in roles} | {ADMINS_ROLE}
             have = {r["name"]: r for r in warpgate("GET", f"/targets/{t['id']}/roles")[1]}
@@ -396,6 +457,10 @@ def sync_warpgate():
             close_sessions(t["id"])
             warpgate("DELETE", f"/targets/{t['id']}")
             print(f"warpgate target {name} removed")
+    known = warpgate("GET", "/ssh/known-hosts")[1] or []
+    for k in stale_known_hosts(known, warpgate("GET", "/targets")[1] or [], refreshed):
+        warpgate("DELETE", f"/ssh/known-hosts/{k['id']}")
+        print(f"warpgate host key of {k['host']}:{k['port']} forgotten")
     live_users = {u["username"] for u in users}
     for name, wu in wg_users.items():
         if (wu.get("description") or "").startswith(MANAGED) and name not in live_users:

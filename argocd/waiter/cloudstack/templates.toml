@@ -7,8 +7,14 @@
 # name carries the image date; drop the old entry once no instance needs it
 # for a reinstall, then delete the old template by hand.
 #
-# ostype must be an exact `listOsTypes` description. user is the image's
-# default account, which the SSH bastion logs in as.
+# ostype must be an exact `listOsTypes` description; it also picks the virtual
+# hardware of new instances. Only names the KVM resource knows as paravirtual
+# (Ubuntu, Fedora, CentOS, Red Hat, Debian, Rocky, AlmaLinux, "Other PV") get
+# virtio disks and NICs; anything else gets IDE and e1000, which cloud kernels
+# (Debian) and RHEL 10 no longer drive. A release newer than the newest listed
+# type uses the previous release's type; distributions without one use
+# "Other PV (64-bit)". user is the image's default account, which the SSH
+# bastion logs in as.
 #
 # URLs must answer 200 directly: the secondary storage VM does not follow
 # redirects, so redirector hosts (download.fedoraproject.org,
@@ -37,7 +43,7 @@ name = "debian-13-20260914"
 display = "Debian 13"
 url = "https://saimei.ftp.acc.umu.se/images/cloud/trixie/20260914-2601/debian-13-genericcloud-amd64-20260914-2601.qcow2"
 checksum = "{SHA-512}95e110dfcdbd0ed8a82a75ed9579802f9950cabf51a810dcc6388e81bc778188713878b9f28d583a0ea602fbf48b35996ae9ad37f584166d8fbd6489df248f53"
-ostype = "Other Linux (64-bit)"
+ostype = "Debian GNU/Linux 12 (64-bit)"
 user = "debian"
 
 [[template]]
@@ -65,14 +71,6 @@ ostype = "Fedora Linux (64 bit)"
 user = "fedora"
 
 [[template]]
-name = "rocky-10-20260525"
-display = "Rocky Linux 10"
-url = "https://dl.rockylinux.org/pub/rocky/10/images/x86_64/Rocky-10-GenericCloud-Base-10.2-20260525.0.x86_64.qcow2"
-checksum = "{SHA-256}9fc9e9ff16888bb68ac39b0392e25c9c92684d50c85f1cce6ab549363bbc4b48"
-ostype = "Other Linux (64-bit)"
-user = "rocky"
-
-[[template]]
 name = "rocky-9-20260525"
 display = "Rocky Linux 9"
 url = "https://dl.rockylinux.org/pub/rocky/9/images/x86_64/Rocky-9-GenericCloud-Base-9.8-20260525.0.x86_64.qcow2"
@@ -85,7 +83,7 @@ name = "almalinux-10-20260817"
 display = "AlmaLinux 10"
 url = "https://repo.almalinux.org/almalinux/10/cloud/x86_64/images/AlmaLinux-10-GenericCloud-10.2-20260817.0.x86_64.qcow2"
 checksum = "{SHA-256}bc59485c4828861a15887e30ff1bb913f0f16202fd7286208518f4814da1e10a"
-ostype = "Other Linux (64-bit)"
+ostype = "AlmaLinux 9"
 user = "almalinux"
 
 [[template]]
@@ -101,7 +99,7 @@ name = "opensuse-16.0-build18.7"
 display = "openSUSE Leap 16.0"
 url = "https://downloadcontent.opensuse.org/distribution/leap/16.0/appliances/Leap-16.0-Minimal-VM.x86_64-Cloud-Build18.7.qcow2"
 checksum = "{SHA-256}c5cd6904632c86d5368dea3896da8c17571c238ef96a0e2c8b0ca1835d796e07"
-ostype = "OpenSUSE Linux (64 bit)"
+ostype = "Other PV (64-bit)"
 user = "opensuse"
 
 [[template]]
@@ -109,7 +107,7 @@ name = "opensuse-15.6-build19.146"
 display = "openSUSE Leap 15.6"
 url = "https://downloadcontent.opensuse.org/distribution/leap/15.6/appliances/openSUSE-Leap-15.6-Minimal-VM.x86_64-15.6.0-Cloud-Build19.146.qcow2"
 checksum = "{SHA-256}0a5720416d423f98aacaa793a57d56ec045e3dd25cd88713952660ad00da53bd"
-ostype = "OpenSUSE Linux (64 bit)"
+ostype = "Other PV (64-bit)"
 user = "opensuse"
 
 [[template]]
@@ -117,7 +115,7 @@ name = "arch-20260915"
 display = "Arch Linux"
 url = "https://geo.mirror.pkgbuild.com/images/v20260915.594445/Arch-Linux-x86_64-cloudimg-20260915.594445.qcow2"
 checksum = "{SHA-256}d7cc7c86a21b32d6678c001464714f71f4ef7e0d7bbbfca65e99123ac5afc25b"
-ostype = "Other Linux (64-bit)"
+ostype = "Other PV (64-bit)"
 user = "arch"
 
 [[template]]
@@ -125,7 +123,7 @@ name = "alpine-3.22.5"
 display = "Alpine Linux 3.22"
 url = "https://dl-cdn.alpinelinux.org/alpine/v3.22/releases/cloud/generic_alpine-3.22.5-x86_64-bios-cloudinit-r0.qcow2"
 checksum = "{SHA-512}463f44e95fca714a84d37f9725337f99f54fe4b210488848489584910d8a33afcc8d67ff89737467e099781a09c0d798309fd661ef8e7173cd31a01b47d81705"
-ostype = "Other Linux (64-bit)"
+ostype = "Other PV (64-bit)"
 user = "alpine"
 
 [[template]]
@@ -133,5 +131,5 @@ name = "alpine-3.21.7"
 display = "Alpine Linux 3.21"
 url = "https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/cloud/generic_alpine-3.21.7-x86_64-bios-cloudinit-r0.qcow2"
 checksum = "{SHA-512}207bca7acbe633e6561bdc8ce1fc6388db1ccca11d4638b1063e8252ef823f0335f185befe36d099643ce757b865071d9afa3c1d4167a1dc486dbad1b5d714a0"
-ostype = "Other Linux (64-bit)"
+ostype = "Other PV (64-bit)"
 user = "alpine"
