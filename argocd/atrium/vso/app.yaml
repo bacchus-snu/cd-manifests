@@ -4,6 +4,8 @@ kind: Application
 metadata:
   namespace: argocd
   name: vault-secrets-operator
+  annotations:
+    argocd.argoproj.io/sync-wave: "-20"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -12,6 +14,8 @@ spec:
     name: in-cluster
     namespace: vault-secrets-operator
   syncPolicy:
+    automated:
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true
   sources:

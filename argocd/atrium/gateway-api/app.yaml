@@ -4,6 +4,8 @@ kind: Application
 metadata:
   namespace: argocd
   name: gateway-api
+  annotations:
+    argocd.argoproj.io/sync-wave: "-30"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -12,6 +14,8 @@ spec:
     name: in-cluster
     namespace: gateway-system
   syncPolicy:
+    automated:
+      selfHeal: true
     syncOptions:
       - ServerSideApply=true
   sources:

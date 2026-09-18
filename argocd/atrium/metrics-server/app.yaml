@@ -4,6 +4,8 @@ kind: Application
 metadata:
   namespace: argocd
   name: metrics-server
+  annotations:
+    argocd.argoproj.io/sync-wave: "-20"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -11,10 +13,9 @@ spec:
   destination:
     name: in-cluster
     namespace: kube-system
-  # syncPolicy:
-  #   automated:
-  #     prune: true
-  #     selfHeal: true
+  syncPolicy:
+    automated:
+      selfHeal: true
   sources:
     - repoURL: https://kubernetes-sigs.github.io/metrics-server/
       targetRevision: 3.14.0

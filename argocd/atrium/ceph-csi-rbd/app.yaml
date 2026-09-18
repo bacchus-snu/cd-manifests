@@ -4,6 +4,8 @@ kind: Application
 metadata:
   namespace: argocd
   name: ceph-csi-rbd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-20"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -12,9 +14,8 @@ spec:
     name: in-cluster
     namespace: ceph-csi-rbd
   syncPolicy:
-    # automated:
-    #   prune: true
-    #   selfHeal: true
+    automated:
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true
     managedNamespaceMetadata:

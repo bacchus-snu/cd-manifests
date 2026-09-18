@@ -4,6 +4,8 @@ kind: Application
 metadata:
   namespace: argocd
   name: csi-snapshot
+  annotations:
+    argocd.argoproj.io/sync-wave: "-30"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -11,10 +13,9 @@ spec:
   destination:
     name: in-cluster
     namespace: kube-system
-  #syncPolicy:
-  #  automated:
-  #    prune: true
-  #    selfHeal: true
+  syncPolicy:
+    automated:
+      selfHeal: true
   sources:
     - repoURL: https://github.com/kubernetes-csi/external-snapshotter.git
       targetRevision: v8.6.0
