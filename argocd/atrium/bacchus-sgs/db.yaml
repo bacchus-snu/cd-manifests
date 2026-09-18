@@ -1,0 +1,23 @@
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  namespace: bacchus-sgs
+  name: bacchus-sgs-db
+spec:
+  instances: 1
+  storage:
+    size: 8Gi
+    storageClass: rbd
+  bootstrap:
+    initdb:
+      database: bacchus-sgs
+      owner: bacchus-sgs
+      secret:
+        name: bacchus-sgs-db-creds
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi

@@ -1,0 +1,27 @@
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  namespace: id
+  name: id-db
+spec:
+  instances: 1
+  storage:
+    size: 8Gi
+    storageClass: rbd
+  bootstrap:
+    initdb:
+      database: id
+      owner: id
+      secret:
+        name: id-db-creds
+      postInitApplicationSQLRefs:
+        configMapRefs:
+          - name: id-db-schema
+            key: schema.sql
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi

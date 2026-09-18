@@ -1,4 +1,5 @@
 resources:
+  - db.yaml
   - resources.yaml
 
 labels:

@@ -1,6 +1,7 @@
 resources:
   - core
   - front
+  - db.yaml
   - resources.yaml
 
 configMapGenerator:

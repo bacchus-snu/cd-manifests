@@ -28,9 +28,9 @@ spec:
       targetRevision: main
       path: argocd/atrium/cloudstack
       kustomize: {}
-    - repoURL: registry-1.docker.io/bitnamicharts
-      targetRevision: 11.1.20
-      chart: mysql
+    - repoURL: https://mysql.github.io/mysql-operator/
+      targetRevision: 2.3.0
+      chart: mysql-innodbcluster
       helm:
         valueFiles:
           - $values/argocd/atrium/cloudstack/mysql-values.yaml

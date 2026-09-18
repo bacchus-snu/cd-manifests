@@ -19,12 +19,3 @@ spec:
       targetRevision: main
       path: argocd/atrium/bacchus-sgs
       kustomize: {}
-    - repoURL: registry-1.docker.io/bitnamicharts
-      targetRevision: 18.11.3
-      chart: postgresql
-      helm:
-        valueFiles:
-          - $values/argocd/atrium/bacchus-sgs/postgresql-values.yaml
-    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
-      targetRevision: main
-      ref: values

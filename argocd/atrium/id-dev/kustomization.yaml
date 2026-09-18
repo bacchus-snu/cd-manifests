@@ -1,4 +1,5 @@
 resources:
+  - db.yaml
   - core
   - front
   - resources.yaml

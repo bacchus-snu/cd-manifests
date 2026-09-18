@@ -19,18 +19,12 @@ spec:
       targetRevision: main
       path: argocd/atrium/id-dev
       kustomize: {}
-    - repoURL: registry-1.docker.io/bitnamicharts
-      targetRevision: 28.2.1
-      chart: redis
+    - repoURL: https://valkey.io/valkey-helm/
+      targetRevision: 0.12.0
+      chart: valkey
       helm:
         valueFiles:
-          - $values/argocd/atrium/id-dev/redis-values.yaml
-    - repoURL: registry-1.docker.io/bitnamicharts
-      targetRevision: 18.11.3
-      chart: postgresql
-      helm:
-        valueFiles:
-          - $values/argocd/atrium/id-dev/postgresql-values.yaml
+          - $values/argocd/atrium/id-dev/valkey-values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       ref: values

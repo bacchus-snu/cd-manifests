@@ -1,24 +1,20 @@
-auth:
-  username: snucse
-  database: snucse_production
-  existingSecret: db-pw
-  authenticationPolicy: "mysql_native_password"
+serverVersion: 8.4.11
+serverInstances: 1
+routerInstances: 1
+disableLookups: true
 
-primary:
-  extraFlags: "--mysql_native_password=ON"
+credentials:
+  root:
+    secretName: snucse-mysql-root
+
+datadirVolumeClaimTemplate:
+  storageClassName: rbd
+  accessModes: [ReadWriteOnce]
   resources:
     requests:
-      cpu: 250m
-      memory: 1Gi
-    limits:
-      cpu: 250m
-      memory: 2Gi
+      storage: 20Gi
 
-# Override the default image to use the legacy repository due to Bitnami policy change
-image:
-  registry: docker.io
-  repository: bitnamilegacy/mysql
+serverConfig:
+  mycnf: |
+    mysql_native_password=ON
 
-global: 
-  security: 
-    allowInsecureImages: true

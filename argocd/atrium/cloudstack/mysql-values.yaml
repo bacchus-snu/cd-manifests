@@ -1,34 +1,24 @@
-# Only the root account comes from the chart; cloudstack-setup-databases creates
-# the "cloud" user and the cloud/cloud_usage databases itself on first start.
-auth:
-  createDatabase: false
-  existingSecret: cloudstack-db
+serverVersion: 8.4.11
+serverInstances: 1
+routerInstances: 1
+disableLookups: true
 
-primary:
-  # settings required by the CloudStack management server installation guide
-  extraFlags: >-
-    --innodb-rollback-on-timeout=1
-    --innodb-lock-wait-timeout=600
-    --max-connections=350
-    --log-bin=mysql-bin
-    --binlog-format=ROW
-  persistence:
-    size: 20Gi
+credentials:
+  root:
+    secretName: cloudstack-db
+
+datadirVolumeClaimTemplate:
+  storageClassName: rbd
+  accessModes: [ReadWriteOnce]
   resources:
     requests:
-      cpu: 200m
-      memory: 768Mi
-    limits:
-      cpu: 1000m
-      memory: 1Gi
+      storage: 20Gi
 
-# MySQL 8.4 LTS; CloudStack is validated against the 8.x series.
-# Override the default image to use the legacy repository due to Bitnami policy change
-image:
-  registry: docker.io
-  repository: bitnamilegacy/mysql
-  tag: 8.4.5-debian-12-r0
+serverConfig:
+  mycnf: |
+    innodb-rollback-on-timeout=1
+    innodb-lock-wait-timeout=600
+    max-connections=350
+    log-bin=mysql-bin
+    binlog-format=ROW
 
-global:
-  security:
-    allowInsecureImages: true
