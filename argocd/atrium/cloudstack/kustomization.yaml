@@ -77,7 +77,7 @@ configMapGenerator:
 
 images:
   - name: alpine
-    newTag: '3.21'
+    newTag: '3.24'
   - name: python
     newTag: 3.13-alpine
   - name: warpgate
