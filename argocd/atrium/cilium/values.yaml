@@ -1,0 +1,48 @@
+ipam:
+  mode: kubernetes
+
+# nodes reach the API through /etc/hosts entries pointing at the three
+# control planes, so no VIP or load balancer is involved
+kubeProxyReplacement: true
+k8sServiceHost: atrium.bacchus.io
+k8sServicePort: 6443
+
+# campus uplink is 1500; jumbo frames stop at the first router
+MTU: 1500
+
+encryption:
+  enabled: true
+  type: wireguard
+
+bpf:
+  masquerade: true
+
+operator:
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+    maxUnavailable: null
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: Exists
+
+# campus addresses are bound to a MAC, so a service cannot own an address of
+# its own. Envoy binds the gateway ports on the node itself instead
+gatewayAPI:
+  enabled: true
+  enableAlpn: true
+  hostNetwork:
+    enabled: true
+    nodes:
+      matchLabels:
+        bacchus.io/web-gateway: 'true'
+
+hubble:
+  relay:
+    enabled: true
+  ui:
+    enabled: true

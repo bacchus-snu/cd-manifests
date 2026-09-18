@@ -1,0 +1,189 @@
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  namespace: id-dev
+  name: id
+spec:
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: https-id-dev-bacchus-io
+  hostnames:
+    - id-dev.bacchus.io
+  rules:
+    # default route to frontend
+    - backendRefs:
+        - name: id-front
+          port: 80
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            remove:
+              - Server
+    # backend routes
+    - backendRefs:
+        - name: id-core
+          port: 80
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            remove:
+              - Server
+            set:
+              - name: Referrer-Policy
+                value: no-referrer
+              - name: Content-Security-Policy
+                value: "default-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+              - name: X-Content-Type-Options
+                value: nosniff
+              - name: X-Frame-Options
+                value: DENY
+              - name: X-XSS-Protection
+                value: "1; mode=block"
+              - name: Cache-Control
+                value: "private, no-cache, no-store, max-age=0, must-revalidate"
+              - name: Pragma
+                value: no-cache
+      matches:
+        - path:
+            type: PathPrefix
+            value: /api
+        - path:
+            type: PathPrefix
+            value: /o
+        - path:
+            type: Exact
+            value: /Authentication/Login.aspx
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  namespace: id-dev
+  name: default
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: vault-secrets-operator
+    serviceAccount: default
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: id-dev-db-creds
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: id-dev/db/creds
+  destination:
+    create: true
+    name: id-dev-db-creds
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: id-dev-pbs
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: id-dev/pbs
+  destination:
+    create: true
+    name: id-dev-pbs
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: id-dev-backup
+spec:
+  schedule: '@daily'
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          volumes:
+            - name: tmp
+              emptyDir: {}
+            - name: scratch
+              ephemeral:
+                volumeClaimTemplate:
+                  spec:
+                    accessModes:
+                      - ReadWriteOncePod
+                    resources:
+                      requests:
+                        storage: 1Gi
+          initContainers:
+            - name: create-pgdump
+              image: docker.io/bitnamilegacy/postgresql:17.2.0-debian-12-r10
+              volumeMounts:
+                - name: scratch
+                  mountPath: /scratch
+              env:
+                - name: PGUSER
+                  value: postgres
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      key: postgres-password
+                      name: id-dev-db-creds
+                - name: PGHOST
+                  value: id-dev-postgresql
+                - name: PGPORT
+                  value: '5432'
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                runAsNonRoot: true
+                runAsUser: 1000
+                seccompProfile:
+                  type: RuntimeDefault
+              args:
+                - /bin/bash
+                - -c
+                - |
+                    set -euxo pipefail
+                    pg_dumpall --clean --if-exists --quote-all-identifiers --file=/scratch/pgdump.sql
+          containers:
+            - name: backup
+              image: ghcr.io/bacchus-snu/images/proxmox-backup-client:5575324
+              envFrom:
+                - secretRef:
+                    name: id-dev-pbs
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+                - name: scratch
+                  mountPath: /scratch
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 1Gi
+                limits:
+                  cpu: 100m
+                  memory: 1Gi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                runAsNonRoot: true
+                runAsUser: 1000
+                seccompProfile:
+                  type: RuntimeDefault
+              args: ['backup', '--ns=atrium', '--backup-id=id-dev', '--backup-type=ct', 'pgdump.pxar:/scratch']
+          securityContext:
+            fsGroup: 1337

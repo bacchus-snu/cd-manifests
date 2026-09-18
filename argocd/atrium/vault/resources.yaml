@@ -1,0 +1,156 @@
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  namespace: vault
+  name: vault-active
+spec:
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: https-bacchus-io
+  hostnames:
+    - vault.snucse.org
+  rules:
+    - backendRefs:
+        - name: vault-active
+          port: 8200
+---
+# In case of vault failure (all replicas down/sealed) and Dex failure
+# We may not have easy access to the Kubernetes API externally before Vault becomes ready again.
+# This host allows administrators to access the Vault UI to unseal at least one replica.
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  namespace: vault
+  name: vault-any
+spec:
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: https-bacchus-io
+  hostnames:
+    - vault-any.snucse.org
+  rules:
+    - backendRefs:
+        - name: vault-ui
+          port: 8200
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  namespace: vault
+  name: default
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: vault-secrets-operator
+    serviceAccount: default
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  namespace: vault
+  name: vault-pbs
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: vault/pbs
+  destination:
+    create: true
+    name: vault-pbs
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: vault
+  name: vault-raft-snapshot
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  namespace: vault
+  name: vault-raft-snapshot
+spec:
+  schedule: "@daily"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: vault-raft-snapshot
+          restartPolicy: Never
+          volumes:
+            - name: tmp
+              emptyDir: {}
+            - name: scratch
+              ephemeral:
+                volumeClaimTemplate:
+                  spec:
+                    accessModes:
+                      - ReadWriteOncePod
+                    resources:
+                      requests:
+                        storage: 1Gi
+          initContainers:
+            - name: create-vault-raft-snapshot
+              image: hashicorp/vault:1.17.2
+              env:
+                - name: VAULT_ADDR
+                  value: http://vault-active.vault.svc.cluster.local:8200
+              volumeMounts:
+                - name: scratch
+                  mountPath: /scratch
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                runAsNonRoot: true
+                runAsUser: 1000
+                seccompProfile:
+                  type: RuntimeDefault
+              command:
+                - /bin/sh
+                - -c
+                - |
+                    export VAULT_TOKEN=$(vault write -field=token auth/kubernetes/login jwt=@/var/run/secrets/kubernetes.io/serviceaccount/token role=vault-raft-snapshot)
+                    vault operator raft snapshot save /scratch/vault.snap
+          containers:
+            - name: backup
+              image: ghcr.io/bacchus-snu/images/proxmox-backup-client:5575324
+              envFrom:
+                - secretRef:
+                    name: vault-pbs
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+                - name: scratch
+                  mountPath: /scratch
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 1Gi
+                limits:
+                  cpu: 100m
+                  memory: 1Gi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                runAsNonRoot: true
+                runAsUser: 1000
+                seccompProfile:
+                  type: RuntimeDefault
+              args: ['backup', '--ns=atrium', '--backup-id=vault', '--backup-type=ct', 'vault.pxar:/scratch']
+          securityContext:
+            fsGroup: 1337

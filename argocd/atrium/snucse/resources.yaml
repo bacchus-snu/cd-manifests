@@ -1,0 +1,185 @@
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  namespace: snucse
+  name: snucse
+spec:
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: https-snucse-org
+  hostnames:
+    - www.snucse.org
+  rules:
+    # default route to frontend
+    - backendRefs:
+        - name: snucse-front
+          port: 80
+    # backend routes
+    - backendRefs:
+        - name: snucse-back
+          port: 80
+      matches:
+        - path:
+            type: PathPrefix
+            value: /api
+        - path:
+            type:
+            value: /files
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  namespace: cilium-system
+  name: redirect-to-www
+  annotations:
+    # Otherwise, external-dns struggles with creating the CNAME at the apex
+    external-dns.alpha.kubernetes.io/exclude: "true"
+spec:
+  parentRefs:
+    - name: web-gateway
+      sectionName: apex-snucse-org
+  hostnames:
+    - snucse.org
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            hostname: www.snucse.org
+            port: 443
+            statusCode: 301
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  namespace: snucse
+  name: default
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: vault-secrets-operator
+    serviceAccount: default
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: db-pw
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: snucse/db
+  destination:
+    create: true
+    name: db-pw
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: snucse-pbs
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: snucse/pbs
+  destination:
+    create: true
+    name: snucse-pbs
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: snucse-backup
+spec:
+  schedule: '@daily'
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          volumes:
+            - name: tmp
+              emptyDir: {}
+            - name: scratch
+              ephemeral:
+                volumeClaimTemplate:
+                  spec:
+                    accessModes:
+                      - ReadWriteOncePod
+                    resources:
+                      requests:
+                        storage: 1Gi
+          initContainers:
+            - name: create-mysqldump
+              image: docker.io/bitnamilegacy/mysql:9.4.0-debian-12-r1
+              volumeMounts:
+                - name: scratch
+                  mountPath: /scratch
+              env:
+                - name: MYSQL_USER
+                  value: root
+                - name: MYSQL_PWD
+                  valueFrom:
+                    secretKeyRef:
+                      key: mysql-root-password
+                      name: db-pw
+                - name: MYSQL_HOST
+                  value: snucse-mysql
+                - name: MYSQL_PORT
+                  value: '3306'
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                runAsNonRoot: true
+                runAsUser: 1000
+                seccompProfile:
+                  type: RuntimeDefault
+              args:
+                - /bin/bash
+                - -c
+                - |
+                    set -euxo pipefail
+                    mysqldump --host=${MYSQL_HOST} --port=${MYSQL_PORT} --user=${MYSQL_USER} --single-transaction --routines --triggers --all-databases > /scratch/mysqldump.sql
+          containers:
+            - name: backup
+              image: ghcr.io/bacchus-snu/images/proxmox-backup-client:5575324
+              envFrom:
+                - secretRef:
+                    name: snucse-pbs
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+                - name: scratch
+                  mountPath: /scratch
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 1Gi
+                limits:
+                  cpu: 100m
+                  memory: 1Gi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                runAsNonRoot: true
+                runAsUser: 1000
+                seccompProfile:
+                  type: RuntimeDefault
+              args: ['backup', '--ns=atrium', '--backup-id=snucse', '--backup-type=ct', 'pgdump.pxar:/scratch']
+          securityContext:
+            fsGroup: 1337

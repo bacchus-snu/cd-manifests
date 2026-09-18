@@ -1,0 +1,22 @@
+provider: cloudflare
+
+env:
+  - name: CF_API_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: cloudflare
+        key: CF_API_TOKEN
+
+sources:
+  - gateway-httproute
+
+domainFilters:
+  - snucse.org
+  - bacchus.io
+
+extraArgs:
+  - --annotation-filter=external-dns.alpha.kubernetes.io/exclude notin (true)
+  - --gateway-label-filter=external-dns.alpha.kubernetes.io/include=true
+
+txtOwnerId: atrium
+policy: sync

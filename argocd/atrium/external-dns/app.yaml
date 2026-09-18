@@ -1,0 +1,31 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: external-dns
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: infra
+  destination:
+    name: in-cluster
+    namespace: external-dns
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+  sources:
+    - repoURL: https://kubernetes-sigs.github.io/external-dns/
+      targetRevision: 1.18.0
+      chart: external-dns
+      helm:
+        valueFiles:
+          - $values/argocd/atrium/external-dns/values.yaml
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: main
+      ref: values
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: main
+      path: argocd/atrium/external-dns
+      directory:
+        include: 'resources.yaml'
