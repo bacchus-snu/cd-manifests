@@ -80,6 +80,7 @@ spec:
   destination:
     create: true
     name: id-db-creds
+    type: kubernetes.io/basic-auth
 ---
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
@@ -132,7 +133,7 @@ spec:
                       key: password
                       name: id-db-creds
                 - name: PGHOST
-                  value: id-postgresql
+                  value: id-db-rw
                 - name: PGPORT
                   value: '5432'
               resources:
