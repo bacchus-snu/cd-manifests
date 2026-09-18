@@ -86,7 +86,7 @@ spec:
       hostAliases:
         - hostnames:
             - cse.snu.ac.kr
-          ip: 10.91.1.1
+          ip: 147.46.92.120
       serviceAccountName: cse-proxy
       initContainers:
         - name: envoy-patch

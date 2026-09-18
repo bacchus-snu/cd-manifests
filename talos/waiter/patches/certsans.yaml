@@ -1,3 +1,0 @@
-machine:
-  certSANs:
-    - waiter.bacchus.io

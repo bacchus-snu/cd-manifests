@@ -1,49 +1,4 @@
 ---
-apiVersion: cilium.io/v2alpha1
-kind: CiliumLoadBalancerIPPool
-metadata:
-  name: web-gateway
-spec:
-  blocks:
-    - cidr: 10.89.0.30/32
-    - cidr: 10.89.0.31/32
-    - cidr: 10.89.0.32/32
-    - cidr: 10.89.0.33/32
-    # warpgate ssh bastion
-    - cidr: 10.89.0.36/32
----
-apiVersion: cilium.io/v2alpha1
-kind: CiliumL2AnnouncementPolicy
-metadata:
-  name: web-gateway
-spec:
-  nodeSelector:
-    matchExpressions:
-      - key: node-role.kubernetes.io/control-plane
-        operator: Exists
-  # services that must be announced from the node running their pod (they
-  # keep the client address with externalTrafficPolicy Local) opt out here
-  serviceSelector:
-    matchExpressions:
-      - key: cloudstack.snucse.org/announce-from
-        operator: DoesNotExist
-  loadBalancerIPs: true
----
-# Warpgate SSH: announced only from the overlay gateway node, where its pod
-# runs, so that Local traffic policy works and clients keep their addresses
-apiVersion: cilium.io/v2alpha1
-kind: CiliumL2AnnouncementPolicy
-metadata:
-  name: overlay-gateway
-spec:
-  nodeSelector:
-    matchLabels:
-      cloudstack.snucse.org/overlay-gateway: 'true'
-  serviceSelector:
-    matchLabels:
-      cloudstack.snucse.org/announce-from: overlay-gateway
-  loadBalancerIPs: true
----
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: Gateway
 metadata:
@@ -52,14 +7,11 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     cert-manager.io/private-key-algorithm: ECDSA
-    external-dns.alpha.kubernetes.io/target: web_gateway.bacchus.io
+    external-dns.alpha.kubernetes.io/target: 147.46.92.174
   labels:
     external-dns.alpha.kubernetes.io/include: "true"
 spec:
   gatewayClassName: cilium
-  infrastructure:
-    annotations:
-      lbipam.cilium.io/ips: 10.89.0.30
   listeners:
     - name: http
       protocol: HTTP
@@ -140,37 +92,6 @@ spec:
           from: All
 ---
 apiVersion: gateway.networking.k8s.io/v1beta1
-kind: Gateway
-metadata:
-  namespace: cilium-system
-  name: internal-web-gateway
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-    cert-manager.io/private-key-algorithm: ECDSA
-spec:
-  gatewayClassName: cilium
-  infrastructure:
-    annotations:
-      lbipam.cilium.io/ips: 10.89.0.33
-  listeners:
-    - name: http
-      protocol: HTTP
-      port: 80
-      allowedRoutes:
-        namespaces:
-          from: All
-    - name: https-bacchus-io
-      protocol: HTTPS
-      port: 443
-      hostname: "*.internal.bacchus.io"
-      tls:
-        certificateRefs:
-          - name: internal-web-gateway-certs
-      allowedRoutes:
-        namespaces:
-          from: All
----
-apiVersion: gateway.networking.k8s.io/v1beta1
 kind: HTTPRoute
 metadata:
   namespace: cilium-system
@@ -213,19 +134,3 @@ spec:
             hostname: id.snucse.org
             port: 443
             statusCode: 302
----
-apiVersion: gateway.networking.k8s.io/v1beta1
-kind: HTTPRoute
-metadata:
-  namespace: cilium-system
-  name: internal-web-gateway-https-redirect
-spec:
-  parentRefs:
-    - name: internal-web-gateway
-      sectionName: http
-  rules:
-    - filters:
-        - type: RequestRedirect
-          requestRedirect:
-            scheme: https
-            statusCode: 301

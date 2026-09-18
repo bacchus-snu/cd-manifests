@@ -45,10 +45,10 @@ metadata:
 spec:
   parentRefs:
     - namespace: cilium-system
-      name: internal-web-gateway
+      name: web-gateway
       sectionName: https-bacchus-io
   hostnames:
-    - argocd.internal.bacchus.io
+    - argocd.snucse.org
   rules:
     - backendRefs:
         - name: argocd-server

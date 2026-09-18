@@ -34,10 +34,10 @@ metadata:
   name: bacchus-sgs-monitoring-internal
 spec:
   hostnames:
-    - sgs-dashboard.internal.bacchus.io
+    - sgs-dashboard.snucse.org
   parentRefs:
     - namespace: cilium-system
-      name: internal-web-gateway
+      name: web-gateway
       sectionName: https-bacchus-io
   rules:
     - matches:

@@ -10,7 +10,7 @@ spec:
   version: v0.28.0
   alertmanagerConfiguration:
     name: bacchus-sgs-monitoring
-  externalUrl: https://sgs-dashboard.internal.bacchus.io/alertmanager
+  externalUrl: https://sgs-dashboard.snucse.org/alertmanager
   routePrefix: /
   resources:
     requests:

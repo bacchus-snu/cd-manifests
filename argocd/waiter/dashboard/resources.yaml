@@ -7,10 +7,10 @@ metadata:
 spec:
   parentRefs:
     - namespace: cilium-system
-      name: internal-web-gateway
+      name: web-gateway
       sectionName: https-bacchus-io
   hostnames:
-    - dashboard.internal.bacchus.io
+    - dashboard.snucse.org
   rules:
     - matches:
         - path:

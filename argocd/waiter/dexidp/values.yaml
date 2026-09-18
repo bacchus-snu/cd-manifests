@@ -62,11 +62,6 @@ envVars:
       secretKeyRef:
         name: dex-client-secrets
         key: bacchus-sgs-monitoring
-  - name: DEX_CLIENT_BACCHUS_VPN
-    valueFrom:
-      secretKeyRef:
-        name: dex-client-secrets
-        key: bacchus-vpn
   - name: DEX_CLIENT_BACCHUS_HOWTO
     valueFrom:
       secretKeyRef:
@@ -134,30 +129,25 @@ config:
     - name: Vault
       id: bacchus-vault
       redirectURIs:
-        - https://vault.internal.bacchus.io/ui/vault/auth/oidc/oidc/callback
-        - https://vault-any.internal.bacchus.io/ui/vault/auth/oidc/oidc/callback
+        - https://vault.snucse.org/ui/vault/auth/oidc/oidc/callback
+        - https://vault-any.snucse.org/ui/vault/auth/oidc/oidc/callback
         - http://localhost:8250/oidc/callback
       secretEnv: DEX_CLIENT_BACCHUS_VAULT
     - name: ArgoCD
       id: bacchus-argocd
       redirectURIs:
-        - https://argocd.internal.bacchus.io/auth/callback
+        - https://argocd.snucse.org/auth/callback
       secretEnv: DEX_CLIENT_BACCHUS_ARGOCD
     - name: Grafana
       id: bacchus-grafana
       redirectURIs:
-        - https://dashboard.internal.bacchus.io/login/generic_oauth
+        - https://dashboard.snucse.org/login/generic_oauth
       secretEnv: DEX_CLIENT_BACCHUS_GRAFANA
     - name: Bacchus SGS Dashboard
       id: bacchus-sgs-monitoring
       redirectURIs:
         - https://sgs-dashboard.snucse.org/login/generic_oauth
       secretEnv: DEX_CLIENT_BACCHUS_SGS_DASHBOARD
-    - name: Bacchus VPN
-      id: bacchus-vpn
-      redirectURIs:
-        - https://vpn.bacchus.io/callback
-      secretEnv: DEX_CLIENT_BACCHUS_VPN
     - name: Bacchus Howto
       id: bacchus-howto
       redirectURIs:

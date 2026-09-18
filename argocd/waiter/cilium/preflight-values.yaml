@@ -8,5 +8,5 @@ agent: false
 operator:
   enabled: false
 
-k8sServiceHost: localhost
-k8sServicePort: 7445
+k8sServiceHost: waiter.snucse.org
+k8sServicePort: 6443

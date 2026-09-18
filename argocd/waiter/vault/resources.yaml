@@ -7,10 +7,10 @@ metadata:
 spec:
   parentRefs:
     - namespace: cilium-system
-      name: internal-web-gateway
+      name: web-gateway
       sectionName: https-bacchus-io
   hostnames:
-    - vault.internal.bacchus.io
+    - vault.snucse.org
   rules:
     - backendRefs:
         - name: vault-active
@@ -27,10 +27,10 @@ metadata:
 spec:
   parentRefs:
     - namespace: cilium-system
-      name: internal-web-gateway
+      name: web-gateway
       sectionName: https-bacchus-io
   hostnames:
-    - vault-any.internal.bacchus.io
+    - vault-any.snucse.org
   rules:
     - backendRefs:
         - name: vault-ui
