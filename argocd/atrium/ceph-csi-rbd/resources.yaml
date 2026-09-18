@@ -10,3 +10,30 @@ parameters:
   pool: kubernetes
   csi.storage.k8s.io/snapshotter-secret-namespace: ceph-csi-rbd
   csi.storage.k8s.io/snapshotter-secret-name:  csi-rbd-secret
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  namespace: ceph-csi-rbd
+  name: default
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: vault-secrets-operator
+    serviceAccount: default
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  namespace: ceph-csi-rbd
+  name: csi-rbd-secret
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: ceph-csi-rbd/csi-rbd-secret
+  destination:
+    create: true
+    overwrite: true
+    name: csi-rbd-secret
