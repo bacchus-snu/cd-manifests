@@ -4,6 +4,8 @@ kind: Application
 metadata:
   namespace: argocd
   name: top-level
+  annotations:
+    argocd.argoproj.io/compare-options: ServerSideDiff=true
 spec:
   project: infra
   destination:
