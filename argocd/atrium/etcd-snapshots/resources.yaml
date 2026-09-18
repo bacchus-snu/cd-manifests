@@ -1,0 +1,113 @@
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: default
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: vault-secrets-operator
+    serviceAccount: default
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: etcd-snapshots-pbs
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: kube-system/etcd-snapshots/pbs
+  destination:
+    create: true
+    name: etcd-snapshots-pbs
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: etcd-snapshots
+spec:
+  schedule: '@daily'
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          hostNetwork: true
+          nodeSelector:
+            node-role.kubernetes.io/control-plane: ""
+          tolerations:
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+              effect: NoSchedule
+          volumes:
+            - name: tmp
+              emptyDir: {}
+            - name: scratch
+              emptyDir: {}
+            - name: etcd-pki
+              hostPath:
+                path: /etc/kubernetes/pki/etcd
+                type: Directory
+          initContainers:
+            - name: create-etcd-snapshot
+              image: registry.k8s.io/etcd:3.6.8-0
+              command:
+                - etcdctl
+                - --endpoints=https://127.0.0.1:2379
+                - --cacert=/etc/kubernetes/pki/etcd/ca.crt
+                - --cert=/etc/kubernetes/pki/etcd/healthcheck-client.crt
+                - --key=/etc/kubernetes/pki/etcd/healthcheck-client.key
+                - snapshot
+                - save
+                - /scratch/etcd.snapshot
+              volumeMounts:
+                - name: etcd-pki
+                  mountPath: /etc/kubernetes/pki/etcd
+                  readOnly: true
+                - name: scratch
+                  mountPath: /scratch
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  memory: 256Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                runAsUser: 0
+                seccompProfile:
+                  type: RuntimeDefault
+          containers:
+            - name: backup
+              image: ghcr.io/bacchus-snu/images/proxmox-backup-client:5575324
+              envFrom:
+                - secretRef:
+                    name: etcd-snapshots-pbs
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+                - name: scratch
+                  mountPath: /scratch
+                  readOnly: true
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 1Gi
+                limits:
+                  memory: 1Gi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                runAsUser: 0
+                seccompProfile:
+                  type: RuntimeDefault
+              args: ['backup', '--ns=atrium', '--backup-id=etcd', '--backup-type=ct', 'etcd.pxar:/scratch']
