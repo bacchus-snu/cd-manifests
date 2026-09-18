@@ -11,10 +11,9 @@ spec:
   destination:
     name: in-cluster
     namespace: vault-secrets-operator
-  # syncPolicy:
-  #   automated:
-  #     prune: true
-  #     selfHeal: true
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
   sources:
     - repoURL: https://helm.releases.hashicorp.com
       targetRevision: 1.5.1

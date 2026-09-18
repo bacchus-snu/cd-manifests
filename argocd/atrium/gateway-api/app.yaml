@@ -11,10 +11,9 @@ spec:
   destination:
     name: in-cluster
     namespace: gateway-system
-  #syncPolicy:
-  #  automated:
-  #    prune: true
-  #    selfHeal: true
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true
   sources:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main

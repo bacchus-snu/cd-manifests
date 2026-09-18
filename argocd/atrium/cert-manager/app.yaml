@@ -11,6 +11,10 @@ spec:
   destination:
     name: in-cluster
     namespace: cert-manager
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
   sources:
     - repoURL: https://charts.jetstack.io
       targetRevision: v1.21.2
