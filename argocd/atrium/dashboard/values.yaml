@@ -19,7 +19,6 @@ prometheus:
 
 alertmanager:
   enableFeatures:
-    - auto-gomaxprocs
     - auto-gomemlimit
   alertmanagerSpec:
     externalUrl: https://dashboard.bacchus.io/alertmanager
