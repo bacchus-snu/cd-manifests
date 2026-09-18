@@ -11,10 +11,9 @@ spec:
   destination:
     name: in-cluster
     namespace: atrium-docs
-  # syncPolicy:
-  #   automated:
-  #     prune: true
-  #     selfHeal: true
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
   sources:
     - repoURL: ghcr.io/bacchus-snu
       targetRevision: '20250216'
