@@ -140,6 +140,7 @@ spec:
   destination:
     create: true
     name: bacchus-sgs-db-creds
+    type: kubernetes.io/basic-auth
 ---
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
@@ -205,7 +206,7 @@ spec:
                       key: password
                       name: bacchus-sgs-db-creds
                 - name: PGHOST
-                  value: bacchus-sgs-postgresql
+                  value: bacchus-sgs-db-rw
                 - name: PGPORT
                   value: '5432'
               resources:
