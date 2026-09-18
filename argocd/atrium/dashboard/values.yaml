@@ -43,6 +43,9 @@ alertmanager:
               storage: 10Gi
 
 grafana:
+  admin:
+    existingSecret: grafana-admin
+
   imageRenderer:
     grafanaProtocol: https
 

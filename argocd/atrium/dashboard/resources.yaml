@@ -72,6 +72,20 @@ apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
 metadata:
   namespace: dashboard
+  name: grafana-admin
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: dashboard/grafana/admin
+  destination:
+    create: true
+    name: grafana-admin
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  namespace: dashboard
   name: dashboard-alertmanager-discord
 spec:
   vaultAuthRef: default
