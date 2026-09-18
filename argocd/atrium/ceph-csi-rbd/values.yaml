@@ -1,3 +1,6 @@
+provisioner:
+  replicaCount: 2
+
 csiConfig:
   - clusterID: c3e392bd-8ab1-44b3-ab97-9b964c28bf18
     monitors:

@@ -20,7 +20,7 @@ spec:
       path: argocd/atrium/bacchus-howto
       kustomize: {}
     - repoURL: https://oauth2-proxy.github.io/manifests
-      targetRevision: 7.14.1
+      targetRevision: 10.7.0
       chart: oauth2-proxy
       helm:
         valueFiles:

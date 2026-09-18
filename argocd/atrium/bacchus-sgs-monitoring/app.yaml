@@ -20,7 +20,7 @@ spec:
       path: argocd/atrium/bacchus-sgs-monitoring
       kustomize: {}
     - repoURL: https://grafana.github.io/helm-charts
-      targetRevision: 9.2.10
+      targetRevision: 10.5.15
       chart: grafana
       helm:
         valueFiles:
