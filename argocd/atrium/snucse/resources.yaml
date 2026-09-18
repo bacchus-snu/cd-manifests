@@ -125,10 +125,10 @@ spec:
                 - name: MYSQL_PWD
                   valueFrom:
                     secretKeyRef:
-                      key: mysql-root-password
+                      key: rootPassword
                       name: db-pw
                 - name: MYSQL_HOST
-                  value: snucse-mysql
+                  value: snucse
                 - name: MYSQL_PORT
                   value: '3306'
               resources:

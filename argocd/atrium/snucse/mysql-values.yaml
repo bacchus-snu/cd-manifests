@@ -3,9 +3,12 @@ serverInstances: 1
 routerInstances: 1
 disableLookups: true
 
+tls:
+  useSelfSigned: true
+
 credentials:
   root:
-    secretName: snucse-mysql-root
+    secretName: db-pw
 
 datadirVolumeClaimTemplate:
   storageClassName: rbd

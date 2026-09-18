@@ -3,6 +3,9 @@ serverInstances: 1
 routerInstances: 1
 disableLookups: true
 
+tls:
+  useSelfSigned: true
+
 credentials:
   root:
     secretName: cloudstack-db
