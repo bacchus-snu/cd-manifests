@@ -46,7 +46,6 @@ spec:
     - filters:
         - type: RequestRedirect
           requestRedirect:
-            scheme: https
             hostname: www.snucse.org
             port: 443
             statusCode: 301
