@@ -19,3 +19,7 @@ spec:
     - repoURL: https://mysql.github.io/mysql-operator/
       targetRevision: 2.3.0
       chart: mysql-operator
+      helm:
+        valuesObject:
+          envs:
+            k8sClusterDomain: cluster.local
