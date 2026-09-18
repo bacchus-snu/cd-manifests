@@ -13,7 +13,7 @@ spec:
   project: infra
   destination:
     name: in-cluster
-    namespace: cilium-system
+    namespace: kube-system
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
