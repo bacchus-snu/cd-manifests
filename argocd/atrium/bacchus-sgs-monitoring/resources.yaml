@@ -34,7 +34,7 @@ metadata:
   name: bacchus-sgs-monitoring-internal
 spec:
   hostnames:
-    - sgs-dashboard.snucse.org
+    - sgs-dashboard.bacchus.io
   parentRefs:
     - namespace: cilium-system
       name: web-gateway

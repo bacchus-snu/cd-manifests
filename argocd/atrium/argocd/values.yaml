@@ -9,7 +9,7 @@ configs:
       clientID: CEqYFMXA6A5SIQvxNdX8CgqBVHKhuxit
       clientSecret: $oidc-auth:clientSecret
       requestedScopes: [openid, profile, email]
-    url: https://argocd.snucse.org
+    url: https://argocd.bacchus.io
   params:
     server.insecure: true
   rbac:

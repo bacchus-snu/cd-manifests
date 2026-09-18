@@ -1,6 +1,6 @@
 prometheus:
   prometheusSpec:
-    externalUrl: https://dashboard.snucse.org/prometheus
+    externalUrl: https://dashboard.bacchus.io/prometheus
     resources:
       requests:
         cpu: 1000m
@@ -22,7 +22,7 @@ alertmanager:
     - auto-gomaxprocs
     - auto-gomemlimit
   alertmanagerSpec:
-    externalUrl: https://dashboard.snucse.org/alertmanager
+    externalUrl: https://dashboard.bacchus.io/alertmanager
     alertmanagerConfigSelector:
       matchLabels:
         release: dashboard
@@ -49,7 +49,7 @@ grafana:
 
   grafana.ini:
     server:
-      domain: dashboard.snucse.org
+      domain: dashboard.bacchus.io
       root_url: "https://%(domain)s"
 
     auth:
