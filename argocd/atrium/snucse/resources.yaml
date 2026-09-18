@@ -183,3 +183,179 @@ spec:
               args: ['backup', '--ns=atrium', '--backup-id=snucse', '--backup-type=ct', 'pgdump.pxar:/scratch']
           securityContext:
             fsGroup: 1337
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: files-backup
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: files-backup
+rules:
+  - apiGroups: ['snapshot.storage.k8s.io']
+    resources: ['volumesnapshots']
+    verbs: ['create', 'delete', 'get', 'list', 'watch']
+  - apiGroups: ['']
+    resources: ['persistentvolumeclaims']
+    verbs: ['create', 'delete', 'get', 'list', 'watch']
+  - apiGroups: ['batch']
+    resources: ['jobs']
+    verbs: ['create', 'delete', 'get', 'list', 'watch']
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: files-backup
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: files-backup
+subjects:
+  - kind: ServiceAccount
+    name: files-backup
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: snucse-files-backup
+spec:
+  schedule: '@daily'
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          serviceAccountName: files-backup
+          containers:
+            - name: orchestrate
+              image: registry.k8s.io/kubectl:v1.36.4
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                runAsNonRoot: true
+                runAsUser: 1000
+                seccompProfile:
+                  type: RuntimeDefault
+              args:
+                - /bin/sh
+                - -c
+                - |
+                    set -euo pipefail
+                    tag=$(date -u +%Y%m%d%H%M%S)
+                    trap 'kubectl delete --ignore-not-found --wait=false \
+                      job/files-$tag pvc/files-$tag-attachment pvc/files-$tag-uploads \
+                      volumesnapshot/files-$tag-attachment volumesnapshot/files-$tag-uploads' EXIT
+
+                    for v in attachment uploads; do
+                      kubectl create -f - <<YAML
+                    apiVersion: snapshot.storage.k8s.io/v1
+                    kind: VolumeSnapshot
+                    metadata:
+                      name: files-$tag-$v
+                    spec:
+                      volumeSnapshotClassName: rbd
+                      source:
+                        persistentVolumeClaimName: $v-snucse-back-0
+                    YAML
+                    done
+                    kubectl wait --for=jsonpath='{.status.readyToUse}'=true --timeout=10m \
+                      volumesnapshot/files-$tag-attachment volumesnapshot/files-$tag-uploads
+
+                    kubectl create -f - <<YAML
+                    apiVersion: v1
+                    kind: PersistentVolumeClaim
+                    metadata:
+                      name: files-$tag-attachment
+                    spec:
+                      storageClassName: rbd
+                      accessModes: [ReadWriteOnce]
+                      resources:
+                        requests:
+                          storage: 128Gi
+                      dataSource:
+                        apiGroup: snapshot.storage.k8s.io
+                        kind: VolumeSnapshot
+                        name: files-$tag-attachment
+                    ---
+                    apiVersion: v1
+                    kind: PersistentVolumeClaim
+                    metadata:
+                      name: files-$tag-uploads
+                    spec:
+                      storageClassName: rbd
+                      accessModes: [ReadWriteOnce]
+                      resources:
+                        requests:
+                          storage: 1Gi
+                      dataSource:
+                        apiGroup: snapshot.storage.k8s.io
+                        kind: VolumeSnapshot
+                        name: files-$tag-uploads
+                    ---
+                    apiVersion: batch/v1
+                    kind: Job
+                    metadata:
+                      name: files-$tag
+                    spec:
+                      backoffLimit: 1
+                      template:
+                        spec:
+                          restartPolicy: Never
+                          volumes:
+                            - name: tmp
+                              emptyDir: {}
+                            - name: attachment
+                              persistentVolumeClaim:
+                                claimName: files-$tag-attachment
+                            - name: uploads
+                              persistentVolumeClaim:
+                                claimName: files-$tag-uploads
+                          containers:
+                            - name: backup
+                              image: ghcr.io/bacchus-snu/images/proxmox-backup-client:5575324
+                              envFrom:
+                                - secretRef:
+                                    name: snucse-pbs
+                              volumeMounts:
+                                - name: tmp
+                                  mountPath: /tmp
+                                - name: attachment
+                                  mountPath: /data/attachment
+                                  readOnly: true
+                                - name: uploads
+                                  mountPath: /data/user
+                                  readOnly: true
+                              resources:
+                                requests:
+                                  cpu: 500m
+                                  memory: 2Gi
+                                limits:
+                                  memory: 2Gi
+                              securityContext:
+                                runAsUser: 0
+                                allowPrivilegeEscalation: false
+                                capabilities:
+                                  drop:
+                                    - ALL
+                                seccompProfile:
+                                  type: RuntimeDefault
+                              args:
+                                - backup
+                                - --ns=atrium
+                                - --backup-id=snucse-files
+                                - --backup-type=ct
+                                - attachment.pxar:/data/attachment
+                                - user.pxar:/data/user
+                    YAML
+                    kubectl wait --for=condition=complete --timeout=6h job/files-$tag
