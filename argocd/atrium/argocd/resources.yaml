@@ -70,15 +70,15 @@ apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
 metadata:
   namespace: argocd
-  name: dex-auth
+  name: oidc-auth
 spec:
   vaultAuthRef: default
   type: kv-v2
   mount: secret
-  path: argocd/dex-auth
+  path: argocd/oidc-auth
   destination:
     create: true
-    name: dex-auth
+    name: oidc-auth
     labels:
       app.kubernetes.io/part-of: argocd
 ---

@@ -4,14 +4,16 @@ configs:
   cm:
     admin.enabled: false
     oidc.config: |
-      name: Bacchus Dex
-      issuer: https://auth.bacchus.io/dex
-      clientID: bacchus-argocd
-      clientSecret: $dex-auth:secret
+      name: Bacchus
+      issuer: https://dev-1p1l3bz6kxwkga5k.us.auth0.com/
+      clientID: CEqYFMXA6A5SIQvxNdX8CgqBVHKhuxit
+      clientSecret: $oidc-auth:clientSecret
+      requestedScopes: [openid, profile, email]
     url: https://argocd.snucse.org
   params:
     server.insecure: true
   rbac:
+    scopes: '[https://bacchus.io/groups]'
     policy.csv: |
       g, regular-members@bacchus.snucse.org, role:admin
     policy.default: role:readonly

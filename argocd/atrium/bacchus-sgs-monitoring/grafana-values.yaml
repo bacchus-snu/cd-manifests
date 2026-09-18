@@ -59,21 +59,18 @@ grafana.ini:
   auth.generic_oauth:
     enabled: true
     allow_sign_up: true
-    client_id: bacchus-sgs-monitoring
-    client_secret: '$__file{/etc/secrets/dex-auth/secret}'
-    scopes: openid email profile groups
-    api_url: https://auth.bacchus.io/dex/userinfo
-    auth_url: https://auth.bacchus.io/dex/auth
-    token_url: https://auth.bacchus.io/dex/token
-    # dex does not include indirect groups, we must enumerate every group
+    client_id: sZxN8QtYpE24IxwAdYTpM4HwxZTgOQYW
+    client_secret: '$__file{/etc/secrets/oidc-auth/secret}'
+    scopes: openid email profile
+    api_url: https://dev-1p1l3bz6kxwkga5k.us.auth0.com/userinfo
+    auth_url: https://dev-1p1l3bz6kxwkga5k.us.auth0.com/authorize
+    token_url: https://dev-1p1l3bz6kxwkga5k.us.auth0.com/oauth/token
     role_attribute_path: >
-      contains(groups[*], 'regular-members@bacchus.snucse.org') && 'Editor' ||
-      contains(groups[*], 'intern-members@bacchus.snucse.org') && 'Viewer' ||
-      contains(groups[*], 'suspended-members@bacchus.snucse.org') && 'Viewer' ||
-      contains(groups[*], 'alumni-members@bacchus.snucse.org') && 'Viewer'
+      contains("https://bacchus.io/groups"[*], 'regular-members@bacchus.snucse.org') && 'Editor' ||
+      contains("https://bacchus.io/groups"[*], 'alumni-members@bacchus.snucse.org') && 'Viewer'
 
 extraSecretMounts:
-  - name: dex-auth
+  - name: oidc-auth
     secretName: bacchus-sgs-monitoring
-    mountPath: /etc/secrets/dex-auth
+    mountPath: /etc/secrets/oidc-auth
     readOnly: true

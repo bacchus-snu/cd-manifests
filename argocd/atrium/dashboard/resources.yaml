@@ -58,15 +58,15 @@ apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
 metadata:
   namespace: dashboard
-  name: dex-auth
+  name: oidc-auth
 spec:
   vaultAuthRef: default
   type: kv-v2
   mount: secret
-  path: dashboard/grafana/dex-auth
+  path: dashboard/grafana/oidc-auth
   destination:
     create: true
-    name: dex-auth
+    name: oidc-auth
 ---
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret

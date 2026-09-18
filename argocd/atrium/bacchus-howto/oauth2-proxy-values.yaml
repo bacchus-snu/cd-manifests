@@ -4,9 +4,9 @@ config:
     upstreams = ["http://bacchus-howto.bacchus-howto.svc.cluster.local"]
 extraArgs:
   - --provider=oidc
-  - --provider-display-name=Bacchus Dex
+  - --provider-display-name=Bacchus
   - --redirect-url=https://howto.bacchus.io/oauth2/callback
-  - --oidc-issuer-url=https://auth.bacchus.io/dex
+  - --oidc-issuer-url=https://dev-1p1l3bz6kxwkga5k.us.auth0.com/
   - --email-domain=bacchus.snucse.org
   - --skip-provider-button
   - --approval-prompt=auto
