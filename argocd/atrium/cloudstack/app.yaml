@@ -27,4 +27,3 @@ spec:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       path: argocd/atrium/cloudstack
-      kustomize: {}

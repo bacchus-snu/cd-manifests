@@ -18,7 +18,6 @@ spec:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       path: argocd/atrium/bacchus-howto
-      kustomize: {}
     - repoURL: https://oauth2-proxy.github.io/manifests
       targetRevision: 10.7.0
       chart: oauth2-proxy

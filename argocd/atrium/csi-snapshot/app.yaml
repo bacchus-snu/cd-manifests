@@ -20,8 +20,6 @@ spec:
     - repoURL: https://github.com/kubernetes-csi/external-snapshotter.git
       targetRevision: v8.6.0
       path: client/config/crd
-      kustomize: {}
     - repoURL: https://github.com/kubernetes-csi/external-snapshotter.git
       targetRevision: v8.6.0
       path: deploy/kubernetes/snapshot-controller
-      kustomize: {}

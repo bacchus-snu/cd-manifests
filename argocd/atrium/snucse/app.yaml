@@ -26,7 +26,6 @@ spec:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       path: argocd/atrium/snucse
-      kustomize: {}
     - repoURL: https://valkey.io/valkey-helm/
       targetRevision: 0.12.0
       chart: valkey
