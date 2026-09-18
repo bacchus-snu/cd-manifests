@@ -1,5 +1,5 @@
 ---
-apiVersion: gateway.networking.k8s.io/v1beta1
+apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   namespace: vault
@@ -19,7 +19,7 @@ spec:
 # In case of vault failure (all replicas down/sealed) and Dex failure
 # We may not have easy access to the Kubernetes API externally before Vault becomes ready again.
 # This host allows administrators to access the Vault UI to unseal at least one replica.
-apiVersion: gateway.networking.k8s.io/v1beta1
+apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   namespace: vault
