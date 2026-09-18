@@ -15,4 +15,4 @@ labels:
 images:
   - name: snucse-back
     newName: ghcr.io/bacchus-snu/snucse-api
-    newTag: v3.1.7
+    newTag: v3.1.8
