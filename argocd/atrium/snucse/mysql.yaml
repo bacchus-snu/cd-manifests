@@ -20,9 +20,6 @@ spec:
   router:
     instances: 1
     version: 8.4.10
-  mycnf: |
-    [mysqld]
-    mysql_native_password=ON
   datadirVolumeClaimTemplate:
     storageClassName: rbd
     accessModes: [ReadWriteOnce]
