@@ -1,4 +1,5 @@
 resources:
+  - mysql.yaml
   - resources.yaml
   - front
   - back

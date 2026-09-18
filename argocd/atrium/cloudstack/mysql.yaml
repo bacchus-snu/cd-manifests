@@ -1,0 +1,35 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: cloudstack
+  name: cloudstack-mysql-sa
+---
+apiVersion: mysql.oracle.com/v2
+kind: InnoDBCluster
+metadata:
+  namespace: cloudstack
+  name: cloudstack-mysql
+spec:
+  version: 8.4.12
+  instances: 1
+  baseServerId: 1000
+  secretName: cloudstack-db
+  serviceAccountName: cloudstack-mysql-sa
+  tlsUseSelfSigned: true
+  router:
+    instances: 1
+    version: 8.4.10
+  mycnf: |
+    [mysqld]
+    innodb-rollback-on-timeout=1
+    innodb-lock-wait-timeout=600
+    max-connections=350
+    log-bin=mysql-bin
+    binlog-format=ROW
+  datadirVolumeClaimTemplate:
+    storageClassName: rbd
+    accessModes: [ReadWriteOnce]
+    resources:
+      requests:
+        storage: 20Gi

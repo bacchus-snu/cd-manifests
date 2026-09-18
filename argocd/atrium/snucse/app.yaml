@@ -27,13 +27,6 @@ spec:
       targetRevision: main
       path: argocd/atrium/snucse
       kustomize: {}
-    # mysql
-    - repoURL: https://mysql.github.io/mysql-operator/
-      targetRevision: 2.3.0
-      chart: mysql-innodbcluster
-      helm:
-        valueFiles:
-          - $values/argocd/atrium/snucse/mysql-values.yaml
     - repoURL: https://valkey.io/valkey-helm/
       targetRevision: 0.12.0
       chart: valkey

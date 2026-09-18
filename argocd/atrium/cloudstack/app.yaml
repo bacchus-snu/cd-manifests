@@ -28,12 +28,3 @@ spec:
       targetRevision: main
       path: argocd/atrium/cloudstack
       kustomize: {}
-    - repoURL: https://mysql.github.io/mysql-operator/
-      targetRevision: 2.3.0
-      chart: mysql-innodbcluster
-      helm:
-        valueFiles:
-          - $values/argocd/atrium/cloudstack/mysql-values.yaml
-    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
-      targetRevision: main
-      ref: values
