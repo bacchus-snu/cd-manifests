@@ -1,3 +1,5 @@
+fullnameOverride: atrium-docs
+
 resources:
   requests:
     cpu: 100m
