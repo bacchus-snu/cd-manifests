@@ -111,6 +111,7 @@ spec:
   path: argocd/argocd-secret
   destination:
     create: true
+    overwrite: true
     name: argocd-secret
     labels:
       app.kubernetes.io/part-of: argocd
