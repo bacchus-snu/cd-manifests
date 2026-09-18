@@ -12,7 +12,7 @@ credentials:
 
 datadirVolumeClaimTemplate:
   storageClassName: rbd
-  accessModes: [ReadWriteOnce]
+  accessModes: ReadWriteOnce
   resources:
     requests:
       storage: 20Gi
