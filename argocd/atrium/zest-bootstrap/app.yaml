@@ -3,21 +3,20 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   namespace: argocd
-  name: sommelier-bacchus-rbac
+  name: zest-bootstrap
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: sommelier
+  project: default
   destination:
-    name: sommelier
-    namespace: default
-  # syncPolicy:
-  #   automated:
-  #     prune: true
-  #     selfHeal: true
+    name: in-cluster
+    namespace: zest-bootstrap
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
   sources:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
-      path: argocd/sommelier/bacchus-rbac
+      path: argocd/atrium/zest-bootstrap
       directory:
         include: 'resources.yaml'

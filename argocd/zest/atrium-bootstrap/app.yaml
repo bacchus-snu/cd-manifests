@@ -3,19 +3,21 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   namespace: argocd
-  name: sommelier-http-proxy
+  name: zest-atrium-bootstrap
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: sommelier
+  project: zest
   destination:
-    name: sommelier
-    namespace: http-proxy
+    name: zest
+    namespace: default
   syncPolicy:
-    syncOptions:
-      - CreateNamespace=true
+    #automated:
+    #  prune: true
+    #  selfHeal: true
   sources:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
-      path: argocd/sommelier/http-proxy
-      kustomize: {}
+      path: argocd/zest/atrium-bootstrap
+      directory:
+        include: 'resources.yaml'

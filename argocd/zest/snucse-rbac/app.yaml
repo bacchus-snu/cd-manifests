@@ -3,21 +3,21 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   namespace: argocd
-  name: sommelier-waiter-bootstrap
+  name: zest-snucse-rbac
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: sommelier
+  project: zest
   destination:
-    name: sommelier
+    name: zest
     namespace: default
-  syncPolicy:
-    #automated:
-    #  prune: true
-    #  selfHeal: true
+  # syncPolicy:
+  #   automated:
+  #     prune: true
+  #     selfHeal: true
   sources:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
-      path: argocd/sommelier/waiter-bootstrap
+      path: argocd/zest/snucse-rbac
       directory:
         include: 'resources.yaml'

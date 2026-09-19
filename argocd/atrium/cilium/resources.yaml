@@ -75,6 +75,17 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
+    - name: tls-zest-snucse-org
+      protocol: TLS
+      port: 443
+      hostname: "zest.snucse.org"
+      tls:
+        mode: Passthrough
+      allowedRoutes:
+        namespaces:
+          from: All
+        kinds:
+          - kind: TLSRoute
     - name: https-bacchus-io
       protocol: HTTPS
       port: 443

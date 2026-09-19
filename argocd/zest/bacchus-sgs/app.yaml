@@ -3,13 +3,13 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   namespace: argocd
-  name: sommelier-bacchus-sgs
+  name: zest-bacchus-sgs
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: sommelier
+  project: zest
   destination:
-    name: sommelier
+    name: zest
     namespace: bacchus-sgs
   syncPolicy:
     syncOptions:
@@ -33,7 +33,7 @@ spec:
   sources:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
-      path: argocd/sommelier/bacchus-sgs
+      path: argocd/zest/bacchus-sgs
       directory:
         include: 'resources.yaml'
     - repoURL: https://nvidia.github.io/dcgm-exporter/helm-charts

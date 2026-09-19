@@ -3,14 +3,14 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   namespace: argocd
-  name: sommelier-nvidia-device-plugin
+  name: zest-openebs
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: sommelier
+  project: zest
   destination:
-    name: sommelier
-    namespace: nvidia-device-plugin
+    name: zest
+    namespace: openebs
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
@@ -23,19 +23,12 @@ spec:
         pod-security.kubernetes.io/audit: privileged
         pod-security.kubernetes.io/audit-version: v1.29
   sources:
-    - repoURL: https://nvidia.github.io/k8s-device-plugin
-      targetRevision: 0.17.1
-      chart: nvidia-device-plugin
+    - repoURL: https://openebs.github.io/openebs
+      targetRevision: 4.4.0
+      chart: openebs
       helm:
-        values: |
-          runtimeClassName: nvidia
-          gfd:
-            enabled: true
-          # strictly follow resource request/limits
-          compatWithCPUManager: true
-          deviceListStrategy: volume-mounts
+        valueFiles:
+          - $values/argocd/zest/openebs/values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
-      path: argocd/sommelier/nvidia-device-plugin
-      directory:
-        include: 'resources.yaml'
+      ref: values

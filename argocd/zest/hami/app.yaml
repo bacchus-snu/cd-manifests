@@ -2,12 +2,12 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: sommelier-hami
+  name: zest-hami
   namespace: argocd
 spec:
-  project: sommelier
+  project: zest
   destination:
-    name: sommelier
+    name: zest
     namespace: kube-system
   syncPolicy:
     automated:
@@ -28,7 +28,7 @@ spec:
       chart: hami
       helm:
         valueFiles:
-          - $values/argocd/sommelier/hami/values.yaml
+          - $values/argocd/zest/hami/values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: HEAD
       ref: values

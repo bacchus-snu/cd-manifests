@@ -1,0 +1,101 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  namespace: argocd
+  name: zest
+spec:
+  destinations:
+    - name: in-cluster
+      namespace: '*'
+      server: https://kubernetes.default.svc
+    - name: zest
+      namespace: '*'
+      server: https://zest-apiserver.zest-bootstrap.svc:6443
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  sourceRepos:
+    - '*'
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  namespace: argocd
+  name: argocd-clusters-zest
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: argocd/clusters/zest
+  destination:
+    create: true
+    name: argocd-clusters-zest
+    labels:
+      argocd.argoproj.io/secret-type: cluster
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: zest-top-level
+spec:
+  project: zest
+  destination:
+    name: in-cluster
+    namespace: argocd
+  source:
+    repoURL: https://github.com/bacchus-snu/cd-manifests.git
+    targetRevision: main
+    path: argocd/zest
+    directory:
+      recurse: true
+      include: '*/app.yaml'
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zest-apiserver
+spec:
+  ports:
+    - name: https
+      port: 6443
+      targetPort: 6443
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: zest-apiserver
+  labels:
+    kubernetes.io/service-name: zest-apiserver
+addressType: IPv4
+ports:
+  - name: https
+    port: 6443
+    protocol: TCP
+endpoints:
+  - addresses:
+      - 147.46.91.26
+  - addresses:
+      - 147.46.91.46
+  - addresses:
+      - 147.46.91.49
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: TLSRoute
+metadata:
+  name: zest-apiserver
+spec:
+  parentRefs:
+    - namespace: cilium-system
+      name: web-gateway
+      sectionName: tls-zest-snucse-org
+  hostnames:
+    - zest.snucse.org
+  rules:
+    - backendRefs:
+        - name: zest-apiserver
+          port: 6443

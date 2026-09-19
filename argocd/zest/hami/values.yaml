@@ -1,4 +1,3 @@
-# HAMi Configuration (Shared between Cocktail and Sommelier)
 # GPU slicing, resource isolation, and memory oversubscription
 
 scheduler:
