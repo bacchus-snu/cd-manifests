@@ -1,0 +1,39 @@
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: ClusterConfiguration
+kubernetesVersion: v1.36.4
+clusterName: zest
+controlPlaneEndpoint: zest.snucse.org:6443
+networking:
+  podSubnet: 10.244.0.0/16
+  serviceSubnet: 10.96.0.0/12
+  dnsDomain: cluster.local
+proxy:
+  disabled: true
+apiServer:
+  certSANs:
+  - zest.snucse.org
+  - 147.46.91.26
+  - 147.46.91.46
+  - 147.46.91.49
+  - 127.0.0.1
+  - localhost
+  extraArgs:
+  - name: authentication-config
+    value: /etc/kubernetes/auth/config.yaml
+  - name: admission-control-config-file
+    value: /etc/kubernetes/admission/config.yaml
+  - name: enable-admission-plugins
+    value: NodeRestriction,PodNodeSelector,DenyServiceExternalIPs,AlwaysPullImages
+  - name: kubelet-preferred-address-types
+    value: Hostname,InternalIP,ExternalIP
+  extraVolumes:
+  - name: auth-config
+    hostPath: /etc/kubernetes/auth
+    mountPath: /etc/kubernetes/auth
+    readOnly: true
+    pathType: Directory
+  - name: admission-config
+    hostPath: /etc/kubernetes/admission
+    mountPath: /etc/kubernetes/admission
+    readOnly: true
+    pathType: Directory

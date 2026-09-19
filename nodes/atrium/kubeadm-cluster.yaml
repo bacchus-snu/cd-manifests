@@ -1,0 +1,36 @@
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: ClusterConfiguration
+kubernetesVersion: v1.36.4
+clusterName: atrium
+controlPlaneEndpoint: atrium.bacchus.io:6443
+caCertificateValidityPeriod: 87600h0m0s
+certificateValidityPeriod: 8760h0m0s
+certificatesDir: /etc/kubernetes/pki
+encryptionAlgorithm: RSA-2048
+imageRepository: registry.k8s.io
+etcd:
+  local:
+    dataDir: /var/lib/etcd
+networking:
+  podSubnet: 10.244.0.0/16
+  serviceSubnet: 10.96.0.0/12
+  dnsDomain: cluster.local
+proxy:
+  disabled: true
+apiServer:
+  certSANs:
+  - atrium.bacchus.io
+  - 147.46.92.109
+  - 147.46.91.43
+  - 147.46.92.116
+  - 127.0.0.1
+  - localhost
+  extraArgs:
+  - name: authentication-config
+    value: /etc/kubernetes/auth/config.yaml
+  extraVolumes:
+  - name: auth-config
+    hostPath: /etc/kubernetes/auth
+    mountPath: /etc/kubernetes/auth
+    readOnly: true
+    pathType: Directory

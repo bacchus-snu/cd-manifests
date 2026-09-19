@@ -1,0 +1,15 @@
+[Unit]
+Description=Kubernetes host firewall
+DefaultDependencies=no
+Before=network-pre.target kubelet.service
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /etc/k8s-host-firewall.nft
+ExecReload=/usr/sbin/nft -f /etc/k8s-host-firewall.nft
+ExecStop=/usr/sbin/nft delete table inet k8s_host
+
+[Install]
+WantedBy=multi-user.target
