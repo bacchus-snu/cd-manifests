@@ -156,7 +156,7 @@ spec:
       hostPID: true
       initContainers:
         - name: installer
-          image: ghcr.io/bacchus-snu/sgs:latest
+          image: ghcr.io/bacchus-snu/sgs:v1.0.11
           command:
             - sh
             - -c
