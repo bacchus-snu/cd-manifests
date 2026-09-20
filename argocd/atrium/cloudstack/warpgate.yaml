@@ -63,6 +63,8 @@ spec:
       labels:
         app.kubernetes.io/component: bastion
     spec:
+      nodeSelector:
+        cloudstack.snucse.org/overlay-gateway: 'true'
       securityContext:
         runAsUser: 1000
         runAsGroup: 1000
@@ -111,8 +113,12 @@ spec:
                   name: warpgate
                   key: admin_token
           ports:
+            # SSH entry point, bound on the gateway node so clients keep their
+            # own address: Warpgate's login protection blocks by source IP, and
+            # behind a shared address Internet scanners get everyone blocked
             - name: ssh
               containerPort: 2222
+              hostPort: 2222
             - name: https
               containerPort: 8888
           volumeMounts:
@@ -192,31 +198,6 @@ spec:
     - name: https
       port: 8888
       targetPort: https
----
-# SSH entry point: kerkoporta forwards WAN 2222 here. Clients must keep their
-# own address: Warpgate's login protection blocks by source IP, and with the
-# cluster-wide policy every client shares the node's address, so Internet
-# scanners get everyone blocked.
-apiVersion: v1
-kind: Service
-metadata:
-  name: warpgate-ssh
-  labels:
-    # announced from the overlay gateway node (see the cilium app's L2 policies)
-    cloudstack.snucse.org/announce-from: overlay-gateway
-  annotations:
-    lbipam.cilium.io/ips: 10.89.0.36
-spec:
-  type: LoadBalancer
-  externalTrafficPolicy: Local
-  selector:
-    app.kubernetes.io/name: cloudstack-management
-    app.kubernetes.io/instance: cloudstack
-    app.kubernetes.io/component: bastion
-  ports:
-    - name: ssh
-      port: 22
-      targetPort: ssh
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute

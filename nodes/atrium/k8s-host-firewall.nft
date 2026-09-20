@@ -18,13 +18,19 @@ table inet k8s_host {
     elements = { 147.46.92.109, 147.46.91.43, 147.46.92.116, 147.46.92.189, 147.46.92.200, 147.46.91.44, 10.244.0.0/16 }
   }
 
+  set cloudstack_peers {
+    type ipv4_addr
+    elements = { 147.46.240.204, 147.46.240.145, 147.46.241.137, 147.46.240.221 }
+  }
+
   chain input {
     type filter hook input priority filter - 10; policy accept;
     iif lo accept
     meta nfproto ipv6 tcp dport { 2379, 2380, 4240, 4244, 8080, 9100, 9964, 10250 } drop
-    meta nfproto ipv6 udp dport 8472 drop
+    meta nfproto ipv6 udp dport { 4789, 8472 } drop
     tcp dport { 2379, 2380 } ip saddr != @control_planes drop
     tcp dport { 4240, 4244, 8080, 9100, 9964, 10250 } ip saddr != @cluster_sources drop
     udp dport 8472 ip saddr != @nodes drop
+    udp dport 4789 ip saddr != @cloudstack_peers drop
   }
 }
