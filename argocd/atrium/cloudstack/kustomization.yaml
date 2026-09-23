@@ -80,7 +80,7 @@ images:
   - name: alpine
     newTag: '3.21'
   - name: python
-    newTag: 3.13-alpine
+    newTag: 3.14-alpine
   - name: warpgate
     newName: ghcr.io/warp-tech/warpgate
     newTag: 0.28.6
