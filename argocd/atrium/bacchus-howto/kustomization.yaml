@@ -9,4 +9,4 @@ labels:
 
 images:
   - name: caddy
-    newTag: 2.10.2
+    newTag: 2.11.4
