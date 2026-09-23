@@ -83,7 +83,7 @@ images:
     newTag: 3.13-alpine
   - name: warpgate
     newName: ghcr.io/warp-tech/warpgate
-    newTag: 0.28.6
+    newTag: 0.29.1
   - name: nginx
     newTag: 1.27-alpine
   - name: cloudstack-management
