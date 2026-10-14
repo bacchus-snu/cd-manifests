@@ -230,7 +230,7 @@ spec:
           serviceAccountName: files-backup
           containers:
             - name: orchestrate
-              image: registry.k8s.io/kubectl:v1.36.4
+              image: docker.io/alpine/k8s:1.36.4
               resources:
                 requests:
                   cpu: 100m
@@ -246,7 +246,7 @@ spec:
                 runAsUser: 1000
                 seccompProfile:
                   type: RuntimeDefault
-              args:
+              command:
                 - /bin/sh
                 - -c
                 - |
