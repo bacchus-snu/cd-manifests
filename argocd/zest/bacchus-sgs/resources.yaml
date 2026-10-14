@@ -128,3 +128,94 @@ metadata:
   annotations:
     applyset.kubernetes.io/tooling: kubectl/v0.0.0
     applyset.kubernetes.io/contains-group-kinds: ''
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: default-priority
+description: This priority class is for defualt request.
+globalDefault: true
+value: 0
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: lecture-priority
+description: Priority class for lecture
+value: 1000
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: bacchus-sgs
+  name: sgs-gpu-waste-terminator
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  namespace: bacchus-sgs
+  name: sgs-gpu-waste-terminator
+  annotations:
+    kubernetes.io/service-account.name: sgs-gpu-waste-terminator
+type: kubernetes.io/service-account-token
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: sgs-gpu-waste-terminator
+rules:
+  - apiGroups:
+      - ''
+    resources:
+      - pods
+    verbs:
+      - get
+      - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: sgs-gpu-waste-terminator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: sgs-gpu-waste-terminator
+subjects:
+  - kind: ServiceAccount
+    name: sgs-gpu-waste-terminator
+    namespace: bacchus-sgs
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: sgs-deny-workload-controllers
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups:
+          - apps
+        apiVersions:
+          - '*'
+        operations:
+          - CREATE
+        resources:
+          - deployments
+          - statefulsets
+  validations:
+    - expression: 'false'
+      message: Deployments and StatefulSets are not allowed in SGS workspaces.
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: sgs-deny-workload-controllers
+spec:
+  policyName: sgs-deny-workload-controllers
+  validationActions:
+    - Deny
+  matchResources:
+    namespaceSelector:
+      matchExpressions:
+        - key: sgs.snucse.org/id
+          operator: Exists
