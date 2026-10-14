@@ -1,0 +1,32 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: zest-kyverno
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: zest
+  destination:
+    name: zest
+    namespace: kyverno
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+  sources:
+    - repoURL: https://kyverno.github.io/kyverno
+      targetRevision: 3.6.4
+      chart: kyverno
+      helm:
+        valueFiles:
+          - $values/argocd/zest/kyverno/values.yaml
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: main
+      ref: values
+    - repoURL: https://github.com/bacchus-snu/cd-manifests.git
+      targetRevision: main
+      path: argocd/zest/kyverno
+      directory:
+        include: 'resources.yaml'

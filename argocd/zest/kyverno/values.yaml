@@ -1,0 +1,34 @@
+global:
+  nodeSelector:
+    node-role.kubernetes.io/control-plane: ''
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+
+config:
+  webhooks:
+    namespaceSelector:
+      matchLabels:
+        sgs.snucse.org/priority-class: lecture-priority
+
+features:
+  admissionReports:
+    enabled: false
+  aggregateReports:
+    enabled: false
+  policyReports:
+    enabled: false
+  validatingAdmissionPolicyReports:
+    enabled: false
+  backgroundScan:
+    enabled: false
+
+backgroundController:
+  enabled: false
+
+cleanupController:
+  enabled: false
+
+reportsController:
+  enabled: false
