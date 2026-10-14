@@ -1,0 +1,112 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: bacchus-sgs
+  name: sgs-gpu-waste-terminator
+data:
+  query.promql: |
+    (
+      min by (namespace, node, pod) (max_over_time(DCGM_FI_DEV_GPU_UTIL{namespace=~"ws-.*"}[30m])) < 1
+    )
+    and on (namespace, node) ALERTS{alertname="SGSGPUWaste", alertstate="firing"}
+    and on (namespace, pod) kube_pod_status_phase{phase="Running"} == 1
+    and on (namespace, pod) (time() - kube_pod_start_time) > 1800
+  run.sh: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    while true; do
+      curl -fsS "$PROMETHEUS_URL/api/v1/query" --data-urlencode query@/config/query.promql |
+        jq -r '.data.result[].metric | "\(.namespace) \(.pod)"' |
+        while read -r namespace pod; do
+          echo "$(date -Is) delete $namespace/$pod"
+          kubectl delete pod --namespace "$namespace" "$pod" --wait=false --ignore-not-found
+        done
+      sleep 60
+    done
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: bacchus-sgs
+  name: sgs-gpu-waste-terminator
+  labels:
+    app.kubernetes.io/name: sgs-gpu-waste-terminator
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sgs-gpu-waste-terminator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sgs-gpu-waste-terminator
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        fsGroup: 1337
+      volumes:
+        - name: config
+          configMap:
+            name: sgs-gpu-waste-terminator
+        - name: kubeconfig
+          secret:
+            secretName: sgs-gpu-waste-terminator-sommelier-creds
+            defaultMode: 0440
+        - name: tmp
+          emptyDir: {}
+      containers:
+        - name: app
+          image: docker.io/alpine/k8s:1.31.13
+          command:
+            - bash
+            - /config/run.sh
+          env:
+            - name: PROMETHEUS_URL
+              value: http://prometheus-operated:9090
+            - name: KUBECONFIG
+              value: /kubeconfig/kubeconfig
+            - name: HOME
+              value: /tmp
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: kubeconfig
+              mountPath: /kubeconfig
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  namespace: bacchus-sgs
+  name: sgs-gpu-waste-terminator-sommelier-creds
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: bacchus-sgs/gpu-waste-terminator-sommelier-creds
+  destination:
+    create: true
+    name: sgs-gpu-waste-terminator-sommelier-creds

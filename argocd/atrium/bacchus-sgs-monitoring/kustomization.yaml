@@ -1,5 +1,6 @@
 resources:
   - alertmanager.yaml
+  - gpu-waste-terminator.yaml
   - metric-alerting.yaml
   - metric-scraping.yaml
   - prometheus.yaml
