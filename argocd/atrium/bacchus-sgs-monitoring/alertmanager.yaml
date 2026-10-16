@@ -20,7 +20,6 @@ spec:
       memory: 128Mi
   enableFeatures:
     # resources
-    - auto-gomaxprocs
     - auto-gomemlimit
   securityContext:
     fsGroup: 2000
