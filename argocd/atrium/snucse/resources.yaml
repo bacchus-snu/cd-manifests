@@ -230,7 +230,7 @@ spec:
           serviceAccountName: files-backup
           containers:
             - name: orchestrate
-              image: docker.io/alpine/k8s:1.36.5
+              image: docker.io/alpine/k8s:1.37.1
               resources:
                 requests:
                   cpu: 100m
