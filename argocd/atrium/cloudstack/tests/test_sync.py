@@ -66,9 +66,9 @@ class CloseSessionsTest(unittest.TestCase):
     def setUp(self):
         self.calls = []
         sessions = {"items": [
-            {"id": "s1", "username": "bob", "target_id": "t1"},
-            {"id": "s2", "username": "carol", "target_id": "t1"},
-            {"id": "s3", "username": "bob", "target_id": "t2"},
+            {"id": "s1", "username": "bob", "target_sessions": [{"id": "ts1", "target_id": "t1"}]},
+            {"id": "s2", "username": "carol", "target_sessions": [{"id": "ts2", "target_id": "t1"}]},
+            {"id": "s3", "username": "bob", "target_sessions": [{"id": "ts3", "target_id": "t2"}]},
         ], "offset": 0, "total": 3}
 
         def fake(method, path, body=None):

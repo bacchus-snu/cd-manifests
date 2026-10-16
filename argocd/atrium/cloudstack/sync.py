@@ -145,7 +145,7 @@ def close_sessions(target_id, usernames=None):
     alone only stops new logins."""
     sessions = warpgate("GET", "/sessions?active_only=true&limit=1000")[1] or {}
     for s in sessions.get("items", []):
-        if s.get("target_id") != target_id:
+        if not any(t.get("target_id") == target_id and not t.get("ended") for t in s.get("target_sessions", [])):
             continue
         if usernames is not None and s.get("username") not in usernames:
             continue
