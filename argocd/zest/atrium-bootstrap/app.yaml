@@ -11,10 +11,6 @@ spec:
   destination:
     name: zest
     namespace: default
-  syncPolicy:
-    #automated:
-    #  prune: true
-    #  selfHeal: true
   sources:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
