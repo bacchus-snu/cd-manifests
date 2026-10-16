@@ -7,7 +7,7 @@
   "packageRules": [
     {
       "matchPackageNames": ["ghcr.io/bacchus-snu/sgs"],
-      "allowedVersions": "!/^v1\\.0\\.([6-9]|1[01])$/"
+      "allowedVersions": "!/^v1\\.(0\\.([6-9]|1[01])|11\\.0)$/"
     }
   ]
 }
