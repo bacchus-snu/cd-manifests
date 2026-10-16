@@ -11,6 +11,9 @@ spec:
   destination:
     name: in-cluster
     namespace: cloudflared
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
   sources:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
