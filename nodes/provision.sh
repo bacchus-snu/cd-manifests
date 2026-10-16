@@ -24,6 +24,9 @@ apt-get install -y -qq -o Dpkg::Options::=--force-confnew containerd.io >/dev/nu
 apt-mark hold containerd.io >/dev/null
 containerd config default > /etc/containerd/config.toml
 sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
+mkdir -p /etc/systemd/system/containerd.service.d
+printf '[Service]\nLimitNOFILE=infinity\n' > /etc/systemd/system/containerd.service.d/limit-nofile.conf
+systemctl daemon-reload
 systemctl restart containerd
 systemctl enable -q containerd qemu-guest-agent
 systemctl start qemu-guest-agent
