@@ -6,7 +6,7 @@ metadata:
   name: bacchus-sgs-kubelet
 spec:
   kubernetesSDConfigs:
-    - apiServer: https://sommelier.snucse.org:6443
+    - apiServer: https://zest.snucse.org:6443
       tlsConfig:
         ca:
           secret:
@@ -16,26 +16,31 @@ spec:
         credentials:
           name: bacchus-sgs-sommelier-creds
           key: token
-      role: node
+      role: Node
   scheme: HTTPS
   tlsConfig:
     ca:
       secret:
         name: bacchus-sgs-sommelier-creds
         key: ca.crt
-    # NOTE: sketchy af
-    insecureSkipVerify: true
   authorization:
     type: Bearer
     credentials:
       name: bacchus-sgs-sommelier-creds
       key: token
-  metricsPath: /metrics/resource
   relabelings:
-    - action: replace
-      sourceLabels:
-        - instance
+    - sourceLabels:
+        - __meta_kubernetes_node_name
       targetLabel: node
+    - sourceLabels:
+        - __meta_kubernetes_node_name
+      targetLabel: instance
+    - sourceLabels:
+        - __meta_kubernetes_node_name
+      targetLabel: __metrics_path__
+      replacement: /api/v1/nodes/${1}/proxy/metrics/resource
+    - targetLabel: __address__
+      replacement: zest.snucse.org:6443
     - action: replace
       targetLabel: job
       replacement: kubelet
@@ -47,7 +52,7 @@ metadata:
   name: bacchus-sgs-node-exporter
 spec:
   kubernetesSDConfigs:
-    - apiServer: https://sommelier.snucse.org:6443
+    - apiServer: https://zest.snucse.org:6443
       tlsConfig:
         ca:
           secret:
@@ -57,11 +62,21 @@ spec:
         credentials:
           name: bacchus-sgs-sommelier-creds
           key: token
-      role: endpoints
+      role: Endpoints
       namespaces:
         names:
           - bacchus-sgs
-  proxyUrl: http://10.91.0.20:3128
+  scheme: HTTPS
+  tlsConfig:
+    ca:
+      secret:
+        name: bacchus-sgs-sommelier-creds
+        key: ca.crt
+  authorization:
+    type: Bearer
+    credentials:
+      name: bacchus-sgs-sommelier-creds
+      key: token
   relabelings:
     - action: keep
       sourceLabels:
@@ -72,6 +87,18 @@ spec:
     - sourceLabels:
         - __meta_kubernetes_pod_node_name
       targetLabel: node
+    - sourceLabels:
+        - __address__
+      targetLabel: instance
+    - sourceLabels:
+        - __meta_kubernetes_namespace
+        - __meta_kubernetes_pod_name
+        - __address__
+      regex: (.+);(.+);.+:([0-9]+)
+      targetLabel: __metrics_path__
+      replacement: /api/v1/namespaces/${1}/pods/${2}:${3}/proxy/metrics
+    - targetLabel: __address__
+      replacement: zest.snucse.org:6443
     - action: replace
       targetLabel: job
       replacement: node-exporter
@@ -83,7 +110,7 @@ metadata:
   name: bacchus-sgs-kube-state-metrics
 spec:
   kubernetesSDConfigs:
-    - apiServer: https://sommelier.snucse.org:6443
+    - apiServer: https://zest.snucse.org:6443
       tlsConfig:
         ca:
           secret:
@@ -93,11 +120,21 @@ spec:
         credentials:
           name: bacchus-sgs-sommelier-creds
           key: token
-      role: endpoints
+      role: Endpoints
       namespaces:
         names:
           - bacchus-sgs
-  proxyUrl: http://10.91.0.20:3128
+  scheme: HTTPS
+  tlsConfig:
+    ca:
+      secret:
+        name: bacchus-sgs-sommelier-creds
+        key: ca.crt
+  authorization:
+    type: Bearer
+    credentials:
+      name: bacchus-sgs-sommelier-creds
+      key: token
   relabelings:
     - action: keep
       sourceLabels:
@@ -105,6 +142,18 @@ spec:
         - __meta_kubernetes_service_label_app_kubernetes_io_name
         - __meta_kubernetes_endpoint_port_name
       regex: true;kube-state-metrics;http
+    - sourceLabels:
+        - __address__
+      targetLabel: instance
+    - sourceLabels:
+        - __meta_kubernetes_namespace
+        - __meta_kubernetes_pod_name
+        - __address__
+      regex: (.+);(.+);.+:([0-9]+)
+      targetLabel: __metrics_path__
+      replacement: /api/v1/namespaces/${1}/pods/${2}:${3}/proxy/metrics
+    - targetLabel: __address__
+      replacement: zest.snucse.org:6443
     - action: replace
       targetLabel: job
       replacement: kube-state-metrics
@@ -116,7 +165,7 @@ metadata:
   name: bacchus-sgs-dcgm-exporter
 spec:
   kubernetesSDConfigs:
-    - apiServer: https://sommelier.snucse.org:6443
+    - apiServer: https://zest.snucse.org:6443
       tlsConfig:
         ca:
           secret:
@@ -126,11 +175,21 @@ spec:
         credentials:
           name: bacchus-sgs-sommelier-creds
           key: token
-      role: endpoints
+      role: Endpoints
       namespaces:
         names:
           - bacchus-sgs
-  proxyUrl: http://10.91.0.20:3128
+  scheme: HTTPS
+  tlsConfig:
+    ca:
+      secret:
+        name: bacchus-sgs-sommelier-creds
+        key: ca.crt
+  authorization:
+    type: Bearer
+    credentials:
+      name: bacchus-sgs-sommelier-creds
+      key: token
   relabelings:
     - action: keep
       sourceLabels:
@@ -141,6 +200,18 @@ spec:
     - sourceLabels:
         - __meta_kubernetes_pod_node_name
       targetLabel: node
+    - sourceLabels:
+        - __address__
+      targetLabel: instance
+    - sourceLabels:
+        - __meta_kubernetes_namespace
+        - __meta_kubernetes_pod_name
+        - __address__
+      regex: (.+);(.+);.+:([0-9]+)
+      targetLabel: __metrics_path__
+      replacement: /api/v1/namespaces/${1}/pods/${2}:${3}/proxy/metrics
+    - targetLabel: __address__
+      replacement: zest.snucse.org:6443
     - action: replace
       targetLabel: job
       replacement: dcgm-exporter
