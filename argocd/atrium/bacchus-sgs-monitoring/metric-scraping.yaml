@@ -29,6 +29,10 @@ spec:
       name: bacchus-sgs-sommelier-creds
       key: token
   relabelings:
+    - action: drop
+      sourceLabels:
+        - __meta_kubernetes_node_labelpresent_node_role_kubernetes_io_control_plane
+      regex: 'true'
     - sourceLabels:
         - __meta_kubernetes_node_name
       targetLabel: node
