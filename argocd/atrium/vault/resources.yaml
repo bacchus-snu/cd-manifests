@@ -95,7 +95,7 @@ spec:
                         storage: 1Gi
           initContainers:
             - name: create-vault-raft-snapshot
-              image: hashicorp/vault:1.17.2
+              image: hashicorp/vault:2.2.0
               env:
                 - name: VAULT_ADDR
                   value: http://vault-active.vault.svc.cluster.local:8200
