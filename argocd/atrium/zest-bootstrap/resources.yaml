@@ -42,6 +42,8 @@ kind: Application
 metadata:
   namespace: argocd
   name: zest-top-level
+  annotations:
+    argocd.argoproj.io/compare-options: ServerSideDiff=true
 spec:
   project: zest
   destination:
