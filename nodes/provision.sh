@@ -14,19 +14,23 @@ S
 sysctl --system >/dev/null
 swapoff -a || true
 apt-get update -qq
-apt-get install -y -qq containerd qemu-guest-agent apt-transport-https ca-certificates curl gpg nftables >/dev/null
+apt-get install -y -qq qemu-guest-agent apt-transport-https ca-certificates curl gpg nftables >/dev/null
 systemctl disable -q --now nftables.service
-mkdir -p /etc/containerd
+mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+echo 'deb [signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian trixie stable' > /etc/apt/sources.list.d/docker.list
+apt-get update -qq
+apt-get install -y -qq -o Dpkg::Options::=--force-confnew containerd.io >/dev/null
+apt-mark hold containerd.io >/dev/null
 containerd config default > /etc/containerd/config.toml
-sed -i -e 's/SystemdCgroup = false/SystemdCgroup = true/' -e 's|bin_dir = "/usr/lib/cni"|bin_dir = "/opt/cni/bin"|' /etc/containerd/config.toml
+sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
 systemctl restart containerd
 systemctl enable -q containerd qemu-guest-agent
 systemctl start qemu-guest-agent
-mkdir -p /etc/apt/keyrings
 curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.36/deb/Release.key | gpg --dearmor --yes -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.36/deb/ /' > /etc/apt/sources.list.d/kubernetes.list
 apt-get update -qq
-V=$(apt-cache madison kubeadm | awk '$3 ~ /^1\.36\.4-/ {print $3; exit}')
+V=$(apt-cache madison kubeadm | awk '$3 ~ /^1\.36\.5-/ {print $3; exit}')
 apt-get install -y -qq kubelet=$V kubeadm=$V kubectl=$V >/dev/null
 apt-mark hold kubelet kubeadm kubectl >/dev/null
 systemctl enable -q kubelet
