@@ -4,6 +4,9 @@
   "argocd": {
     "managerFilePatterns": ["/^argocd/.*/app\\.yaml$/"]
   },
+  "kubernetes": {
+    "managerFilePatterns": ["/^argocd/.+\\.ya?ml$/"]
+  },
   "packageRules": [
     {
       "matchPackageNames": ["ghcr.io/bacchus-snu/sgs"],
