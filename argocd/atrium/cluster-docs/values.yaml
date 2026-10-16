@@ -1,4 +1,4 @@
-fullnameOverride: atrium-docs
+fullnameOverride: cluster-docs
 
 resources:
   requests:

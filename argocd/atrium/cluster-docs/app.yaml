@@ -3,29 +3,29 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   namespace: argocd
-  name: atrium-docs
+  name: cluster-docs
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   destination:
     name: in-cluster
-    namespace: atrium-docs
+    namespace: cluster-docs
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
   sources:
     - repoURL: ghcr.io/bacchus-snu
-      targetRevision: '20261016'
-      chart: waiter-docs
+      targetRevision: '20261016.1'
+      chart: cluster-docs
       helm:
         valueFiles:
-          - $values/argocd/atrium/atrium-docs/values.yaml
+          - $values/argocd/atrium/cluster-docs/values.yaml
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       ref: values
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
-      path: argocd/atrium/atrium-docs
+      path: argocd/atrium/cluster-docs
       directory:
         include: 'resources.yaml'
