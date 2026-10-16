@@ -13,6 +13,7 @@ encryption:
 
 bpf:
   masquerade: true
+  hostLegacyRouting: true
 
 operator:
   podDisruptionBudget:
