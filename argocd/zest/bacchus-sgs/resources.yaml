@@ -77,6 +77,12 @@ rules:
       - list
       - get
       - watch
+  - apiGroups:
+      - ''
+    resources:
+      - nodes/proxy
+    verbs:
+      - get
   - nonResourceURLs:
       - /metrics
     verbs:
@@ -90,6 +96,33 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: bacchus-sgs
+subjects:
+  - kind: ServiceAccount
+    name: bacchus-sgs
+    namespace: bacchus-sgs
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: bacchus-sgs
+  name: bacchus-sgs-metrics
+rules:
+  - apiGroups:
+      - ''
+    resources:
+      - pods/proxy
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: bacchus-sgs
+  name: bacchus-sgs-metrics
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: bacchus-sgs-metrics
 subjects:
   - kind: ServiceAccount
     name: bacchus-sgs
