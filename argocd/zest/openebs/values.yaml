@@ -21,3 +21,9 @@ localpv-provisioner:
     tolerations:
       - key: node-role.kubernetes.io/control-plane
         operator: Exists
+
+loki:
+  enabled: false
+
+alloy:
+  enabled: false
