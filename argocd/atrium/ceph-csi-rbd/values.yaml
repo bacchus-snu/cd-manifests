@@ -4,7 +4,9 @@ provisioner:
 csiConfig:
   - clusterID: c3e392bd-8ab1-44b3-ab97-9b964c28bf18
     monitors:
+      - 147.46.92.150:6789
       - 147.46.92.166:6789
+      - 147.46.92.170:6789
 
 selinuxMount: false
 
