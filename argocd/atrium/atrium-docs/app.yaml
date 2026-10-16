@@ -16,7 +16,7 @@ spec:
       - CreateNamespace=true
   sources:
     - repoURL: ghcr.io/bacchus-snu
-      targetRevision: '20250216'
+      targetRevision: '20261016'
       chart: waiter-docs
       helm:
         valueFiles:
