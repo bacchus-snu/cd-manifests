@@ -12,6 +12,9 @@ spec:
     name: in-cluster
     namespace: bacchus-howto
   syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true
   sources:

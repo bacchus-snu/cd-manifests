@@ -6,5 +6,5 @@ labels:
       app.kubernetes.io/instance: bacchus-howto
     includeSelectors: true
 images:
-  - name: caddy
-    newTag: 2.11.7
+  - name: ghcr.io/bacchus-snu/howto
+    newTag: 20261016-dfb3b19
