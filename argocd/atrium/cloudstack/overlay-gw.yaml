@@ -6,9 +6,7 @@
 # node's address on that overlay, so replies return on the same overlay instead
 # of through the hosts' gateway. Packets entering the node on the overlay
 # interfaces bypass Cilium's service load balancing, so agent connections are
-# forwarded to the management pod address with a DNAT that follows the pod and
-# are masqueraded to the management address, because Cilium's host routing
-# returns the pod's replies past the connection tracking that would undo the DNAT.
+# forwarded to the management pod address with a DNAT that follows the pod.
 # This node is also the router of the management overlay (its pod gateway):
 # the hypervisors cannot route for their own bridges because the agent's
 # security-group firewall drops routed traffic there, and everything the
@@ -122,7 +120,6 @@ spec:
                 iptables -A overlay-gw -i vx94 -j DROP
                 iptables -t nat -N overlay-gw 2>/dev/null || iptables -t nat -F overlay-gw
                 iptables -t nat -C PREROUTING -i vx93 -j overlay-gw 2>/dev/null || iptables -t nat -A PREROUTING -i vx93 -j overlay-gw
-                iptables -t nat -C POSTROUTING -p tcp -m conntrack --ctstate DNAT --ctorigdst "$MGMT_ADDR" --ctorigdstport 8250 -j SNAT --to-source "$MGMT_ADDR" 2>/dev/null || iptables -t nat -I POSTROUTING 1 -p tcp -m conntrack --ctstate DNAT --ctorigdst "$MGMT_ADDR" --ctorigdstport 8250 -j SNAT --to-source "$MGMT_ADDR"
                 echo "overlays up, management overlay routed via $uplink"; ip -br addr show | grep '^vx'
                 # forward agent connections (management overlay, port 8250) to the management pod
                 cur=""
