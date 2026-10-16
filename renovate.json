@@ -2,6 +2,12 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
   "argocd": {
-    "fileMatch": ["argocd/.*/app.yaml"]
-  }
+    "managerFilePatterns": ["/^argocd/.*/app\\.yaml$/"]
+  },
+  "packageRules": [
+    {
+      "matchPackageNames": ["ghcr.io/bacchus-snu/sgs"],
+      "allowedVersions": "!/^v1\\.0\\.([6-9]|1[01])$/"
+    }
+  ]
 }
