@@ -6,6 +6,8 @@ metadata:
   name: zest-kyverno
   finalizers:
     - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/compare-options: ServerSideDiff=true
 spec:
   project: zest
   destination:
