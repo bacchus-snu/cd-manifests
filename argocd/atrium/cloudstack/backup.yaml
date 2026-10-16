@@ -1,5 +1,4 @@
-# Daily MySQL dump to the Proxmox Backup Server. Not included in
-# kustomization.yaml until the backup server is rebuilt.
+# Daily MySQL dump to the Proxmox Backup Server.
 ---
 # keys: PBS_REPOSITORY, PBS_PASSWORD, PBS_FINGERPRINT (proxmox-backup-client env)
 apiVersion: secrets.hashicorp.com/v1beta1
