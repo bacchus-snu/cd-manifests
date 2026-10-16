@@ -19,5 +19,5 @@ Unified configuration repository for Bacchus-managed clusters.
 │           ├── kustomization.yaml # top-level Kustomization
 │           └── <resource>.yaml    # individual resources
 │
-└── talos/<cluster>                # Talos configuration & patches
+└── nodes/<cluster>                # kubeadm, API authentication and node firewall configuration
 ```

@@ -83,8 +83,8 @@ grafana:
 kubeProxy:
   enabled: false
 
-# Talos binds these services to localhost.
-# We could update the Talos config to allow scraping metrics.
+# kubeadm binds these services to localhost.
+# We could update the kubeadm config to allow scraping metrics.
 kubeScheduler:
   enabled: false
   #service:
