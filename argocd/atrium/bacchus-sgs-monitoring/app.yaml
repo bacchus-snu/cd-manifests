@@ -18,8 +18,8 @@ spec:
     - repoURL: https://github.com/bacchus-snu/cd-manifests.git
       targetRevision: main
       path: argocd/atrium/bacchus-sgs-monitoring
-    - repoURL: https://grafana.github.io/helm-charts
-      targetRevision: 10.5.15
+    - repoURL: https://grafana-community.github.io/helm-charts
+      targetRevision: 14.0.0
       chart: grafana
       helm:
         valueFiles:

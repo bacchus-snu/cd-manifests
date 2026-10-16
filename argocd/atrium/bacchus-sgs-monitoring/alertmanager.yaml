@@ -7,7 +7,7 @@ metadata:
   labels:
     argocd.argoproj.io/instance: bacchus-sgs-monitoring
 spec:
-  version: v0.28.0
+  version: v0.34.1
   alertmanagerConfiguration:
     name: bacchus-sgs-monitoring
   externalUrl: https://sgs-dashboard.bacchus.io/alertmanager

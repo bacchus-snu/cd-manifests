@@ -26,7 +26,7 @@ metadata:
   namespace: bacchus-sgs
   name: bacchus-sgs-prometheus
 spec:
-  version: v3.1.0
+  version: v3.15.0
   scrapeInterval: 1m
   evaluationInterval: 1m
   scrapeConfigSelector:

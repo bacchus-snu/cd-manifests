@@ -60,7 +60,7 @@ spec:
           emptyDir: {}
       containers:
         - name: app
-          image: docker.io/alpine/k8s:1.31.13
+          image: docker.io/alpine/k8s:1.36.5
           command:
             - bash
             - /config/run.sh
