@@ -270,7 +270,7 @@ exec %s -c 'import sys; sys.path.insert(0, sys.argv[1]); exec(compile(sys.stdin.
         self.cfg = f"{self.root}/90-network-fallback.cfg"
         with open(f"{self.root}/hook.sh", "w") as f:
             f.write(sync.render_network_hook(self.MTUS).replace(sync.NETWORK_FALLBACK_CFG, self.cfg)
-                    .replace("/proc/net/route", f"{self.root}/route"))
+                    .replace("/proc/net/route", f"{self.root}/route").replace("time.sleep(1)", "time.sleep(0)"))
 
     def run_hook(self, **state):
         state = {"fallback": self.FALLBACK, "applied": [], "no_activator": False, "drive": f"{self.root}/drive", **state}
@@ -328,6 +328,13 @@ exec %s -c 'import sys; sys.path.insert(0, sys.argv[1]); exec(compile(sys.stdin.
 
     def test_ifup_without_an_activator(self):
         self.run_hook(network_json={}, no_activator=True)
+        self.assertEqual(self.ifup_calls(), ["eth0"])
+
+    def test_ifup_when_activation_leaves_no_route(self):
+        # cloud-init may pick an activator for a network service the guest does not run
+        with open(f"{self.root}/route", "w") as f:
+            f.write("Iface\tDestination\tGateway\n")
+        self.assertEqual(self.run_hook(network_json={}), [[self.with_mtu(1450), True]])
         self.assertEqual(self.ifup_calls(), ["eth0"])
 
     def test_described_network_drops_the_kept_fallback(self):

@@ -438,17 +438,24 @@ except (OSError, ValueError):
     pass
 with open(path, "w") as f:
     json.dump(want, f)
-if distro.apply_network_config(cfg, bring_up=True):
+
+
+def routed(seconds):
+    for _ in range(seconds):
+        with open("/proc/net/route") as f:
+            if any(line.split()[1:2] == ["00000000"] for line in f):
+                return True
+        time.sleep(1)
+    return False
+
+
+if distro.apply_network_config(cfg, bring_up=True) or not routed(30):
     for name in cfg.get("ethernets", {}):
         try:
             subprocess.call(["ifup", name])
         except OSError:
             pass
-for _ in range(60):
-    with open("/proc/net/route") as f:
-        if any(line.split()[1:2] == ["00000000"] for line in f):
-            break
-    time.sleep(1)
+    routed(60)
 print("network: applied cloud-init's fallback " + json.dumps(cfg))
 """
 
@@ -460,9 +467,11 @@ def render_network_hook(mtus):
     fallback; with no description at all, the network's MTU still reaches only
     DHCP clients that ask for it. The hook renders cloud-init's fallback with
     the MTU of the network (CIDR -> MTU) holding the drive's address, brings it
-    up (ifup where cloud-init has no activator) and keeps it in cloud-init's
-    system configuration, which outranks the drive whenever the network is
-    rendered again. On every boot a current kept fallback is left alone, a
+    up and keeps it in cloud-init's system configuration, which outranks the
+    drive whenever the network is rendered again. cloud-init picks an
+    activator by what is installed, not by its renderer, and reports neither
+    a mismatch nor a failure; so when no default route follows, ifup brings
+    the interface up from the rendered files. On every boot a current kept fallback is left alone, a
     stale one (a copied disk) is replaced, and it is removed once the drive
     describes the network. The interpreter runs isolated, since a directory
     in the working directory named like a module would shadow it."""
