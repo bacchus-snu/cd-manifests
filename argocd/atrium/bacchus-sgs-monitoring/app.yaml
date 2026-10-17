@@ -19,7 +19,7 @@ spec:
       targetRevision: main
       path: argocd/atrium/bacchus-sgs-monitoring
     - repoURL: https://grafana-community.github.io/helm-charts
-      targetRevision: 14.0.0
+      targetRevision: 14.0.1
       chart: grafana
       helm:
         valueFiles:
