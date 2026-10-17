@@ -215,7 +215,7 @@ class _Distro:
         return s["no_activator"]
 
 class _DataSource:
-    pass
+    source = "/dev/sr1"
 
 class Init:
     distro = _Distro()
@@ -229,6 +229,22 @@ class Init:
             ds.network_json = _load()["network_json"]
         return ds
 '''
+    UTIL = '''
+import json, os
+
+def mount_cb(device, callback):
+    with open(os.environ["FAKE_CLOUDINIT"]) as f:
+        drive = json.load(f)["drive"]
+    if device != "/dev/sr1" or drive is None:
+        raise OSError("cannot mount " + device)
+    return callback(drive)
+'''
+    # stands in for cloud-init's interpreter and insists on isolation
+    PYTHON = '''#!/bin/sh
+[ "$1" = -I ] && [ "$2" = - ] || { echo "interpreter not isolated: $*" >&2; exit 97; }
+exec %s -c 'import sys; sys.path.insert(0, sys.argv[1]); exec(compile(sys.stdin.read(), "<stdin>", "exec"))' "$ROOT/py"
+'''
+    MTUS = {"10.94.0.0/16": 1450, "192.168.0.0/24": 1500}
 
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
@@ -237,9 +253,14 @@ class Init:
         os.makedirs(f"{self.root}/bin")
         os.makedirs(f"{self.root}/py/cloudinit")
         open(f"{self.root}/py/cloudinit/__init__.py", "w").close()
-        with open(f"{self.root}/py/cloudinit/stages.py", "w") as f:
-            f.write(self.STAGES)
-        stubs = {"cloud-init": f"#!{sys.executable}\n", "ifup": '#!/bin/sh\necho "$@" >> "$ROOT/ifup.log"\n'}
+        for name, body in (("stages", self.STAGES), ("util", self.UTIL)):
+            with open(f"{self.root}/py/cloudinit/{name}.py", "w") as f:
+                f.write(body)
+        os.makedirs(f"{self.root}/drive/cloudstack/metadata")
+        with open(f"{self.root}/drive/cloudstack/metadata/local-ipv4.txt", "w") as f:
+            f.write("10.94.1.5\n")
+        stubs = {"cloud-init": f"#!{self.root}/bin/python\n", "python": self.PYTHON % sys.executable,
+                 "ifup": '#!/bin/sh\necho "$@" >> "$ROOT/ifup.log"\n'}
         for name, body in stubs.items():
             with open(f"{self.root}/bin/{name}", "w") as f:
                 f.write(body)
@@ -248,15 +269,15 @@ class Init:
             f.write("Iface\tDestination\tGateway\neth0\t00000000\t01005E0A\n")
         self.cfg = f"{self.root}/90-network-fallback.cfg"
         with open(f"{self.root}/hook.sh", "w") as f:
-            f.write(sync.render_network_hook().replace(sync.NETWORK_FALLBACK_CFG, self.cfg)
+            f.write(sync.render_network_hook(self.MTUS).replace(sync.NETWORK_FALLBACK_CFG, self.cfg)
                     .replace("/proc/net/route", f"{self.root}/route"))
 
     def run_hook(self, **state):
-        state = {"fallback": self.FALLBACK, "applied": [], "no_activator": False, **state}
+        state = {"fallback": self.FALLBACK, "applied": [], "no_activator": False, "drive": f"{self.root}/drive", **state}
         with open(f"{self.root}/state.json", "w") as f:
             json.dump(state, f)
         env = {**os.environ, "ROOT": self.root, "PATH": f"{self.root}/bin:{os.environ['PATH']}",
-               "PYTHONPATH": f"{self.root}/py", "FAKE_CLOUDINIT": f"{self.root}/state.json"}
+               "FAKE_CLOUDINIT": f"{self.root}/state.json"}
         out = subprocess.run(["sh", f"{self.root}/hook.sh"], env=env, capture_output=True, text=True)
         self.assertEqual(out.returncode, 0, out.stderr)
         with open(f"{self.root}/state.json") as f:
@@ -273,11 +294,27 @@ class Init:
         except FileNotFoundError:
             return []
 
-    def test_empty_description_gets_the_fallback(self):
+    def with_mtu(self, mtu):
+        cfg = json.loads(json.dumps(self.FALLBACK))
+        cfg["ethernets"]["eth0"]["mtu"] = mtu
+        return cfg
+
+    def test_empty_description_gets_the_fallback_with_the_mtu(self):
         applied = self.run_hook(network_json={})
-        self.assertEqual(applied, [[self.FALLBACK, True]])
-        self.assertEqual(self.kept(), {"network": self.FALLBACK})
+        self.assertEqual(applied, [[self.with_mtu(1450), True]])
+        self.assertEqual(self.kept(), {"network": self.with_mtu(1450)})
         self.assertEqual(self.ifup_calls(), [])
+
+    def test_no_description_gets_the_mtu_too(self):
+        self.assertEqual(self.run_hook(network_json=None), [[self.with_mtu(1450), True]])
+
+    def test_address_outside_the_table_keeps_dhcp_mtu(self):
+        with open(f"{self.root}/drive/cloudstack/metadata/local-ipv4.txt", "w") as f:
+            f.write("172.16.0.9\n")
+        self.assertEqual(self.run_hook(network_json={}), [[self.FALLBACK, True]])
+
+    def test_unreadable_drive_keeps_dhcp_mtu(self):
+        self.assertEqual(self.run_hook(network_json={}, drive=None), [[self.FALLBACK, True]])
 
     def test_current_fallback_is_left_alone(self):
         self.run_hook(network_json={})
@@ -286,16 +323,12 @@ class Init:
     def test_stale_fallback_is_replaced(self):
         with open(self.cfg, "w") as f:
             json.dump({"network": {"version": 2, "ethernets": {"eth0": {"match": {"macaddress": "1e:00:00:00:00:99"}}}}}, f)
-        self.assertEqual(self.run_hook(network_json={}), [[self.FALLBACK, True]])
-        self.assertEqual(self.kept(), {"network": self.FALLBACK})
+        self.assertEqual(self.run_hook(network_json={}), [[self.with_mtu(1450), True]])
+        self.assertEqual(self.kept(), {"network": self.with_mtu(1450)})
 
     def test_ifup_without_an_activator(self):
         self.run_hook(network_json={}, no_activator=True)
         self.assertEqual(self.ifup_calls(), ["eth0"])
-
-    def test_drive_without_description_is_cloud_inits_own(self):
-        self.assertEqual(self.run_hook(network_json=None), [])
-        self.assertFalse(os.path.exists(self.cfg))
 
     def test_described_network_drops_the_kept_fallback(self):
         self.run_hook(network_json={})
@@ -315,21 +348,28 @@ class Init:
 
 class UserDataTest(unittest.TestCase):
     KEYS = ["ssh-ed25519 AAA warpgate"]
+    MTUS = {"10.94.0.0/16": 1450}
 
     def test_parts_in_order(self):
         import email
-        msg = email.message_from_string(sync.render_userdata(self.KEYS))
+        msg = email.message_from_string(sync.render_userdata(self.KEYS, self.MTUS))
         parts = [(p.get_content_type(), p.get_payload()) for p in msg.get_payload()]
-        self.assertEqual(parts, [("text/cloud-boothook", sync.render_network_hook()),
+        self.assertEqual(parts, [("text/cloud-boothook", sync.render_network_hook(self.MTUS)),
                                  ("text/x-shellscript", sync.render_trust_script(self.KEYS))])
 
     def test_detected_as_mime_and_stable(self):
         # CloudStack takes the first line starting with "#" or "Content-Type:" as the format
-        text = sync.render_userdata(self.KEYS)
+        text = sync.render_userdata(self.KEYS, self.MTUS)
         first = next(line for line in text.split("\n") if line.startswith(("#", "Content-Type:")))
         self.assertTrue(first.startswith("Content-Type: multipart/mixed"))
-        self.assertEqual(text, sync.render_userdata(self.KEYS))
-        self.assertNotEqual(sync.userdata_name(text), sync.userdata_name(sync.render_userdata(["ssh-ed25519 BBB warpgate"])))
+        self.assertEqual(text, sync.render_userdata(self.KEYS, self.MTUS))
+        self.assertNotEqual(sync.userdata_name(text), sync.userdata_name(sync.render_userdata(["ssh-ed25519 BBB warpgate"], self.MTUS)))
+        self.assertNotEqual(sync.userdata_name(text), sync.userdata_name(sync.render_userdata(self.KEYS, {"10.94.0.0/16": 1400})))
+
+    def test_network_mtus(self):
+        networks = [{"cidr": "10.94.0.0/16", "privatemtu": 1450}, {"cidr": "10.1.0.0/24", "privatemtu": 1500},
+                    {"cidr": "10.1.0.0/24", "privatemtu": 1400}, {"name": "l2", "privatemtu": 1500}, {"cidr": "10.2.0.0/24"}]
+        self.assertEqual(sync.network_mtus(networks), {"10.94.0.0/16": 1450, "10.1.0.0/24": 1400})
 
     def test_name_is_stable_hash_of_content(self):
         a = sync.userdata_name(sync.render_trust_script(["ssh-ed25519 AAA warpgate"]))
@@ -364,6 +404,8 @@ class TemplateUserDataTest(unittest.TestCase):
                 return {}
             if command == "listTemplates":
                 return {"template": self.templates}
+            if command == "listNetworks":
+                return {"network": [{"name": "guest", "cidr": "10.94.0.0/16", "privatemtu": 1450}]}
             return {}
 
         def fake_wg(method, path, body=None):
@@ -388,9 +430,9 @@ class TemplateUserDataTest(unittest.TestCase):
         self.assertTrue(register["post"])  # too long for a query string
         registered = base64.b64decode(register["userdata"]).decode()
         self.assertIn("text/cloud-boothook", registered)
+        self.assertIn('mtus = {"10.94.0.0/16": 1450}', registered)
         self.assertIn("cloudstack/password/vm_password.txt", registered)
         self.assertNotIn("data-server", registered)
-        self.assertNotIn("listNetworks", cmds)
 
 
 class CatalogTest(unittest.TestCase):

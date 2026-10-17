@@ -403,12 +403,16 @@ def render_trust_script(public_keys):
 
 
 NETWORK_FALLBACK_PY = """\
-import json, os, subprocess, time
-from cloudinit import stages
+import ipaddress, json, os, subprocess, time
+from cloudinit import stages, util
 
 init = stages.Init()
 init.read_cfg()
-if getattr(init.fetch(existing="trust"), "network_json", None) != {}:
+ds = init.fetch(existing="trust")
+described = getattr(ds, "network_json", "absent")
+if not isinstance(described, (dict, type(None))):
+    raise SystemExit
+if described:
     if os.path.exists(path):
         os.remove(path)
     raise SystemExit
@@ -416,6 +420,15 @@ distro = init.distro
 cfg = distro.generate_fallback_config()
 if not cfg:
     raise SystemExit
+try:
+    addr = ipaddress.ip_address(util.mount_cb(ds.source, lambda d: open(
+        os.path.join(d, "cloudstack/metadata/local-ipv4.txt")).read().strip()))
+except Exception:
+    addr = None
+mtu = next((m for c, m in mtus.items() if addr and addr in ipaddress.ip_network(c)), None)
+if mtu:
+    for dev in cfg.get("ethernets", {}).values():
+        dev["mtu"] = mtu
 want = {"network": cfg}
 try:
     with open(path) as f:
@@ -440,37 +453,50 @@ print("network: applied cloud-init's fallback " + json.dumps(cfg))
 """
 
 
-def render_network_hook():
-    """Boot hook for a config drive with an empty network description, which
-    CloudStack writes when the drive serves neither DHCP nor DNS and which
-    cloud-init takes as "configure nothing", skipping its DHCP fallback. The
-    hook renders and brings up that fallback through cloud-init (ifup where
-    cloud-init has no activator) and keeps it in cloud-init's system
-    configuration, which outranks the drive whenever the network is rendered
-    again. It runs on every boot: a current kept fallback is left alone, a
+def render_network_hook(mtus):
+    """Boot hook for a config drive that does not describe the network.
+    cloud-init takes the empty description CloudStack writes when the drive
+    serves neither DHCP nor DNS as "configure nothing" and skips its DHCP
+    fallback; with no description at all, the network's MTU still reaches only
+    DHCP clients that ask for it. The hook renders cloud-init's fallback with
+    the MTU of the network (CIDR -> MTU) holding the drive's address, brings it
+    up (ifup where cloud-init has no activator) and keeps it in cloud-init's
+    system configuration, which outranks the drive whenever the network is
+    rendered again. On every boot a current kept fallback is left alone, a
     stale one (a copied disk) is replaced, and it is removed once the drive
-    describes a network or none."""
-    py = f"path = {NETWORK_FALLBACK_CFG!r}\n" + NETWORK_FALLBACK_PY
+    describes the network. The interpreter runs isolated, since a directory
+    in the working directory named like a module would shadow it."""
+    py = f"path = {NETWORK_FALLBACK_CFG!r}\nmtus = {json.dumps(mtus, sort_keys=True)}\n" + NETWORK_FALLBACK_PY
     return (
         "#!/bin/sh\n"
         "(\n"
         "py=$(sed -n '1s/^#! *//p' \"$(command -v cloud-init)\" 2>/dev/null)\n"
-        "[ -z \"$py\" ] || $py - <<'PY'\n"
+        "[ -z \"$py\" ] || $py -I - <<'PY'\n"
         f"{py}"
         "PY\n"
         ")\n"
     )
 
 
-def render_userdata(public_keys):
+def render_userdata(public_keys, mtus):
     """Template user data: the network hook as a boot hook, which cloud-init
     runs before its configuration modules and any user script, so those find
     the network up, and the trust script. The MIME boundary is fixed because
     the user data is named after a hash of its text."""
     msg = MIMEMultipart(boundary=USERDATA_BOUNDARY)
-    msg.attach(MIMEText(render_network_hook(), "cloud-boothook"))
+    msg.attach(MIMEText(render_network_hook(mtus), "cloud-boothook"))
     msg.attach(MIMEText(render_trust_script(public_keys), "x-shellscript"))
     return msg.as_string()
+
+
+def network_mtus(networks):
+    """CIDR -> MTU of the guest networks that state both; a CIDR used by
+    networks with different MTUs gets the smallest, which fits all of them."""
+    mtus = {}
+    for n in networks:
+        if n.get("cidr") and n.get("privatemtu"):
+            mtus[n["cidr"]] = min(mtus.get(n["cidr"], int(n["privatemtu"])), int(n["privatemtu"]))
+    return mtus
 
 
 def userdata_name(script):
@@ -734,7 +760,8 @@ def sync_template_userdata():
     if not public:
         print("warning: warpgate has no client keys; template user data not managed")
         return
-    script = render_userdata(public)
+    networks = cloudstack("listNetworks", listall="true").get("network", [])
+    script = render_userdata(public, network_mtus(networks))
     name = userdata_name(script)
 
     existing = {u["name"]: u for u in cloudstack("listUserData", listall="true").get("userdata", [])}
