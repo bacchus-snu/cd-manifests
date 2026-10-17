@@ -113,6 +113,65 @@ class CloseSessionsTest(unittest.TestCase):
         self.assertNotIn(("POST", "/sessions/s3/close"), self.calls)
 
 
+class UserRolesTest(unittest.TestCase):
+    ROLES = {"admins": {"id": "r-admins"}, "account-bob": {"id": "r-bob"}}
+
+    def setUp(self):
+        self.calls, self.assigned = [], []
+
+        def fake(method, path, body=None):
+            self.calls.append((method, path))
+            if method == "GET":
+                return 200, self.assigned
+            return 200, None
+        self._orig = sync.warpgate
+        sync.warpgate = fake
+
+    def tearDown(self):
+        sync.warpgate = self._orig
+
+    def test_regrants_revoked_role(self):
+        self.assigned = [{"name": "account-bob", "is_active": True}, {"name": "admins", "is_active": False}]
+        revoked = sync.sync_user_roles({"id": "u1", "username": "bob"}, {"account-bob", "admins"}, self.ROLES)
+        self.assertEqual(self.calls[1:], [("POST", "/users/u1/roles/r-admins")])
+        self.assertEqual(revoked, set())
+
+    def test_revokes_active_admin_rights(self):
+        self.assigned = [{"name": "account-bob", "is_active": True}, {"name": "admins", "is_active": True},
+                         {"name": "admin", "is_active": True}]
+        revoked = sync.sync_user_roles({"id": "u1", "username": "bob"}, {"account-bob"}, self.ROLES)
+        self.assertEqual(self.calls[1:], [("DELETE", "/users/u1/roles/r-admins")])
+        self.assertEqual(revoked, {"admins"})
+
+    def test_already_revoked_is_left_alone(self):
+        self.assigned = [{"name": "account-bob", "is_active": True}, {"name": "admins", "is_active": False}]
+        revoked = sync.sync_user_roles({"id": "u1", "username": "bob"}, {"account-bob"}, self.ROLES)
+        self.assertEqual(self.calls[1:], [])
+        self.assertEqual(revoked, set())
+
+
+class DemotedSessionsTest(unittest.TestCase):
+    def setUp(self):
+        self.closed = []
+        self._orig = sync.close_sessions
+        sync.close_sessions = lambda target_id, usernames=None: self.closed.append((target_id, usernames))
+
+    def tearDown(self):
+        sync.close_sessions = self._orig
+
+    def test_closes_only_where_own_account_does_not_reach(self):
+        reach = {"vm-bob": {"account-bob"}, "vm-carol": {"account-carol"},
+                 "vm-carol-guest-bob": {"account-bob"}, "vm-new": {"account-carol"}}
+        targets = {"vm-bob": {"id": "t-bob"}, "vm-carol": {"id": "t-carol"},
+                   "vm-carol-guest-bob": {"id": "t-guest"}, "manual": {"id": "t-manual"}}
+        sync.close_demoted_sessions({"bob": "account-bob"}, targets, reach)
+        self.assertEqual(self.closed, [("t-carol", {"bob"})])
+
+    def test_nothing_without_demotions(self):
+        sync.close_demoted_sessions({}, {"vm-carol": {"id": "t-carol"}}, {"vm-carol": {"account-carol"}})
+        self.assertEqual(self.closed, [])
+
+
 class TrustScriptTest(unittest.TestCase):
     def test_script_contains_keys_and_sshd_dropin(self):
         script = sync.render_trust_script(["ssh-ed25519 BBB warpgate", "ssh-ed25519 AAA warpgate"])

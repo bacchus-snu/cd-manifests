@@ -284,6 +284,30 @@ def close_sessions(target_id, usernames=None):
         print(f"warpgate session {s['id']} ({s.get('username')}) closed")
 
 
+def sync_user_roles(user, wanted, roles):
+    """Grant the wanted roles and withdraw root-administrator rights no longer
+    held; returns the roles withdrawn. A revoked or expired assignment stays
+    listed, inactive, and granting it again reactivates it."""
+    active = {r["name"] for r in warpgate("GET", f"/users/{user['id']}/roles")[1] if r["is_active"]}
+    for name in sorted(wanted - active):
+        warpgate("POST", f"/users/{user['id']}/roles/{roles[name]['id']}", {})
+        print(f"warpgate user {user['username']}: role {name}")
+    revoked = (active & {ADMINS_ROLE}) - wanted
+    for name in sorted(revoked):
+        warpgate("DELETE", f"/users/{user['id']}/roles/{roles[name]['id']}")
+        print(f"warpgate user {user['username']}: role {name} removed")
+    return revoked
+
+
+def close_demoted_sessions(demoted, targets, reach):
+    """End the sessions former root administrators (username -> own account
+    role) hold on managed targets their own account does not reach."""
+    for name, roles in reach.items():
+        lost = {who for who, own in demoted.items() if own not in roles}
+        if lost and name in targets:
+            close_sessions(targets[name]["id"], lost)
+
+
 def guest_accounts(vm):
     """Linux username -> SNUCSE IDs allowed to log in as it, from the VM's tags.
     A tag value holds at most 255 characters, so a long list continues in
@@ -549,6 +573,7 @@ def sync_warpgate():
             warpgate("POST", "/users", {"username": u["username"], "description": f"{MANAGED}user:{u['id']}"})
             print(f"warpgate user {u['username']} created")
     wg_users = {u["username"]: u for u in warpgate("GET", "/users")[1]}
+    demoted = {}
     for u in users:
         wu = wg_users.get(u["username"])
         if not wu:
@@ -564,15 +589,11 @@ def sync_warpgate():
         wanted_roles = {f"account-{u['account']}"}
         if u.get("accounttype") == 1:
             wanted_roles.add(ADMINS_ROLE)
-        have = {r["name"] for r in warpgate("GET", f"/users/{wu['id']}/roles")[1]}
-        for name in wanted_roles - have:
-            warpgate("POST", f"/users/{wu['id']}/roles/{roles[name]['id']}", {})
-            print(f"warpgate user {u['username']}: role {name}")
-        for name in (have & {ADMINS_ROLE}) - wanted_roles:
-            warpgate("DELETE", f"/users/{wu['id']}/roles/{roles[name]['id']}")
-            print(f"warpgate user {u['username']}: role {name} removed")
+        if sync_user_roles(wu, wanted_roles, roles):
+            demoted[u["username"]] = f"account-{u['account']}"
 
     wg_targets = {t["name"]: t for t in warpgate("GET", "/targets")[1]}
+    close_demoted_sessions(demoted, wg_targets, reach)
     refreshed = set()  # (host, port) of instances created or reinstalled: their host keys are new
     for name, spec in wanted.items():
         t = wg_targets.get(name)
