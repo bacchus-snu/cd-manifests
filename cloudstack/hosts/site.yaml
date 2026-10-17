@@ -164,6 +164,16 @@
                | sort | to_json }}
       notify: [restart libvirtd, restart cloudstack-agent]
 
+    # Boards shipped without a programmed SMBIOS UUID all report the same
+    # placeholder, and libvirt refuses to migrate between hosts whose UUIDs
+    # match ("Attempt to migrate guest to the same host").
+    - name: libvirt host UUID from the machine id
+      ansible.builtin.lineinfile:
+        path: /etc/libvirt/libvirtd.conf
+        regexp: '^#?\s*host_uuid_source\s*='
+        line: 'host_uuid_source = "machine-id"'
+      notify: [restart libvirtd, restart cloudstack-agent]
+
     - name: Reboot needed
       ansible.builtin.debug:
         msg: '{{ inventory_hostname }}: /etc/network/interfaces changed, reboot to apply (previous file kept as backup)'
