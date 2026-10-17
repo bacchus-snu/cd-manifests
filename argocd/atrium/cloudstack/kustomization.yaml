@@ -22,6 +22,7 @@ configMapGenerator:
     files:
       - sync.py
       - templates.toml
+      - roles.toml
   - name: warpgate-config
     files:
       - warpgate-config.yaml
@@ -31,26 +32,18 @@ configMapGenerator:
   - name: console-relay
     files:
       - console-relay.conf
+  # the doors (provider, admitting group, domain, role) are in gate.toml
   - name: cloudstack-gate
     files:
       - gate.py
-  # groups at the identity provider that grant access / administrator role
+      - gate.toml
   - name: gate-config
     literals:
-      - OIDC_ISSUER=https://id.snucse.org/o
       - EXTERNAL_URL=https://cloud.snucse.org/gate
       - DOCS_URL=https://docs.cloud.snucse.org/
-      - ALLOWED_GROUPS=major
-      - ADMIN_GROUPS=bacchus
-      # the built-in User role minus projects, templates, security groups,
-      # key pairs and networking; before launch the zero default quotas keep
-      # members from creating anything
-      - ROLE_USER=SNUCSE User
       # the bastion reaches instances through the overlay gateway, which
       # masquerades to its guest overlay address (overlay-gw.yaml)
       - SSH_SOURCE_CIDR=10.94.0.254/32
-      - IDP_NAME=SNUCSE ID
-      - IDP_URL=https://id.snucse.org
       - CONTACT=Bacchus
   # overlay gateway (overlay-gw.yaml); generated so that a change rolls the
   # DaemonSet. peers: hypervisor campus addresses, their VTEPs (generated from

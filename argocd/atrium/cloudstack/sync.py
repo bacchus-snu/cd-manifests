@@ -34,7 +34,9 @@ WARPGATE_HOST = os.environ.get("BASTION_HOST")  # service name; unset: skip the 
 WARPGATE_PORT = int(os.environ.get("BASTION_PORT", "8888"))
 WARPGATE_TLS_NAME = os.environ.get("BASTION_TLS_NAME")  # name on Warpgate's certificate
 WARPGATE_TOKEN = (os.environ.get("BASTION_TOKEN") or "").strip()
-WARPGATE_SSO = os.environ.get("BASTION_SSO", "snucse")
+# CloudStack domain path -> Warpgate SSO provider its users sign in with, e.g.
+# "ROOT=bacchus,ROOT/snucse=snucse"; users of other domains are not mirrored
+WARPGATE_SSO = os.environ.get("BASTION_SSO", "")
 # what Warpgate logs in as on the guests: the templates' default user
 GUEST_USER = os.environ.get("GUEST_USER", "ubuntu")
 # CloudStack's built-in accounts, never mirrored
@@ -48,6 +50,8 @@ PASSWORD_SCRIPT = "/var/lib/cloud/scripts/per-boot/cloudstack-password"
 NETWORK_FALLBACK_CFG = "/etc/cloud/cloud.cfg.d/90-network-fallback.cfg"
 USERDATA_BOUNDARY = "==cloudstack-user-data=="
 CATALOG_PATH = os.environ.get("TEMPLATE_CATALOG", "/opt/sync/templates.toml")
+ROLES_PATH = os.environ.get("ROLE_CATALOG", "/opt/sync/roles.toml")
+ROLE_TYPES = ("Admin", "ResourceAdmin", "DomainAdmin", "User")
 # certificate (leaf, then intermediates) and key that every running console
 # proxy must serve; cert-manager renews them in place
 CONSOLE_TLS_DIR = os.environ.get("CONSOLE_TLS_DIR", "/etc/console-tls")
@@ -587,6 +591,74 @@ def sync_templates(catalog):
     return users
 
 
+def load_roles(path=ROLES_PATH):
+    """Custom roles: name, type, description and the ordered (rule, permission)
+    pairs. No file means nothing managed."""
+    try:
+        with open(path, "rb") as f:
+            raw = tomllib.load(f).get("role", [])
+    except FileNotFoundError:
+        return []
+    roles, seen = [], set()
+    for entry in raw:
+        name = entry.get("name")
+        if not name or name in seen:
+            raise ValueError(f"role {name!r}: missing or repeated name")
+        if entry.get("type") not in ROLE_TYPES:
+            raise ValueError(f"role {name}: type {entry.get('type')!r} is not one of {ROLE_TYPES}")
+        rules = [tuple(r) for r in entry.get("rules", [])]
+        if not rules or any(len(r) != 2 or not r[0] or r[1] not in ("allow", "deny") for r in rules):
+            raise ValueError(f"role {name}: rules must be non-empty [rule, allow|deny] pairs")
+        seen.add(name)
+        roles.append({"name": name, "type": entry["type"], "description": entry.get("description", ""), "rules": rules})
+    return roles
+
+
+def role_rules(role_id):
+    return [(p["rule"], p["permission"])
+            for p in cloudstack("listRolePermissions", roleid=role_id).get("rolepermission", [])]
+
+
+def sync_roles(catalog):
+    """Create catalogued roles that are missing and re-import those whose rules
+    or description drifted. importRole with forced=true replaces the rules in
+    one transaction and keeps the role id, so accounts keep the role. Rule
+    order decides, so the result is read back and a mismatch fails the run."""
+    live = {r["name"]: r for r in cloudstack("listRoles").get("role", [])}
+    for entry in catalog:
+        role = live.get(entry["name"])
+        if role is not None:
+            if role.get("isdefault"):
+                print(f"role {entry['name']}: built-in, not managed")
+                continue
+            if role.get("type") != entry["type"]:  # importRole would create a second role of the new type
+                print(f"role {entry['name']}: type is {role.get('type')}, catalog says {entry['type']}; left alone")
+                continue
+            if (role.get("description") or "") == entry["description"] and role_rules(role["id"]) == entry["rules"]:
+                continue
+        params = {}
+        for i, (rule, permission) in enumerate(entry["rules"]):
+            params[f"rules[{i}].rule"] = rule
+            params[f"rules[{i}].permission"] = permission
+        imported = cloudstack("importRole", post=True, name=entry["name"], type=entry["type"],
+                              description=entry["description"], forced="true", **params)["role"]
+        if role_rules(imported["id"]) != entry["rules"]:
+            raise RuntimeError(f"role {entry['name']}: rules read back in a different order")
+        print(f"role {entry['name']} {'updated' if role else 'created'} ({len(entry['rules'])} rules)")
+
+
+def sso_providers(spec=None):
+    """Parses "domain path=provider,..." (default: BASTION_SSO) into a dict."""
+    providers = {}
+    for item in (WARPGATE_SSO if spec is None else spec).split(","):
+        if item.strip():
+            path, _, provider = item.partition("=")
+            if not path.strip() or not provider.strip():
+                raise ValueError(f"BASTION_SSO: {item!r} is not <domain path>=<provider>")
+            providers[path.strip()] = provider.strip()
+    return providers
+
+
 def plan_targets(vms, members, user_by_template=None, guest_user=GUEST_USER, root_by_vm=None):
     """Warpgate targets a set of VMs should have, and the roles that reach each.
     One target per VM for its co-owners (the account, or every member account
@@ -648,13 +720,32 @@ def stale_known_hosts(known, targets, refreshed):
 def sync_warpgate():
     """Role per CloudStack account, user per CloudStack user (SSO credential =
     the user's e-mail, which the sign-in gate keeps equal to the identity
-    provider's claim), target per VM plus one per guest account a co-owner has
-    tagged on it. A VM is reachable by its account, or by every member account
-    of the project that owns it; a guest target only by the tagged accounts;
-    root administrators reach every target. Objects created here carry a
-    'cloudstack:' description and are removed when their source disappears."""
-    users = [u for u in cloudstack("listUsers", listall="true").get("user", [])
-             if u.get("state") == "enabled" and u["account"] not in BUILTIN_ACCOUNTS and u.get("email")]
+    provider's claim, at the provider of the user's domain), target per VM plus
+    one per guest account a co-owner has tagged on it. A VM is reachable by its
+    account, or by every member account of the project that owns it; a guest
+    target only by the tagged accounts; root administrators reach every target.
+    Objects created here carry a 'cloudstack:' description and are removed when
+    their source disappears."""
+    providers = sso_providers()
+    if not providers:  # with no mapping every user would be removed, with their keys
+        raise ValueError("BASTION_SSO is empty")
+    paths = {d["id"]: d["path"] for d in cloudstack("listDomains", listall="true").get("domain", [])}
+    provider_of = {}
+    users = []
+    for u in cloudstack("listUsers", listall="true").get("user", []):
+        if u.get("state") != "enabled" or u["account"] in BUILTIN_ACCOUNTS or not u.get("email"):
+            continue
+        provider = providers.get(paths.get(u.get("domainid")))
+        if provider is None:
+            continue
+        provider_of[u["username"]] = provider
+        users.append(u)
+    # usernames are unique per CloudStack domain only, Warpgate has one namespace
+    names = [u["username"] for u in users]
+    clashing = {n for n in names if names.count(n) > 1}
+    for name in sorted(clashing):
+        print(f"warning: user name {name} exists in several domains; not mirrored")
+    users = [u for u in users if u["username"] not in clashing]
     # project-owned VMs are only listed when asked for explicitly
     vms = cloudstack("listVirtualMachines", listall="true").get("virtualmachine", [])
     vms += cloudstack("listVirtualMachines", listall="true", projectid=-1).get("virtualmachine", [])
@@ -706,13 +797,16 @@ def sync_warpgate():
         if not wu:
             continue
         email = u["email"]  # as the identity provider presents it: Warpgate compares verbatim
+        provider = provider_of[u["username"]]
         creds = warpgate("GET", f"/users/{wu['id']}/credentials/sso")[1]
-        for c in creds:  # the address may change: keep exactly one, current credential
-            if c.get("provider") in (None, WARPGATE_SSO) and c["email"] != email:
+        # keep exactly one credential: the address may change, and one without a
+        # provider would match the same address at every provider
+        for c in creds:
+            if c.get("provider") in (None, *providers.values()) and (c.get("provider"), c["email"]) != (provider, email):
                 warpgate("DELETE", f"/users/{wu['id']}/credentials/sso/{c['id']}")
-        if not any(c["email"] == email and c.get("provider") in (None, WARPGATE_SSO) for c in creds):
-            warpgate("POST", f"/users/{wu['id']}/credentials/sso", {"provider": WARPGATE_SSO, "email": email})
-            print(f"warpgate user {u['username']}: sso credential {email}")
+        if not any((c.get("provider"), c["email"]) == (provider, email) for c in creds):
+            warpgate("POST", f"/users/{wu['id']}/credentials/sso", {"provider": provider, "email": email})
+            print(f"warpgate user {u['username']}: sso credential {email} ({provider})")
         wanted_roles = {f"account-{u['account']}"}
         if u.get("accounttype") == 1:
             wanted_roles.add(ADMINS_ROLE)
@@ -820,6 +914,7 @@ def sync_template_userdata():
 def main():
     sync_console_endpoints()
     prune_management_servers()
+    sync_roles(load_roles())
     if WARPGATE_HOST and WARPGATE_TLS_NAME and WARPGATE_TOKEN:
         sync_warpgate()
         sync_template_userdata()

@@ -947,5 +947,226 @@ class ConsoleEndpointsTest(unittest.TestCase):
         self.assertEqual([(p["name"], p["port"]) for p in written[0]["ports"]], [("https", 443), ("websocket", 8443)])
 
 
+REPO_ROLES = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "roles.toml")
+
+
+class RoleCatalogTest(unittest.TestCase):
+    def load(self, text):
+        with tempfile.NamedTemporaryFile("w", suffix=".toml", delete=False) as f:
+            f.write(text)
+        self.addCleanup(os.unlink, f.name)
+        return sync.load_roles(f.name)
+
+    def test_loads_ordered_rules(self):
+        roles = self.load('[[role]]\nname = "R"\ntype = "Admin"\ndescription = "d"\n'
+                          'rules = [["createRole", "deny"], ["*", "allow"]]\n')
+        self.assertEqual(roles, [{"name": "R", "type": "Admin", "description": "d",
+                                  "rules": [("createRole", "deny"), ("*", "allow")]}])
+
+    def test_rejects_bad_entries(self):
+        for text in ('[[role]]\nname = "R"\ntype = "Root"\nrules = [["*", "allow"]]\n',
+                     '[[role]]\nname = "R"\ntype = "User"\nrules = [["*", "maybe"]]\n',
+                     '[[role]]\nname = "R"\ntype = "User"\nrules = []\n',
+                     '[[role]]\nname = "R"\ntype = "User"\nrules = [["*", "allow"]]\n'
+                     '[[role]]\nname = "R"\ntype = "User"\nrules = [["*", "allow"]]\n'):
+            with self.assertRaises(ValueError):
+                self.load(text)
+
+    def test_missing_file_is_empty(self):
+        self.assertEqual(sync.load_roles("/nonexistent/roles.toml"), [])
+
+    def test_repository_catalog(self):
+        roles = {r["name"]: r for r in sync.load_roles(REPO_ROLES)}
+        member = roles["Bacchus Member"]
+        self.assertEqual(member["type"], "Admin")
+        self.assertEqual(member["rules"][-1], ("*", "allow"))
+        denied = {rule for rule, permission in member["rules"][:-1] if permission == "deny"}
+        self.assertEqual(len(denied), len(member["rules"]) - 1)
+        for api in ("createRole", "updateRolePermission", "importRole", "updateConfiguration", "registerOauthProvider",
+                    "createAccount", "createUser", "updateAccount", "updateUser", "issueCertificate"):
+            self.assertIn(api, denied)
+        rules = [re.compile("^" + rule.replace("*", ".*") + "$") for rule in denied]
+        for api in ("createExtension", "registerExtension", "updateRegisteredExtension", "runCustomAction", "addCustomAction"):
+            self.assertTrue(any(r.match(api) for r in rules), api)
+        for api in ("listExtensions", "listCustomActions", "prepareHostForMaintenance", "deployVirtualMachine"):
+            self.assertFalse(any(r.match(api) for r in rules), api)
+        user = roles["SNUCSE User"]
+        self.assertEqual(user["type"], "User")
+        self.assertEqual(len(user["rules"]), 148)
+        self.assertIn(("*Template*", "deny"), user["rules"])
+
+
+class SyncRolesTest(unittest.TestCase):
+    def setUp(self):
+        self.calls = []
+        self.roles = [{"id": "r-user", "name": "User", "type": "User", "isdefault": True}]
+        self.perms = {}
+        self.scramble = False
+
+        def fake_cs(command, **params):
+            self.calls.append((command, params))
+            if command == "listRoles":
+                return {"role": [dict(r) for r in self.roles]}
+            if command == "listRolePermissions":
+                rules = self.perms.get(params["roleid"], [])
+                return {"rolepermission": [{"rule": r, "permission": p} for r, p in rules]}
+            if command == "importRole":
+                role = next((r for r in self.roles if r["name"] == params["name"]), None)
+                if role is None:
+                    role = {"id": f"r-{len(self.roles)}", "name": params["name"], "type": params["type"]}
+                    self.roles.append(role)
+                role["description"] = params["description"]
+                n = len([k for k in params if k.endswith(".rule")])
+                rules = [(params[f"rules[{i}].rule"], params[f"rules[{i}].permission"]) for i in range(n)]
+                self.perms[role["id"]] = list(reversed(rules)) if self.scramble else rules
+                return {"role": dict(role)}
+            return {}
+        self._orig = sync.cloudstack
+        sync.cloudstack = fake_cs
+
+    def tearDown(self):
+        sync.cloudstack = self._orig
+
+    ENTRY = {"name": "Bacchus Member", "type": "Admin", "description": "ops",
+             "rules": [("createRole", "deny"), ("*", "allow")]}
+
+    def imports(self):
+        return [p for c, p in self.calls if c == "importRole"]
+
+    def test_creates_missing_role_with_ordered_rules(self):
+        sync.sync_roles([self.ENTRY])
+        (imp,) = self.imports()
+        self.assertTrue(imp["post"])
+        self.assertEqual((imp["name"], imp["type"], imp["forced"]), ("Bacchus Member", "Admin", "true"))
+        self.assertEqual((imp["rules[0].rule"], imp["rules[0].permission"]), ("createRole", "deny"))
+        self.assertEqual((imp["rules[1].rule"], imp["rules[1].permission"]), ("*", "allow"))
+
+    def test_leaves_matching_role_alone(self):
+        self.roles.append({"id": "r-m", "name": "Bacchus Member", "type": "Admin", "description": "ops"})
+        self.perms["r-m"] = list(self.ENTRY["rules"])
+        sync.sync_roles([self.ENTRY])
+        self.assertEqual(self.imports(), [])
+
+    def test_reimports_drifted_rules_or_description(self):
+        self.roles.append({"id": "r-m", "name": "Bacchus Member", "type": "Admin", "description": "ops"})
+        self.perms["r-m"] = [("*", "allow")]
+        sync.sync_roles([self.ENTRY])
+        self.assertEqual(len(self.imports()), 1)
+        self.calls.clear()
+        self.roles[-1]["description"] = "old"
+        sync.sync_roles([self.ENTRY])
+        self.assertEqual(len(self.imports()), 1)
+
+    def test_never_touches_built_in_or_retyped_roles(self):
+        self.roles.append({"id": "r-m", "name": "Bacchus Member", "type": "User", "description": "ops"})
+        sync.sync_roles([self.ENTRY, {**self.ENTRY, "name": "User", "type": "User"}])
+        self.assertEqual(self.imports(), [])
+
+    def test_order_read_back_wrong_fails_the_run(self):
+        self.scramble = True
+        with self.assertRaises(RuntimeError):
+            sync.sync_roles([self.ENTRY])
+
+
+class SsoProvidersTest(unittest.TestCase):
+    def test_parses_domain_paths(self):
+        self.assertEqual(sync.sso_providers("ROOT=bacchus, ROOT/snucse=snucse,"),
+                         {"ROOT": "bacchus", "ROOT/snucse": "snucse"})
+
+    def test_rejects_malformed(self):
+        for spec in ("ROOT", "=bacchus", "ROOT="):
+            with self.assertRaises(ValueError):
+                sync.sso_providers(spec)
+
+
+class WarpgateSsoTest(unittest.TestCase):
+    """Credentials follow the provider of the user's domain."""
+
+    def setUp(self):
+        self.wg_users = {"bob": {"id": "wu-bob", "username": "bob", "description": "cloudstack:user:u-bob"}}
+        self.creds = {"wu-bob": [{"id": "c-null", "provider": None, "email": "bob@snu.ac.kr"},
+                                 {"id": "c-old", "provider": "snucse", "email": "old@snu.ac.kr"}]}
+        self.wg_calls = []
+        users = [
+            {"id": "u-bob", "username": "bob", "account": "bob", "domainid": "d-snucse", "email": "bob@snu.ac.kr",
+             "state": "enabled", "accounttype": 0},
+            {"id": "u-m", "username": "m@bacchus.snucse.org", "account": "m@bacchus.snucse.org", "domainid": "d-root",
+             "email": "m@bacchus.snucse.org", "state": "enabled", "accounttype": 1},
+            {"id": "u-x", "username": "x", "account": "x", "domainid": "d-other", "email": "x@example.org",
+             "state": "enabled", "accounttype": 0},
+            {"id": "u-admin", "username": "admin", "account": "admin", "domainid": "d-root", "state": "enabled", "accounttype": 1},
+        ]
+
+        def fake_cs(command, **params):
+            if command == "listDomains":
+                return {"domain": [{"id": "d-root", "path": "ROOT"}, {"id": "d-snucse", "path": "ROOT/snucse"},
+                                   {"id": "d-other", "path": "ROOT/other"}]}
+            if command == "listUsers":
+                return {"user": users}
+            if command == "listAccounts":
+                return {"account": [{"id": f"a-{u['account']}", "name": u["account"]} for u in users]}
+            return {}
+
+        def fake_wg(method, path, body=None):
+            self.wg_calls.append((method, path, body))
+            if method == "GET" and path == "/roles":
+                return 200, [{"id": "r-admins", "name": "admins", "description": "cloudstack:admins"},
+                             {"id": "r-bob", "name": "account-bob", "description": "cloudstack:account:a-bob"},
+                             {"id": "r-m", "name": "account-m@bacchus.snucse.org", "description": "cloudstack:account:a-m"}]
+            if method == "GET" and path == "/users":
+                return 200, list(self.wg_users.values())
+            if method == "POST" and path == "/users":
+                self.wg_users[body["username"]] = {"id": f"wu-{body['username']}", "username": body["username"],
+                                                   "description": body["description"]}
+                return 201, {}
+            m = re.fullmatch(r"/users/([^/]+)/credentials/sso", path)
+            if m and method == "GET":
+                return 200, list(self.creds.get(m.group(1), []))
+            if m and method == "POST":
+                self.creds.setdefault(m.group(1), []).append({"id": "c-new", **body})
+                return 201, {}
+            if re.fullmatch(r"/users/[^/]+/roles", path):
+                return 200, []
+            if path in ("/targets", "/ssh/known-hosts"):
+                return 200, []
+            return 200, {}
+
+        self.fake_cs_orig = fake_cs
+        patches = [mock.patch.object(sync, "cloudstack", fake_cs), mock.patch.object(sync, "warpgate", fake_wg),
+                   mock.patch.object(sync, "WARPGATE_SSO", "ROOT=bacchus,ROOT/snucse=snucse"),
+                   mock.patch.object(sync, "load_catalog", lambda: []),
+                   mock.patch.object(sync, "sync_templates", lambda catalog: {})]
+        for p in patches:
+            p.start()
+            self.addCleanup(p.stop)
+
+    def test_provider_per_domain_and_unmapped_domains_skipped(self):
+        sync.sync_warpgate()
+        created = {b["username"] for m, p, b in self.wg_calls if m == "POST" and p == "/users"}
+        self.assertEqual(created, {"m@bacchus.snucse.org"})
+        posted = {(p, b["provider"], b["email"]) for m, p, b in self.wg_calls
+                  if m == "POST" and p.endswith("/credentials/sso")}
+        self.assertEqual(posted, {("/users/wu-bob/credentials/sso", "snucse", "bob@snu.ac.kr"),
+                                  ("/users/wu-m@bacchus.snucse.org/credentials/sso", "bacchus", "m@bacchus.snucse.org")})
+        deleted = {p for m, p, b in self.wg_calls if m == "DELETE" and "/credentials/sso/" in p}
+        self.assertEqual(deleted, {"/users/wu-bob/credentials/sso/c-null", "/users/wu-bob/credentials/sso/c-old"})
+
+    def test_same_name_in_two_domains_is_not_mirrored(self):
+        twin = {"id": "u-bob2", "username": "bob", "account": "bob", "domainid": "d-root", "email": "bob@bacchus.snucse.org",
+                "state": "enabled", "accounttype": 1}
+        listed = sync.cloudstack("listUsers")["user"]
+        with mock.patch.object(sync, "cloudstack", lambda c, **p: {"user": listed + [twin]} if c == "listUsers"
+                               else self.fake_cs_orig(c, **p)):
+            sync.sync_warpgate()
+        self.assertFalse([b for m, p, b in self.wg_calls if m == "POST" and p == "/users/wu-bob/credentials/sso"])
+        self.assertIn(("DELETE", "/users/wu-bob", None), self.wg_calls)
+
+    def test_empty_mapping_fails_instead_of_removing_everyone(self):
+        with mock.patch.object(sync, "WARPGATE_SSO", ""):
+            with self.assertRaises(ValueError):
+                sync.sync_warpgate()
+        self.assertFalse([c for c in self.wg_calls if c[0] == "DELETE"])
+
+
 if __name__ == "__main__":
     unittest.main()

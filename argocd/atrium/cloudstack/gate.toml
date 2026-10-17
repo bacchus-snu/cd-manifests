@@ -1,0 +1,44 @@
+# Doors of the sign-in gate (gate.py): /gate/<door>/login, back at
+# /gate/<door>/callback (registered at the provider). The client id and secret
+# come from <DOOR>_CLIENT_ID and <DOOR>_CLIENT_SECRET. Usernames of different
+# doors can never be equal (username_pattern): the bastion has one namespace
+# for all domains. {contact} in refusal is the CONTACT setting.
+
+# students: SNUCSE ID, major only
+[snucse]
+label = "SNUCSE ID"
+issuer = "https://id.snucse.org/o"
+groups_claim = "groups"
+allowed_groups = ["major"]
+username_claim = "username"
+# SNUCSE ID's own rule for usernames
+username_pattern = "[a-z][a-z0-9]{1,19}"
+domain = "ROOT/snucse"
+role = "SNUCSE User"
+# before launch the zero limits keep members from creating anything
+zero_limits = true
+refusal = """<p>SNUCSE Cloud(cloud.snucse.org)와 SSH 접속(Warpgate)은 <b>컴퓨터공학부 주전공 회원과 허가된 외부 회원</b>만 쓸 수 있습니다.</p>
+<ol>
+<li><a href="https://id.snucse.org">SNUCSE ID</a>에 로그인해 <b>주전공 인증</b>을 진행하세요(SNU 계정으로 학과를 확인합니다).</li>
+<li>인증이 끝나면 다시 <a href="/gate/snucse/login">로그인</a>하세요. 첫 로그인에서 계정이 자동으로 만들어집니다.</li>
+</ol>
+<p>주전공이 아니지만 사용 허가가 필요하면 {contact}에 문의하세요. 외부 회원을 위한 게스트 그룹을 SNUCSE ID에 신설할 예정이며, 허용 그룹에 추가되면 같은 방법으로 로그인할 수 있습니다.</p>"""
+
+# Bacchus members: their bacchus.snucse.org Google account through Auth0
+[bacchus]
+label = "Bacchus"
+issuer = "https://dev-1p1l3bz6kxwkga5k.us.auth0.com/"
+authorize_params = { connection = "bacchus-workspace" }
+# added by the Auth0 post-login Action from the Google groups
+groups_claim = "https://bacchus.io/groups"
+allowed_groups = ["regular-members@bacchus.snucse.org"]
+username_claim = "email"
+lowercase_username = true
+username_pattern = "[a-z0-9._-]+@bacchus\\.snucse\\.org"
+require_verified_email = true
+# accounts of the Google Workspace connection, not of any other Auth0 connection
+subject_prefix = "google-apps|"
+domain = "ROOT"
+role = "Bacchus Member"
+refusal = """<p>Bacchus 로그인은 <b>Bacchus 정회원</b>(regular-members@bacchus.snucse.org)만 쓸 수 있습니다.</p>
+<p>학생으로 쓰려면 <a href="/gate/snucse/login">SNUCSE ID로 로그인</a>하세요. 정회원인데 이 화면이 나오면 {contact}에 문의하세요.</p>"""

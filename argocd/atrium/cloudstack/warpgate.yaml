@@ -1,11 +1,14 @@
 ---
-# Warpgate: SSH bastion in front of the guests. Users log in with SNUCSE ID
-# (SSO, through the web UI link Warpgate prints in the terminal) and reach
-# their VMs on the guest overlay; targets, roles and users follow CloudStack
-# through the sync job (sync.py).
+# Warpgate: SSH bastion in front of the guests. Users log in with SNUCSE ID or,
+# Bacchus members, with Auth0 (SSO, through the web UI link Warpgate prints in
+# the terminal) and reach their VMs on the guest overlay; targets, roles and
+# users follow CloudStack through the sync job (sync.py).
 # keys: admin_password (web admin user, created on first boot), admin_token
 # (admin API token for the sync job), oidc_client_secret (client "warpgate" at
-# id.snucse.org)
+# id.snucse.org), bacchus_client_id and bacchus_client_secret (Auth0
+# application "cloudstack-warpgate"; until they exist the provider cannot sign
+# anyone in). Warpgate restarts when the secret changes, so that the init
+# container renders the configuration again.
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
 metadata:
@@ -15,9 +18,14 @@ spec:
   type: kv-v2
   mount: secret
   path: cloudstack/warpgate
+  # without it VSO reads the path again only when this object changes
+  refreshAfter: 5m
   destination:
     create: true
     name: warpgate
+  rolloutRestartTargets:
+    - kind: StatefulSet
+      name: warpgate
 ---
 # Warpgate refuses to serve HTTP without a certificate, and the sync job and the
 # sidecar verify it by this name
@@ -84,7 +92,10 @@ spec:
                   --data-path /data --http-port 8888 --ssh-port 2222 \
                   --external-host login.cloud.snucse.org --host-key-verification auto-accept
               fi
-              sed "s|\${OIDC_CLIENT_SECRET}|$OIDC_CLIENT_SECRET|" /config/warpgate-config.yaml > /data/warpgate.yaml
+              sed -e "s|\${OIDC_CLIENT_SECRET}|$OIDC_CLIENT_SECRET|" \
+                -e "s|\${BACCHUS_CLIENT_ID}|$BACCHUS_CLIENT_ID|" \
+                -e "s|\${BACCHUS_CLIENT_SECRET}|$BACCHUS_CLIENT_SECRET|" \
+                /config/warpgate-config.yaml > /data/warpgate.yaml
               chmod 600 /data/warpgate.yaml
           env:
             - name: WARPGATE_ADMIN_PASSWORD
@@ -97,6 +108,18 @@ spec:
                 secretKeyRef:
                   name: warpgate
                   key: oidc_client_secret
+            - name: BACCHUS_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: warpgate
+                  key: bacchus_client_id
+                  optional: true
+            - name: BACCHUS_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: warpgate
+                  key: bacchus_client_secret
+                  optional: true
           volumeMounts:
             - name: data
               mountPath: /data

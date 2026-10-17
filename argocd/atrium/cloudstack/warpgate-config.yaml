@@ -1,5 +1,5 @@
 # Warpgate configuration. Rendered over /data/warpgate.yaml by the init
-# container, which substitutes ${OIDC_CLIENT_SECRET} from the Secret.
+# container, which substitutes the ${...} values from the Secret.
 # Recording, host-key verification mode and the admin user live in the database
 # after first boot and are managed through the admin API, not here.
 external_host: login.cloud.snucse.org
@@ -18,14 +18,26 @@ http:
   certificate: /tls/tls.crt
   key: /tls/tls.key
 
+# users and their e-mail credentials are created by the sync job, at the
+# provider of the user's CloudStack domain (BASTION_SSO in sync.yaml)
 sso_providers:
   - name: snucse
     label: SNUCSE ID
-    # users and their e-mail credentials are created by the sync job
     auto_create_users: false
     provider:
       type: custom
       client_id: warpgate
       client_secret: ${OIDC_CLIENT_SECRET}
       issuer_url: https://id.snucse.org/o
+      scopes: [openid, email, profile]
+  # Bacchus members: Auth0 application "cloudstack-warpgate", Google
+  # Workspace connection bacchus-workspace only
+  - name: bacchus
+    label: Bacchus
+    auto_create_users: false
+    provider:
+      type: custom
+      client_id: "${BACCHUS_CLIENT_ID}"
+      client_secret: "${BACCHUS_CLIENT_SECRET}"
+      issuer_url: https://dev-1p1l3bz6kxwkga5k.us.auth0.com/
       scopes: [openid, email, profile]
