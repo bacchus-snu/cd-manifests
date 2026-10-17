@@ -3,13 +3,17 @@ export DEBIAN_FRONTEND=noninteractive
 cat > /etc/modules-load.d/k8s.conf <<'M'
 overlay
 br_netfilter
+tcp_bbr
 M
 modprobe overlay
 modprobe br_netfilter
+modprobe tcp_bbr
 cat > /etc/sysctl.d/99-k8s.conf <<'S'
 net.bridge.bridge-nf-call-iptables = 1
 net.bridge.bridge-nf-call-ip6tables = 1
 net.ipv4.ip_forward = 1
+net.core.default_qdisc = fq
+net.ipv4.tcp_congestion_control = bbr
 S
 sysctl --system >/dev/null
 swapoff -a || true
