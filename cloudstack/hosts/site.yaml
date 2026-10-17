@@ -7,10 +7,6 @@
 ---
 - name: CloudStack KVM hosts
   hosts: cloudstack_hosts
-  vars:
-    vtep_peers: >-
-      {{ (groups['cloudstack_hosts'] | map('extract', hostvars, 'campus_ip') | list | difference([campus_ip]) | sort)
-         + [overlay_vtep_waiter] }}
   tasks:
     - name: Bacchus apt keyring
       ansible.builtin.get_url:
@@ -92,6 +88,35 @@
         backup: true
       register: interfaces
 
+    - name: nftables directory
+      ansible.builtin.file:
+        path: /etc/nftables.d
+        state: directory
+        mode: '0755'
+
+    - name: nftables loads the tables in /etc/nftables.d
+      ansible.builtin.template:
+        src: templates/nftables.conf.j2
+        dest: /etc/nftables.conf
+        mode: '0755'
+        backup: true
+      notify: reload nftables
+
+    - name: Host input firewall
+      ansible.builtin.template:
+        src: templates/nftables-host.nft.j2
+        dest: /etc/nftables.d/host.nft
+        mode: '0644'
+        validate: nft -c -f %s
+      notify: reload nftables
+
+    - name: nftables enabled
+      ansible.builtin.service:
+        name: nftables
+        enabled: true
+      # in check mode the package above is not really installed yet
+      ignore_errors: '{{ ansible_check_mode }}'
+
     - name: Agent settings
       ansible.builtin.lineinfile:
         path: /etc/cloudstack/agent/agent.properties
@@ -124,6 +149,12 @@
       ansible.builtin.service:
         name: cloudstack-agent
         state: restarted
+    # never restarted: stopping the unit flushes the whole ruleset, the agent's
+    # security group tables included
+    - name: reload nftables
+      ansible.builtin.service:
+        name: nftables
+        state: reloaded
 
 - name: Guest overlay gateways (VRRP + NAT + resolver)
   hosts: cloudstack_gateway
@@ -160,11 +191,12 @@
         mode: '0644'
       notify: restart keepalived
 
-    - name: nftables configuration
+    - name: Gateway nftables table
       ansible.builtin.template:
-        src: templates/nftables.conf.j2
-        dest: /etc/nftables.conf
-        mode: '0755'
+        src: templates/nftables-gateway.nft.j2
+        dest: /etc/nftables.d/gateway.nft
+        mode: '0644'
+        validate: nft -c -f %s
       notify: reload nftables
 
     - name: Services enabled
@@ -173,7 +205,6 @@
         enabled: true
       loop:
         - keepalived
-        - nftables
         - dnsmasq
       # in check mode the packages above are not really installed yet
       ignore_errors: '{{ ansible_check_mode }}'
@@ -186,10 +217,12 @@
         name: keepalived
         state: restarted
       when: overlays.guest.overlay_bridge in ansible_facts['interfaces']
+    # never restarted: stopping the unit flushes the whole ruleset, the agent's
+    # security group tables included
     - name: reload nftables
       ansible.builtin.service:
         name: nftables
-        state: restarted
+        state: reloaded
     - name: restart dnsmasq
       ansible.builtin.service:
         name: dnsmasq

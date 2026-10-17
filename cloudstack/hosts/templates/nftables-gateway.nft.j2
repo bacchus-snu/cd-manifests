@@ -1,0 +1,53 @@
+# Managed by cd-manifests/cloudstack/hosts (Ansible). Do not edit by hand.
+# NAT and forwarding of the guest overlay.
+
+table inet cloudstack_gw
+delete table inet cloudstack_gw
+
+table inet cloudstack_gw {
+    # Private networks: never reachable from guests
+    set guest_blocked {
+        type ipv4_addr
+        flags interval
+        elements = { {{ guest_blocked_networks | join(', ') }} }
+    }
+
+    # Frames are tracked twice on this host: once while bridged on the
+    # security-group bridge (bridge-nf-call-iptables is on) and once when routed
+    # on the overlay bridge. Sharing one conntrack entry breaks both: the NAT
+    # decision would be taken on the bridge, where no masquerade rule matches,
+    # and replies, seen untranslated on the bridge, would never match the entry
+    # translated on the way out. Keep the bridge's view in its own zone so the
+    # security-group rules see a consistent connection and NAT is decided only
+    # where the packet is routed.
+    chain prerouting {
+        type filter hook prerouting priority raw; policy accept;
+        iifname "{{ overlays.guest.bridge }}" ct zone set 1
+    }
+
+    # Hypervisor campus addresses. Guest traffic leaves masqueraded to a
+    # hypervisor's address, which the VTEPs and host firewalls trust, so
+    # guests must reach neither the hypervisors nor any VTEP through NAT.
+    set hypervisors {
+        type ipv4_addr
+        elements = { {{ groups['cloudstack_hosts'] | map('extract', hostvars, 'campus_ip') | join(', ') }} }
+    }
+
+    chain forward {
+        type filter hook forward priority filter; policy accept;
+        # bridge netfilter passes frames bridged within the guest overlay
+        # through this hook as well, so the overlay itself must not match
+        iifname "{{ overlays.guest.overlay_bridge }}" ip daddr != {{ overlays.guest.network }} ip daddr @guest_blocked drop
+        iifname "{{ overlays.guest.overlay_bridge }}" ip daddr @hypervisors drop
+        # the atrium VTEP also serves the public web services, so only VXLAN is closed
+        iifname "{{ overlays.guest.overlay_bridge }}" ip daddr {{ overlay_vtep_atrium }} udp dport 4789 drop
+        # the overlays carry 1450-byte frames: size TCP segments at the gateway
+        # instead of relying on path MTU discovery
+        tcp flags syn tcp option maxseg size set 1410
+    }
+
+    chain postrouting {
+        type nat hook postrouting priority srcnat; policy accept;
+        oifname "{{ campus_bridge }}" ip saddr {{ overlays.guest.network }} masquerade
+    }
+}

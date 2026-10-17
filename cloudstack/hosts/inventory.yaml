@@ -6,14 +6,20 @@ all:
     apt_repo: https://repo.snucse.org/debian
     apt_keyring_url: https://repo.snucse.org/debian/bacchus-archive-keyring.gpg
     campus_dns: [147.46.80.1, 8.8.8.8]
+    campus_bridge: cloudbr0
 
-    # BacchusNet side VTEP as seen from the campus: kerkoporta forwards UDP 4789
-    # to the waiter overlay gateway (worker-1)
-    overlay_vtep_waiter: 147.46.92.174
+    # VXLAN endpoint of the atrium overlay gateway: the campus address of the
+    # node carrying the cloudstack.snucse.org/overlay-gateway label
+    overlay_vtep_atrium: 147.46.92.174
     # management server address on the management overlay (overlay gateway DNAT)
     management_server: 10.93.0.254
 
-    # The two overlays. The management overlay is routed by the waiter overlay
+    # Every other VTEP of a host: the remaining hosts and the atrium gateway.
+    vtep_peers: >-
+      {{ (groups['cloudstack_hosts'] | map('extract', hostvars, 'campus_ip') | list | difference([campus_ip]) | sort)
+         + [overlay_vtep_atrium] }}
+
+    # The two overlays. The management overlay is routed by the atrium overlay
     # gateway, which holds its pod gateway address (10.93.0.1); the guest
     # overlay is routed by the cloudstack_gateway hosts, which hold its gateway
     # address as a VRRP VIP.
@@ -44,12 +50,12 @@ all:
         # never sent upstream (see templates/dnsmasq-guest.conf.j2)
         domain: vm.cloud.snucse.org
 
-    # networks that guests must never reach through the gateway
+    # destinations that guests must never reach through the gateway: guests
+    # only need the Internet, so every private range is closed
     guest_blocked_networks:
-      - 10.89.0.0/16
-      - 10.91.0.0/16
-      - 10.92.0.0/16
-      - 10.93.0.0/24
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
 
   children:
     cloudstack_hosts:

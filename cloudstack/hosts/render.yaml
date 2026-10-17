@@ -1,5 +1,6 @@
 # Renders the per-host files locally into out/<host>/ for review or manual
-# application, without connecting to the hosts.
+# application, without connecting to the hosts, and writes the host lists that
+# the atrium side keeps (overlay gateway peers, node firewall) from the inventory.
 #
 #   ansible-playbook -i inventory.yaml render.yaml
 ---
@@ -8,9 +9,6 @@
   connection: local
   gather_facts: false
   vars:
-    vtep_peers: >-
-      {{ (groups['cloudstack_hosts'] | map('extract', hostvars, 'campus_ip') | list | difference([campus_ip]))
-         + [overlay_vtep_waiter] }}
     out: '{{ playbook_dir }}/out/{{ inventory_hostname }}'
   tasks:
     - ansible.builtin.file:
@@ -24,6 +22,22 @@
         dest: '{{ out }}/keepalived.conf'
       when: inventory_hostname in groups['cloudstack_gateway']
     - ansible.builtin.template:
-        src: templates/nftables.conf.j2
-        dest: '{{ out }}/nftables.conf'
+        src: templates/nftables-host.nft.j2
+        dest: '{{ out }}/nftables-host.nft'
+    - ansible.builtin.template:
+        src: templates/nftables-gateway.nft.j2
+        dest: '{{ out }}/nftables-gateway.nft'
       when: inventory_hostname in groups['cloudstack_gateway']
+
+    - name: Overlay gateway peers
+      ansible.builtin.copy:
+        dest: '{{ playbook_dir }}/../../argocd/atrium/cloudstack/overlay-gw/peers'
+        content: "{{ groups['cloudstack_hosts'] | map('extract', hostvars, 'campus_ip') | join('\n') }}\n"
+      run_once: true
+
+    - name: Atrium node firewall admits VXLAN from the hosts only
+      ansible.builtin.replace:
+        path: '{{ playbook_dir }}/../../nodes/atrium/k8s-host-firewall.nft'
+        regexp: '(set cloudstack_peers [{]\n    type ipv4_addr\n    elements = [{])[^}]*([}])'
+        replace: '\1 {{ groups["cloudstack_hosts"] | map("extract", hostvars, "campus_ip") | join(", ") }} \2'
+      run_once: true

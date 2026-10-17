@@ -1,0 +1,38 @@
+# Managed by cd-manifests/cloudstack/hosts (Ansible). Do not edit by hand.
+# Input policy of the host itself: the campus and the guests reach only what
+# they need; the management overlay, on which storage, consoles and the agent
+# are served, stays open.
+
+table inet cloudstack_host
+delete table inet cloudstack_host
+
+table inet cloudstack_host {
+    # Every other VTEP: the remaining hosts and the atrium overlay gateway
+    set vtep_peers {
+        type ipv4_addr
+        elements = { {{ vtep_peers | join(', ') }} }
+    }
+
+    chain input {
+        type filter hook input priority filter - 10; policy accept;
+        iif lo accept
+        ct state established,related accept
+
+        # Frames arriving on the VXLAN port are injected into the overlays:
+        # only the other VTEPs may send them, on any interface
+        udp dport 4789 ip saddr != @vtep_peers drop
+
+        # Guests may use the gateway only as a resolver and for ping
+        iifname "{{ overlays.guest.overlay_bridge }}" udp dport 53 accept
+        iifname "{{ overlays.guest.overlay_bridge }}" tcp dport 53 accept
+        iifname "{{ overlays.guest.overlay_bridge }}" icmp type echo-request accept
+        iifname "{{ overlays.guest.overlay_bridge }}" drop
+
+        # The campus sees SSH, VXLAN and ICMP only: storage, consoles and the
+        # agent are served on the management overlay
+        iifname "{{ campus_bridge }}" tcp dport 22 accept
+        iifname "{{ campus_bridge }}" udp dport 4789 accept
+        iifname "{{ campus_bridge }}" meta l4proto { icmp, ipv6-icmp } accept
+        iifname "{{ campus_bridge }}" drop
+    }
+}

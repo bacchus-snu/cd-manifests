@@ -10,8 +10,8 @@ iface eth0 inet manual
 
 # Campus: host address and VXLAN endpoint. The bridge must keep the physical
 # NIC's MAC because the campus network binds addresses to registered MACs.
-auto cloudbr0
-iface cloudbr0 inet static
+auto {{ campus_bridge }}
+iface {{ campus_bridge }} inet static
         bridge_ports eth0
         bridge_fd 5
         bridge_stp off
