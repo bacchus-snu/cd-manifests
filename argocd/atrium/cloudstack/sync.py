@@ -465,6 +465,11 @@ def plan_targets(vms, members, user_by_template=None, guest_user=GUEST_USER, roo
                 "options": {"kind": "Ssh", "host": ip, "port": 22, "username": username,
                             "allow_insecure_algos": False,
                             "auth": {"kind": "PublicKey", "key_id": None}},
+                # access comes from the roles reconciled here only: no ticket
+                # requests, and approval if someone ever turns them on
+                "ticket_requests_disabled": True,
+                "ticket_require_approval": True,
+                "require_approval": False,
             }
 
         root = f":root:{root_by_vm[vm['id']]}" if vm["id"] in root_by_vm else ""
