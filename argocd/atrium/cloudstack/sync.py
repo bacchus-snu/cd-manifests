@@ -51,6 +51,7 @@ CONSOLE_CERT_DOMAIN = "console-proxy.cloud.snucse.org"
 CONSOLE_CERT_UPLOAD_INTERVAL = timedelta(minutes=60)
 CONSOLE_CERT_ZONE = timezone(timedelta(hours=9))
 CONSOLE_CERT_WINDOW = (daytime(4, 0), daytime(6, 0))
+CONSOLE_PROBE_RETRY = 30  # seconds
 CONSOLE_PROXY_STATE = "consoleproxy.management.state"
 PEM_CERT_RE = re.compile(r"-----BEGIN CERTIFICATE-----.+?-----END CERTIFICATE-----", re.S)
 
@@ -186,7 +187,7 @@ def sync_console_certificate(now=None):
     expose. An upload restarts the proxies and the secondary storage VMs, so a
     renewed certificate waits for the nightly window while the old one is still
     valid, a proxy that serves nothing is fixed at once, uploads are at least
-    an interval apart, and nothing happens while any proxy cannot be reached."""
+    an interval apart, and nothing happens while any proxy cannot be observed."""
     try:
         with open(f"{CONSOLE_TLS_DIR}/tls.crt") as f:
             chain = pem_blocks(f.read())
@@ -203,10 +204,19 @@ def sync_console_certificate(now=None):
                if p.get("publicip")]
     if not proxies:
         return
-    presented = {p["name"]: presented_certificate(p["publicip"]) for p in proxies}
-    unreachable = sorted(name for name, der in presented.items() if der is None)
-    if unreachable:
-        print(f"console certificate: cannot reach {unreachable}, not compared")
+    # a proxy is handed its keystore when its agent connects and starts serving
+    # a moment later: an agent that is not up tells nothing, and an empty answer
+    # is only believed when it repeats
+    presented = {p["name"]: presented_certificate(p["publicip"]) if p.get("agentstate") == "Up" else None
+                 for p in proxies}
+    if b"" in presented.values():
+        time.sleep(CONSOLE_PROBE_RETRY)
+        for p in proxies:
+            if presented[p["name"]] == b"":
+                presented[p["name"]] = presented_certificate(p["publicip"])
+    unknown = sorted(name for name, der in presented.items() if der is None)
+    if unknown:
+        print(f"console certificate: {unknown} cannot be observed, not compared")
         return
     leaf = ssl.PEM_cert_to_DER_cert(chain[0])
     if all(der == leaf for der in presented.values()):

@@ -401,7 +401,7 @@ class ConsoleCertificateTest(unittest.TestCase):
             f.write(KEY)
         self.ssl_enabled = "true"
         self.state = "Auto"  # consoleproxy.management.state
-        self.proxies = [{"id": "cp-1", "name": "v-1-VM", "publicip": "10.94.254.175"}]
+        self.proxies = [{"id": "cp-1", "name": "v-1-VM", "publicip": "10.94.254.175", "agentstate": "Up"}]
         self.presented = {"10.94.254.175": b"older"}
         self.events = []
         self.calls = []
@@ -433,8 +433,14 @@ class ConsoleCertificateTest(unittest.TestCase):
                 return {"jobid": f"reboot-{params['id']}"}
             raise AssertionError(f"unexpected {command}")
 
+        def fake_presented(ip, port=443):
+            self.probes.append(ip)
+            answer = self.presented[ip]
+            return answer.pop(0) if isinstance(answer, list) else answer
+
+        self.probes = []
         for p in (mock.patch.object(sync, "cloudstack", fake_cs),
-                  mock.patch.object(sync, "presented_certificate", lambda ip, port=443: self.presented[ip]),
+                  mock.patch.object(sync, "presented_certificate", fake_presented),
                   mock.patch.object(sync, "CONSOLE_TLS_DIR", self.dir),
                   mock.patch.object(sync.time, "sleep", lambda s: None)):
             p.start()
@@ -449,7 +455,7 @@ class ConsoleCertificateTest(unittest.TestCase):
         self.assertEqual(self.uploads(), [])
 
     def test_no_upload_when_every_proxy_presents_the_leaf(self):
-        self.proxies.append({"name": "v-2-VM", "publicip": "10.94.254.180"})
+        self.proxies.append({"name": "v-2-VM", "publicip": "10.94.254.180", "agentstate": "Up"})
         self.presented = {"10.94.254.175": b"leaf", "10.94.254.180": b"leaf"}
         sync.sync_console_certificate(INSIDE)
         self.assertEqual(self.uploads(), [])
@@ -506,11 +512,24 @@ class ConsoleCertificateTest(unittest.TestCase):
         self.assertEqual(self.uploads(), [])
 
     def test_skips_when_a_proxy_is_unobservable(self):
-        self.proxies.append({"name": "v-2-VM", "publicip": "10.94.254.180"})
+        self.proxies.append({"name": "v-2-VM", "publicip": "10.94.254.180", "agentstate": "Up"})
         self.presented = {"10.94.254.175": b"older", "10.94.254.180": None}
         sync.sync_console_certificate(INSIDE)
         self.assertEqual(self.uploads(), [])
         self.assertNotIn("listEvents", [c[0] for c in self.calls])
+
+    def test_proxy_whose_agent_is_not_up_is_unobservable(self):
+        self.proxies[0]["agentstate"] = "Disconnected"
+        self.presented = {"10.94.254.175": b""}
+        sync.sync_console_certificate(INSIDE)
+        self.assertEqual(self.uploads(), [])
+        self.assertEqual(self.probes, [])
+
+    def test_an_empty_answer_is_probed_again(self):
+        self.presented = {"10.94.254.175": [b"", b"leaf"]}  # serving starts a moment after the agent connects
+        sync.sync_console_certificate(OUTSIDE)
+        self.assertEqual(self.uploads(), [])
+        self.assertEqual(self.probes, ["10.94.254.175", "10.94.254.175"])
 
     def test_upload_error_fails_the_run(self):
         self.upload_error = RuntimeError("rejected")
@@ -523,7 +542,7 @@ class ConsoleCertificateTest(unittest.TestCase):
         self.assertEqual(steps, ["uploadCustomCertificate", "queryAsyncJobResult"] * 3)
 
     def test_restores_the_state_then_reboots_the_proxies(self):
-        self.proxies.append({"id": "cp-2", "name": "v-2-VM", "publicip": "10.94.254.180"})
+        self.proxies.append({"id": "cp-2", "name": "v-2-VM", "publicip": "10.94.254.180", "agentstate": "Up"})
         self.presented["10.94.254.180"] = b"older"
         sync.sync_console_certificate(INSIDE)
         after = [(c, p) for c, _, p in self.calls][-3:]
