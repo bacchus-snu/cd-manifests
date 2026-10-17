@@ -854,6 +854,28 @@ class ConsoleProxyStateTest(unittest.TestCase):
             self.assertEqual(self.run_with(state), [])
 
 
+class ManagementServerRecordsTest(unittest.TestCase):
+    def run_with(self, servers):
+        calls = []
+
+        def fake_cs(command, **params):
+            calls.append((command, params))
+            if command == "listManagementServers":
+                return {"managementserver": servers}
+            return {}
+
+        with mock.patch.object(sync, "cloudstack", fake_cs):
+            sync.prune_management_servers()
+        return [p["id"] for c, p in calls if c == "removeManagementServer"]
+
+    def test_removes_down_records_while_one_is_up(self):
+        servers = [{"id": "a", "state": "Down"}, {"id": "b", "state": "Up"}, {"id": "c", "state": "Down"}]
+        self.assertEqual(self.run_with(servers), ["a", "c"])
+
+    def test_keeps_everything_without_a_server_up(self):
+        self.assertEqual(self.run_with([{"id": "a", "state": "Down"}, {"id": "b", "state": "Down"}]), [])
+
+
 class WaitForJobTest(unittest.TestCase):
     def test_polls_until_done(self):
         answers = iter([{"jobstatus": 0}, {"jobstatus": 0}, {"jobstatus": 1, "jobresult": {"ok": True}}])

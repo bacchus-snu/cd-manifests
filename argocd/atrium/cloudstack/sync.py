@@ -1,8 +1,9 @@
 """Reconcile state that follows CloudStack: the console proxy endpoints in
 Kubernetes and the certificate the console proxies serve, the users, roles
 and targets of the Warpgate bastion, and the user data that brings guests
-from the templates onto the network and makes them trust the bastion. Runs
-once per invocation; the CronJob provides the cadence."""
+from the templates onto the network and makes them trust the bastion. It also
+drops the records of management servers that are gone. Runs once per
+invocation; the CronJob provides the cadence."""
 
 import base64
 import hashlib
@@ -161,6 +162,19 @@ def restore_console_proxy_state():
         if s.get("name") == CONSOLE_PROXY_STATE and s.get("value") == "ResetSuspending":
             cloudstack("updateConfiguration", name=CONSOLE_PROXY_STATE, value="Auto")
             print("console proxy management state: ResetSuspending -> Auto")
+
+
+def prune_management_servers():
+    """A management server is known by the MAC address of its interface, so
+    every restart of the server's pod registers a new one and leaves the old
+    record Down for good. Down records are removed while a server is Up."""
+    servers = cloudstack("listManagementServers").get("managementserver", [])
+    if not any(m.get("state") == "Up" for m in servers):
+        return
+    for m in servers:
+        if m.get("state") == "Down":
+            cloudstack("removeManagementServer", id=m["id"])
+            print(f"management server record {m.get('serviceip')} (Down) removed")
 
 
 def presented_certificate(address, port=443):
@@ -805,6 +819,7 @@ def sync_template_userdata():
 
 def main():
     sync_console_endpoints()
+    prune_management_servers()
     if WARPGATE_HOST and WARPGATE_TLS_NAME and WARPGATE_TOKEN:
         sync_warpgate()
         sync_template_userdata()
