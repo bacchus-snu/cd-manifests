@@ -15,6 +15,7 @@
 # The Vault Secrets Operator picks the credentials up within five minutes and
 # restarts the gate and Warpgate, which then open the Bacchus door.
 set -euo pipefail
+shopt -s inherit_errexit
 export VAULT_ADDR=${VAULT_ADDR:-https://vault.bacchus.io}
 CONNECTION=bacchus-workspace
 py() { python3 -c "$1"; }
