@@ -42,6 +42,12 @@ GUEST_USER = os.environ.get("GUEST_USER", "ubuntu")
 # CloudStack's built-in accounts, never mirrored
 BUILTIN_ACCOUNTS = {"system", "baremetal-system-account"}
 ADMINS_ROLE = "admins"  # Warpgate role of CloudStack root administrators: every target
+# Users sign in with their identity provider only, so a password set on one's
+# Warpgate profile must open nothing: SSH does not offer password
+# authentication, and the web login of mirrored users requires SSO. SSH keeps
+# accepting any one credential (a registered key or the browser approval).
+WARPGATE_PARAMETERS = {"ssh_client_auth_password": False, "password_login_mode": "Minimized"}
+USER_CREDENTIAL_POLICY = {"http": ["Sso"]}
 MANAGED = "cloudstack:"  # description prefix of the Warpgate objects this job owns
 GUEST_TAG_PREFIX = "ssh.account."  # VM tag: <prefix><linux username> = comma-separated user names
 USERNAME_RE = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
@@ -319,6 +325,29 @@ def sync_user_roles(user, wanted, roles):
         warpgate("DELETE", f"/users/{user['id']}/roles/{roles[name]['id']}")
         print(f"warpgate user {user['username']}: role {name} removed")
     return revoked
+
+
+def sync_warpgate_parameters():
+    current = warpgate("GET", "/parameters")[1] or {}
+    drift = {k: v for k, v in WARPGATE_PARAMETERS.items() if current.get(k) != v}
+    if drift:  # fields left out of the update keep their values
+        warpgate("PUT", "/parameters", drift)
+        print(f"warpgate parameters: {drift}")
+
+
+def sync_user_policy(user):
+    """The update replaces every field of the user, so the others are sent back
+    as they are."""
+    current = {k: v for k, v in (user.get("credential_policy") or {}).items() if v}
+    if current == USER_CREDENTIAL_POLICY:
+        return
+    warpgate("PUT", f"/users/{user['id']}", {
+        "username": user["username"], "description": user.get("description") or "",
+        "credential_policy": USER_CREDENTIAL_POLICY,
+        "rate_limit_bytes_per_second": user.get("rate_limit_bytes_per_second"),
+        "allowed_ip_ranges": user.get("allowed_ip_ranges"),
+    })
+    print(f"warpgate user {user['username']}: credential policy {USER_CREDENTIAL_POLICY}")
 
 
 def close_demoted_sessions(demoted, targets, reach):
@@ -729,6 +758,7 @@ def sync_warpgate():
     providers = sso_providers()
     if not providers:  # with no mapping every user would be removed, with their keys
         raise ValueError("BASTION_SSO is empty")
+    sync_warpgate_parameters()
     paths = {d["id"]: d["path"] for d in cloudstack("listDomains", listall="true").get("domain", [])}
     provider_of = {}
     users = []
@@ -796,6 +826,7 @@ def sync_warpgate():
         wu = wg_users.get(u["username"])
         if not wu:
             continue
+        sync_user_policy(wu)
         email = u["email"]  # as the identity provider presents it: Warpgate compares verbatim
         provider = provider_of[u["username"]]
         creds = warpgate("GET", f"/users/{wu['id']}/credentials/sso")[1]

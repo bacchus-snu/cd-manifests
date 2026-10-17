@@ -994,6 +994,8 @@ class RoleCatalogTest(unittest.TestCase):
         self.assertEqual(user["type"], "User")
         self.assertEqual(len(user["rules"]), 148)
         self.assertIn(("*Template*", "deny"), user["rules"])
+        self.assertIn(("updateUser", "deny"), user["rules"])
+        self.assertNotIn(("updateUser", "allow"), user["rules"])
 
 
 class SyncRolesTest(unittest.TestCase):
@@ -1150,6 +1152,28 @@ class WarpgateSsoTest(unittest.TestCase):
                                   ("/users/wu-m@bacchus.snucse.org/credentials/sso", "bacchus", "m@bacchus.snucse.org")})
         deleted = {p for m, p, b in self.wg_calls if m == "DELETE" and "/credentials/sso/" in p}
         self.assertEqual(deleted, {"/users/wu-bob/credentials/sso/c-null", "/users/wu-bob/credentials/sso/c-old"})
+
+    def test_passwords_open_nothing(self):
+        self.wg_users["bob"]["credential_policy"] = {"http": ["Sso"], "ssh": None}
+        sync.sync_warpgate()
+        params = [b for m, p, b in self.wg_calls if m == "PUT" and p == "/parameters"]
+        self.assertEqual(params, [{"ssh_client_auth_password": False, "password_login_mode": "Minimized"}])
+        policies = {p: b for m, p, b in self.wg_calls if m == "PUT" and p.startswith("/users/")}
+        self.assertEqual(list(policies), ["/users/wu-m@bacchus.snucse.org"])  # bob already has it
+        body = policies["/users/wu-m@bacchus.snucse.org"]
+        self.assertEqual((body["username"], body["credential_policy"]), ("m@bacchus.snucse.org", {"http": ["Sso"]}))
+        self.assertIn("description", body)
+
+    def test_parameters_left_alone_when_set(self):
+        orig = sync.warpgate
+
+        def wg(method, path, body=None):
+            if method == "GET" and path == "/parameters":
+                return 200, {"ssh_client_auth_password": False, "password_login_mode": "Minimized", "other": 1}
+            return orig(method, path, body)
+        with mock.patch.object(sync, "warpgate", wg):
+            sync.sync_warpgate_parameters()
+        self.assertFalse([c for c in self.wg_calls if c[1] == "/parameters"])
 
     def test_same_name_in_two_domains_is_not_mirrored(self):
         twin = {"id": "u-bob2", "username": "bob", "account": "bob", "domainid": "d-root", "email": "bob@bacchus.snucse.org",

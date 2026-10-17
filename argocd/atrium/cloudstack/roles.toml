@@ -63,7 +63,8 @@ rules = [
 # SNUCSE ID students (gate door "snucse"): the built-in User role without
 # projects, templates and ISOs, security groups, SSH key pairs and networking.
 # Instances, volumes, snapshots, tags and API keys remain; listing stays allowed
-# so that the UI works.
+# so that the UI works. The user itself is the gate's: no password of one's own,
+# and the UI hides its password and edit actions.
 [[role]]
 name = "SNUCSE User"
 type = "User"
@@ -187,7 +188,7 @@ rules = [
   ["stopVirtualMachine", "allow"],
   ["updateInstanceGroup", "allow"],
   ["updateSnapshotPolicy", "allow"],
-  ["updateUser", "allow"],
+  ["updateUser", "deny"],
   ["updateVMAffinityGroup", "allow"],
   ["updateVirtualMachine", "allow"],
   ["uploadVolume", "allow"],
