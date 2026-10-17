@@ -132,10 +132,37 @@
         # NIC off the campus
         - { key: public.network.device, value: '{{ overlays.guest.bridge }}' }
         - { key: guest.network.device, value: '{{ overlays.guest.bridge }}' }
-        # guests see the host CPU (all hosts are the same model and local
-        # storage rules out live migration), so x86-64-v2/v3 images boot
+        # guests see the host CPU (all hosts are the same model, so a migrated
+        # guest keeps its CPU), so x86-64-v2/v3 images boot
         - { key: guest.cpu.mode, value: host-passthrough }
       notify: restart cloudstack-agent
+
+    # The agent calls a host secured, and migrates over qemu+tls, only if
+    # libvirtd answers TLS on 16514. cloudstack-setup-agent masks libvirt's
+    # socket units and asks for the listener through libvirtd_opts, which
+    # Debian's unit does not read (it passes $LIBVIRTD_ARGS).
+    - name: libvirtd opens its own listeners
+      ansible.builtin.lineinfile:
+        path: /etc/default/libvirtd
+        regexp: '^#?LIBVIRTD_ARGS='
+        line: 'LIBVIRTD_ARGS="--listen"'
+      notify: [restart libvirtd, restart cloudstack-agent]
+
+    # The CA that signs the hosts' certificates signs the system VMs' too:
+    # only the hosts may drive libvirt, and only over the management overlay.
+    - name: libvirtd TLS listener scope
+      ansible.builtin.lineinfile:
+        path: /etc/libvirt/libvirtd.conf
+        regexp: '^#?\s*{{ item.key }}\s*='
+        line: '{{ item.key }} = {{ item.value }}'
+      loop:
+        - { key: listen_addr, value: '"{{ mgmt_ip }}"' }
+        - key: tls_allowed_dn_list
+          value: >-
+            {{ groups['cloudstack_hosts'] | map('extract', hostvars, 'ansible_host')
+               | map('regex_replace', '^(.*)$', 'CN=\1,OU=cloudstack,O=cloudstack,C=cloudstack')
+               | sort | to_json }}
+      notify: [restart libvirtd, restart cloudstack-agent]
 
     - name: Reboot needed
       ansible.builtin.debug:
@@ -145,6 +172,12 @@
   handlers:
     - name: apply sysctl
       ansible.builtin.command: sysctl --system
+    # running guests are untouched; listed before the agent, which reports
+    # whether the host is secured when it connects
+    - name: restart libvirtd
+      ansible.builtin.service:
+        name: libvirtd
+        state: restarted
     - name: restart cloudstack-agent
       ansible.builtin.service:
         name: cloudstack-agent
