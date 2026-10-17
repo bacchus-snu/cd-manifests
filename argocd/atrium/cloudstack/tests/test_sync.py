@@ -3,8 +3,10 @@ import importlib
 import io
 import json
 import os
+import re
 import ssl
 import subprocess
+import sys
 import tempfile
 import unittest
 import urllib.error
@@ -180,6 +182,155 @@ class TrustScriptTest(unittest.TestCase):
         self.assertIn("AuthorizedKeysFile .ssh/authorized_keys /etc/ssh/warpgate_keys", script)
         self.assertIn("/etc/ssh/sshd_config.d/50-warpgate.conf", script)
 
+    def test_shell_options_stay_inside(self):
+        # CloudStack appends a user's script to this one as text
+        script = sync.render_trust_script(["ssh-ed25519 AAA warpgate"])
+        self.assertTrue(script.startswith("#!/bin/sh\n(\nset -e\n"))
+        self.assertTrue(script.endswith("\n)\n"))
+        failing = re.sub(r"(?s)\nset -e\n.*\n\)\n$", "\nset -e\nfalse\n)\n", script)
+        out = subprocess.run(["sh", "-c", failing + "\n\necho user part ran\n"], capture_output=True, text=True)
+        self.assertIn("user part ran", out.stdout)
+
+
+class NetworkHookTest(unittest.TestCase):
+    """Runs the rendered boot hook under sh against a stand-in cloudinit package."""
+    FALLBACK = {"version": 2, "ethernets": {"eth0": {"dhcp4": True, "match": {"macaddress": "1e:00:00:00:00:01"}, "set-name": "eth0"}}}
+    STAGES = '''
+import json, os
+STATE = os.environ["FAKE_CLOUDINIT"]
+
+def _load():
+    with open(STATE) as f:
+        return json.load(f)
+
+class _Distro:
+    def generate_fallback_config(self):
+        return _load()["fallback"]
+
+    def apply_network_config(self, cfg, bring_up=False):
+        s = _load()
+        s["applied"].append([cfg, bring_up])
+        with open(STATE, "w") as f:
+            json.dump(s, f)
+        return s["no_activator"]
+
+class _DataSource:
+    pass
+
+class Init:
+    distro = _Distro()
+
+    def read_cfg(self):
+        pass
+
+    def fetch(self, existing="check"):
+        ds = _DataSource()
+        if "network_json" in _load():
+            ds.network_json = _load()["network_json"]
+        return ds
+'''
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = tmp.name
+        os.makedirs(f"{self.root}/bin")
+        os.makedirs(f"{self.root}/py/cloudinit")
+        open(f"{self.root}/py/cloudinit/__init__.py", "w").close()
+        with open(f"{self.root}/py/cloudinit/stages.py", "w") as f:
+            f.write(self.STAGES)
+        stubs = {"cloud-init": f"#!{sys.executable}\n", "ifup": '#!/bin/sh\necho "$@" >> "$ROOT/ifup.log"\n'}
+        for name, body in stubs.items():
+            with open(f"{self.root}/bin/{name}", "w") as f:
+                f.write(body)
+            os.chmod(f"{self.root}/bin/{name}", 0o755)
+        with open(f"{self.root}/route", "w") as f:
+            f.write("Iface\tDestination\tGateway\neth0\t00000000\t01005E0A\n")
+        self.cfg = f"{self.root}/90-network-fallback.cfg"
+        with open(f"{self.root}/hook.sh", "w") as f:
+            f.write(sync.render_network_hook().replace(sync.NETWORK_FALLBACK_CFG, self.cfg)
+                    .replace("/proc/net/route", f"{self.root}/route"))
+
+    def run_hook(self, **state):
+        state = {"fallback": self.FALLBACK, "applied": [], "no_activator": False, **state}
+        with open(f"{self.root}/state.json", "w") as f:
+            json.dump(state, f)
+        env = {**os.environ, "ROOT": self.root, "PATH": f"{self.root}/bin:{os.environ['PATH']}",
+               "PYTHONPATH": f"{self.root}/py", "FAKE_CLOUDINIT": f"{self.root}/state.json"}
+        out = subprocess.run(["sh", f"{self.root}/hook.sh"], env=env, capture_output=True, text=True)
+        self.assertEqual(out.returncode, 0, out.stderr)
+        with open(f"{self.root}/state.json") as f:
+            return json.load(f)["applied"]
+
+    def kept(self):
+        with open(self.cfg) as f:
+            return json.load(f)
+
+    def ifup_calls(self):
+        try:
+            with open(f"{self.root}/ifup.log") as f:
+                return f.read().split()
+        except FileNotFoundError:
+            return []
+
+    def test_empty_description_gets_the_fallback(self):
+        applied = self.run_hook(network_json={})
+        self.assertEqual(applied, [[self.FALLBACK, True]])
+        self.assertEqual(self.kept(), {"network": self.FALLBACK})
+        self.assertEqual(self.ifup_calls(), [])
+
+    def test_current_fallback_is_left_alone(self):
+        self.run_hook(network_json={})
+        self.assertEqual(self.run_hook(network_json={}), [])
+
+    def test_stale_fallback_is_replaced(self):
+        with open(self.cfg, "w") as f:
+            json.dump({"network": {"version": 2, "ethernets": {"eth0": {"match": {"macaddress": "1e:00:00:00:00:99"}}}}}, f)
+        self.assertEqual(self.run_hook(network_json={}), [[self.FALLBACK, True]])
+        self.assertEqual(self.kept(), {"network": self.FALLBACK})
+
+    def test_ifup_without_an_activator(self):
+        self.run_hook(network_json={}, no_activator=True)
+        self.assertEqual(self.ifup_calls(), ["eth0"])
+
+    def test_drive_without_description_is_cloud_inits_own(self):
+        self.assertEqual(self.run_hook(network_json=None), [])
+        self.assertFalse(os.path.exists(self.cfg))
+
+    def test_described_network_drops_the_kept_fallback(self):
+        self.run_hook(network_json={})
+        links = {"links": [{"id": "eth0", "type": "phy"}], "networks": []}
+        self.assertEqual(self.run_hook(network_json=links), [])
+        self.assertFalse(os.path.exists(self.cfg))
+
+    def test_other_datasources_are_left_alone(self):
+        self.assertEqual(self.run_hook(), [])
+
+    def test_no_cloud_init(self):
+        os.remove(f"{self.root}/bin/cloud-init")
+        env = {**os.environ, "PATH": f"{self.root}/bin:/usr/bin:/bin"}
+        out = subprocess.run(["sh", f"{self.root}/hook.sh"], env=env, capture_output=True, text=True)
+        self.assertEqual(out.returncode, 0, out.stderr)
+
+
+class UserDataTest(unittest.TestCase):
+    KEYS = ["ssh-ed25519 AAA warpgate"]
+
+    def test_parts_in_order(self):
+        import email
+        msg = email.message_from_string(sync.render_userdata(self.KEYS))
+        parts = [(p.get_content_type(), p.get_payload()) for p in msg.get_payload()]
+        self.assertEqual(parts, [("text/cloud-boothook", sync.render_network_hook()),
+                                 ("text/x-shellscript", sync.render_trust_script(self.KEYS))])
+
+    def test_detected_as_mime_and_stable(self):
+        # CloudStack takes the first line starting with "#" or "Content-Type:" as the format
+        text = sync.render_userdata(self.KEYS)
+        first = next(line for line in text.split("\n") if line.startswith(("#", "Content-Type:")))
+        self.assertTrue(first.startswith("Content-Type: multipart/mixed"))
+        self.assertEqual(text, sync.render_userdata(self.KEYS))
+        self.assertNotEqual(sync.userdata_name(text), sync.userdata_name(sync.render_userdata(["ssh-ed25519 BBB warpgate"])))
+
     def test_name_is_stable_hash_of_content(self):
         a = sync.userdata_name(sync.render_trust_script(["ssh-ed25519 AAA warpgate"]))
         b = sync.userdata_name(sync.render_trust_script(["ssh-ed25519 AAA warpgate"]))
@@ -233,7 +384,10 @@ class TemplateUserDataTest(unittest.TestCase):
         deletes = [p for c, p in self.calls if c == "deleteUserData"]
         self.assertEqual([p["id"] for p in deletes], ["ud-old"])
         import base64
-        registered = base64.b64decode(next(p["userdata"] for c, p in self.calls if c == "registerUserData")).decode()
+        register = next(p for c, p in self.calls if c == "registerUserData")
+        self.assertTrue(register["post"])  # too long for a query string
+        registered = base64.b64decode(register["userdata"]).decode()
+        self.assertIn("text/cloud-boothook", registered)
         self.assertIn("cloudstack/password/vm_password.txt", registered)
         self.assertNotIn("data-server", registered)
         self.assertNotIn("listNetworks", cmds)

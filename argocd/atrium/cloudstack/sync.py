@@ -1,8 +1,8 @@
 """Reconcile state that follows CloudStack: the console proxy endpoints in
 Kubernetes and the certificate the console proxies serve, the users, roles
-and targets of the Warpgate bastion, and the user data that makes templates
-trust the bastion. Runs once per invocation; the CronJob provides the
-cadence."""
+and targets of the Warpgate bastion, and the user data that brings guests
+from the templates onto the network and makes them trust the bastion. Runs
+once per invocation; the CronJob provides the cadence."""
 
 import base64
 import hashlib
@@ -19,6 +19,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, time as daytime, timedelta, timezone
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 API_URL = os.environ["CLOUDSTACK_API_URL"]
 API_KEY = os.environ["CLOUDSTACK_API_KEY"].strip()
@@ -42,6 +44,8 @@ GUEST_TAG_PREFIX = "ssh.account."  # VM tag: <prefix><linux username> = comma-se
 USERNAME_RE = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
 USERDATA_PREFIX = "warpgate-ssh"  # user data objects with this name prefix are managed here
 PASSWORD_SCRIPT = "/var/lib/cloud/scripts/per-boot/cloudstack-password"
+NETWORK_FALLBACK_CFG = "/etc/cloud/cloud.cfg.d/90-network-fallback.cfg"
+USERDATA_BOUNDARY = "==cloudstack-user-data=="
 CATALOG_PATH = os.environ.get("TEMPLATE_CATALOG", "/opt/sync/templates.toml")
 # certificate (leaf, then intermediates) and key that every running console
 # proxy must serve; cert-manager renews them in place
@@ -379,8 +383,10 @@ def render_trust_script(public_keys):
     instance's own part by part and concatenates parts of one type as text,
     so a cloud-config here would override keys of a user's cloud-config."""
     keys = "\n".join(sorted(public_keys))
+    # a subshell, so that set -e does not reach a script appended after this one
     return (
         "#!/bin/sh\n"
+        "(\n"
         "set -e\n"
         f"cat > /etc/ssh/warpgate_keys <<'EOF'\n{keys}\nEOF\n"
         "chmod 644 /etc/ssh/warpgate_keys\n"
@@ -392,7 +398,79 @@ def render_trust_script(public_keys):
         f"cat > {PASSWORD_SCRIPT} <<'EOF'\n{render_password_script()}EOF\n"
         f"chmod 755 {PASSWORD_SCRIPT}\n"
         f"{PASSWORD_SCRIPT} || true\n"
+        ")\n"
     )
+
+
+NETWORK_FALLBACK_PY = """\
+import json, os, subprocess, time
+from cloudinit import stages
+
+init = stages.Init()
+init.read_cfg()
+if getattr(init.fetch(existing="trust"), "network_json", None) != {}:
+    if os.path.exists(path):
+        os.remove(path)
+    raise SystemExit
+distro = init.distro
+cfg = distro.generate_fallback_config()
+if not cfg:
+    raise SystemExit
+want = {"network": cfg}
+try:
+    with open(path) as f:
+        if json.load(f) == want:
+            raise SystemExit
+except (OSError, ValueError):
+    pass
+with open(path, "w") as f:
+    json.dump(want, f)
+if distro.apply_network_config(cfg, bring_up=True):
+    for name in cfg.get("ethernets", {}):
+        try:
+            subprocess.call(["ifup", name])
+        except OSError:
+            pass
+for _ in range(60):
+    with open("/proc/net/route") as f:
+        if any(line.split()[1:2] == ["00000000"] for line in f):
+            break
+    time.sleep(1)
+print("network: applied cloud-init's fallback " + json.dumps(cfg))
+"""
+
+
+def render_network_hook():
+    """Boot hook for a config drive with an empty network description, which
+    CloudStack writes when the drive serves neither DHCP nor DNS and which
+    cloud-init takes as "configure nothing", skipping its DHCP fallback. The
+    hook renders and brings up that fallback through cloud-init (ifup where
+    cloud-init has no activator) and keeps it in cloud-init's system
+    configuration, which outranks the drive whenever the network is rendered
+    again. It runs on every boot: a current kept fallback is left alone, a
+    stale one (a copied disk) is replaced, and it is removed once the drive
+    describes a network or none."""
+    py = f"path = {NETWORK_FALLBACK_CFG!r}\n" + NETWORK_FALLBACK_PY
+    return (
+        "#!/bin/sh\n"
+        "(\n"
+        "py=$(sed -n '1s/^#! *//p' \"$(command -v cloud-init)\" 2>/dev/null)\n"
+        "[ -z \"$py\" ] || $py - <<'PY'\n"
+        f"{py}"
+        "PY\n"
+        ")\n"
+    )
+
+
+def render_userdata(public_keys):
+    """Template user data: the network hook as a boot hook, which cloud-init
+    runs before its configuration modules and any user script, so those find
+    the network up, and the trust script. The MIME boundary is fixed because
+    the user data is named after a hash of its text."""
+    msg = MIMEMultipart(boundary=USERDATA_BOUNDARY)
+    msg.attach(MIMEText(render_network_hook(), "cloud-boothook"))
+    msg.attach(MIMEText(render_trust_script(public_keys), "x-shellscript"))
+    return msg.as_string()
 
 
 def userdata_name(script):
@@ -646,21 +724,22 @@ def sync_warpgate():
 
 
 def sync_template_userdata():
-    """Every user template gets the bastion trust script as appended user data,
-    so a VM from any template accepts the bastion without anyone copying keys.
-    A template that links some other user data is someone's deliberate choice
-    and is left alone. Stale managed scripts are removed once unlinked."""
+    """Every user template gets the managed user data appended, so a VM from
+    any template reaches the network and accepts the bastion without anyone
+    copying keys. A template that links some other user data is someone's
+    deliberate choice and is left alone. Stale managed user data is removed
+    once unlinked."""
     keys = warpgate("GET", "/ssh/own-keys")[1] or []
     public = [k["public_key"] for k in keys if k.get("is_default")] or [k["public_key"] for k in keys]
     if not public:
         print("warning: warpgate has no client keys; template user data not managed")
         return
-    script = render_trust_script(public)
+    script = render_userdata(public)
     name = userdata_name(script)
 
     existing = {u["name"]: u for u in cloudstack("listUserData", listall="true").get("userdata", [])}
     if name not in existing:
-        cloudstack("registerUserData", name=name, userdata=base64.b64encode(script.encode()).decode())
+        cloudstack("registerUserData", post=True, name=name, userdata=base64.b64encode(script.encode()).decode())
         print(f"cloudstack user data {name} registered")
         existing = {u["name"]: u for u in cloudstack("listUserData", listall="true").get("userdata", [])}
     current = existing[name]["id"]
