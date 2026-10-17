@@ -70,6 +70,12 @@ class PlanTargetsTest(unittest.TestCase):
         self.assertEqual(reach["web1:foo"], {"account-bob", "account-carol"})
         self.assertEqual(reach["proj1"], {"account-dave", "account-erin"})
 
+    def test_ssh_options_carry_every_required_field(self):
+        wanted, _ = sync.plan_targets([{"id": "vm-1", "name": "a", "account": "alice",
+                                        "nic": [{"ipaddress": "10.94.1.5"}]}], {})
+        # the bastion's API rejects a target whose allow_insecure_algos is absent
+        self.assertIs(wanted["a"]["options"]["allow_insecure_algos"], False)
+
 
 class CloseSessionsTest(unittest.TestCase):
     def setUp(self):

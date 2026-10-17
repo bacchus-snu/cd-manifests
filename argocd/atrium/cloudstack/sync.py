@@ -463,6 +463,7 @@ def plan_targets(vms, members, user_by_template=None, guest_user=GUEST_USER, roo
                 "name": target,
                 "description": description,
                 "options": {"kind": "Ssh", "host": ip, "port": 22, "username": username,
+                            "allow_insecure_algos": False,
                             "auth": {"kind": "PublicKey", "key_id": None}},
             }
 
