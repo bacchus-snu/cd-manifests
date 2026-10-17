@@ -29,8 +29,8 @@ spec:
     spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
-      # the node carrying the overlay endpoint; its campus address is the
-      # 'local' value below, the VTEP the hypervisors send to
+      # the node carrying the overlay endpoint; its address is the VTEP the
+      # hypervisors send to
       nodeSelector:
         cloudstack.snucse.org/overlay-gateway: 'true'
       containers:
@@ -41,9 +41,8 @@ spec:
           env:
             - name: LOCAL
               valueFrom:
-                configMapKeyRef:
-                  name: overlay-gw
-                  key: local
+                fieldRef:
+                  fieldPath: status.hostIP
             - name: PEERS
               valueFrom:
                 configMapKeyRef:
