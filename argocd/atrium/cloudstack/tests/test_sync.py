@@ -4,6 +4,7 @@ import io
 import json
 import os
 import ssl
+import subprocess
 import tempfile
 import unittest
 import urllib.error
@@ -144,8 +145,6 @@ class TemplateUserDataTest(unittest.TestCase):
                 return {}
             if command == "listTemplates":
                 return {"template": self.templates}
-            if command == "listNetworks":
-                return {"network": [{"name": "guest", "networkdomain": "vm.example"}]}
             return {}
 
         def fake_wg(method, path, body=None):
@@ -167,7 +166,9 @@ class TemplateUserDataTest(unittest.TestCase):
         self.assertEqual([p["id"] for p in deletes], ["ud-old"])
         import base64
         registered = base64.b64decode(next(p["userdata"] for c, p in self.calls if c == "registerUserData")).decode()
-        self.assertIn("http://data-server.vm.example:8080/", registered)
+        self.assertIn("cloudstack/password/vm_password.txt", registered)
+        self.assertNotIn("data-server", registered)
+        self.assertNotIn("listNetworks", cmds)
 
 
 class CatalogTest(unittest.TestCase):
@@ -266,13 +267,87 @@ class TrustScriptIncludeTest(unittest.TestCase):
         self.assertIn(f"cat > {sync.PASSWORD_SCRIPT} <<'EOF'\n{hook}EOF\n", script)
         self.assertIn(f"{sync.PASSWORD_SCRIPT} || true\n", script)
         self.assertTrue(sync.PASSWORD_SCRIPT.startswith("/var/lib/cloud/scripts/per-boot/"))
-        self.assertIn("DomU_Request: $1", hook)
-        self.assertIn("http://data-server:8080/", hook)
-        self.assertIn("http://data-server.vm.example:8080/", sync.render_password_script("vm.example"))
-        self.assertIn("data-server.vm.example:8080", sync.render_trust_script(["k"], "vm.example"))
-        self.assertIn("saved_password", hook)
-        self.assertIn("chpasswd", hook)
         self.assertNotIn("\nEOF\n", hook)  # would end the heredoc early
+
+    def test_password_hook_reads_the_config_drive(self):
+        hook = sync.render_password_script()
+        for wanted in ('LABEL="config-2"', "cloudstack/password/vm_password.txt", "chpasswd",
+                       "/var/lib/cloud/cloudstack-password.sha256"):
+            self.assertIn(wanted, hook)
+        for gone in ("data-server", "8080", "send_my_password"):
+            self.assertNotIn(gone, hook)
+
+
+class PasswordHookTest(unittest.TestCase):
+    """Runs the rendered hook under sh with stand-ins for the system tools."""
+    STATE = "/var/lib/cloud/cloudstack-password.sha256"
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = tmp.name
+        self.bin, self.drive_dir = f"{self.root}/bin", f"{self.root}/drive"
+        os.makedirs(self.bin)
+        os.makedirs(f"{self.drive_dir}/cloudstack/password")
+        stubs = {
+            # util-linux and busybox both print one "<device>: KEY=..." line per device
+            "blkid": 'test -e "$ROOT/has-drive" && echo \'/dev/sr1: UUID="2026" LABEL="config-2" TYPE="iso9660"\'',
+            "mount": 'eval "mnt=\\${$#}"; cp -R "$ROOT/drive/." "$mnt/"',
+            "umount": "true",
+            "python3": "exit 1",
+            "getent": 'echo "ubuntu:x:1000:1000::/home/ubuntu:/bin/sh"',
+            "chpasswd": 'cat >> "$ROOT/chpasswd.log"',
+        }
+        for name, body in stubs.items():
+            with open(f"{self.bin}/{name}", "w") as f:
+                f.write(f"#!/bin/sh\n{body}\n")
+            os.chmod(f"{self.bin}/{name}", 0o755)
+        with open(f"{self.root}/hook.sh", "w") as f:
+            f.write(sync.render_password_script().replace(self.STATE, f"{self.root}/state.sha256"))
+
+    def drive(self, password):
+        open(f"{self.root}/has-drive", "w").close()
+        path = f"{self.drive_dir}/cloudstack/password/vm_password.txt"
+        if password is None:
+            if os.path.exists(path):
+                os.remove(path)
+        else:
+            with open(path, "w") as f:
+                f.write(password)
+
+    def boot(self):
+        env = dict(os.environ, ROOT=self.root, PATH=f"{self.bin}:{os.environ['PATH']}")
+        result = subprocess.run(["sh", f"{self.root}/hook.sh"], env=env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        try:
+            with open(f"{self.root}/chpasswd.log") as f:
+                return f.read().splitlines()
+        except FileNotFoundError:
+            return []
+
+    def test_password_hook_applies_only_a_changed_password(self):
+        self.drive("first secret")
+        self.assertEqual(self.boot(), ["ubuntu:first secret"])
+        self.assertEqual(self.boot(), ["ubuntu:first secret"])  # same password: not again
+        self.drive("reset secret")
+        self.assertEqual(self.boot(), ["ubuntu:first secret", "ubuntu:reset secret"])
+
+    def test_password_hook_keeps_its_state_private(self):
+        state = f"{self.root}/state.sha256"
+        self.drive("first secret")
+        self.boot()
+        self.assertEqual(os.stat(state).st_mode & 0o777, 0o600)
+        os.chmod(state, 0o644)
+        self.drive("reset secret")
+        self.boot()
+        self.assertEqual(os.stat(state).st_mode & 0o777, 0o600)
+
+    def test_password_hook_without_config_drive(self):
+        self.assertEqual(self.boot(), [])
+
+    def test_password_hook_without_password_file(self):
+        self.drive(None)
+        self.assertEqual(self.boot(), [])
 
 
 class RootVolumeTest(unittest.TestCase):
