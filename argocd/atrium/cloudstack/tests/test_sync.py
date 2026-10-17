@@ -325,16 +325,19 @@ class ConsoleCertificateTest(unittest.TestCase):
         with open(f"{self.dir}/tls.key", "w") as f:
             f.write(KEY)
         self.ssl_enabled = "true"
-        self.proxies = [{"name": "v-1-VM", "publicip": "10.94.254.175"}]
+        self.state = "Auto"  # consoleproxy.management.state
+        self.proxies = [{"id": "cp-1", "name": "v-1-VM", "publicip": "10.94.254.175"}]
         self.presented = {"10.94.254.175": b"older"}
         self.events = []
         self.calls = []
         self.upload_error = None
+        self.failed_jobs = set()
 
         def fake_cs(command, post=False, **params):
             self.calls.append((command, post, params))
             if command == "listConfigurations":
-                return {"configuration": [{"name": params["name"], "value": self.ssl_enabled}]}
+                value = self.ssl_enabled if params["name"] == "consoleproxy.sslEnabled" else self.state
+                return {"configuration": [{"name": params["name"], "value": value}]}
             if command == "listSystemVms":
                 return {"systemvm": list(self.proxies)}
             if command == "listEvents":
@@ -342,12 +345,23 @@ class ConsoleCertificateTest(unittest.TestCase):
             if command == "uploadCustomCertificate":
                 if self.upload_error:
                     raise self.upload_error
+                self.state = "ResetSuspending"  # what the upload does on the server
                 return {"jobid": f"job-{len(self.calls)}"}
+            if command == "queryAsyncJobResult":
+                if params["jobid"] in self.failed_jobs:
+                    return {"jobid": params["jobid"], "jobstatus": 2, "jobresult": {"errortext": "rejected"}}
+                return {"jobid": params["jobid"], "jobstatus": 1}
+            if command == "updateConfiguration":
+                self.state = params["value"]
+                return {"configuration": {"name": params["name"], "value": params["value"]}}
+            if command == "rebootSystemVm":
+                return {"jobid": f"reboot-{params['id']}"}
             raise AssertionError(f"unexpected {command}")
 
         for p in (mock.patch.object(sync, "cloudstack", fake_cs),
                   mock.patch.object(sync, "presented_certificate", lambda ip, port=443: self.presented[ip]),
-                  mock.patch.object(sync, "CONSOLE_TLS_DIR", self.dir)):
+                  mock.patch.object(sync, "CONSOLE_TLS_DIR", self.dir),
+                  mock.patch.object(sync.time, "sleep", lambda s: None)):
             p.start()
             self.addCleanup(p.stop)
 
@@ -427,6 +441,68 @@ class ConsoleCertificateTest(unittest.TestCase):
         self.upload_error = RuntimeError("rejected")
         with self.assertRaises(RuntimeError):
             sync.sync_console_certificate(INSIDE)
+
+    def test_waits_for_each_upload_job(self):
+        sync.sync_console_certificate(INSIDE)
+        steps = [c for c, _, _ in self.calls if c in ("uploadCustomCertificate", "queryAsyncJobResult")]
+        self.assertEqual(steps, ["uploadCustomCertificate", "queryAsyncJobResult"] * 3)
+
+    def test_restores_the_state_then_reboots_the_proxies(self):
+        self.proxies.append({"id": "cp-2", "name": "v-2-VM", "publicip": "10.94.254.180"})
+        self.presented["10.94.254.180"] = b"older"
+        sync.sync_console_certificate(INSIDE)
+        after = [(c, p) for c, _, p in self.calls][-3:]
+        self.assertEqual(after, [
+            ("updateConfiguration", {"name": "consoleproxy.management.state", "value": "Auto"}),
+            ("rebootSystemVm", {"id": "cp-1"}),
+            ("rebootSystemVm", {"id": "cp-2"}),
+        ])
+        self.assertEqual(self.state, "Auto")
+
+    def test_failed_job_fails_the_run_without_reboot(self):
+        self.failed_jobs = {"job-6"}  # the leaf, after two chain uploads and their queries
+        with self.assertRaises(RuntimeError):
+            sync.sync_console_certificate(INSIDE)
+        self.assertNotIn("rebootSystemVm", [c for c, _, _ in self.calls])
+
+
+class ConsoleProxyStateTest(unittest.TestCase):
+    def run_with(self, state):
+        calls = []
+
+        def fake_cs(command, **params):
+            calls.append((command, params))
+            if command == "listConfigurations":
+                return {"configuration": [{"name": params["name"], "value": state}]}
+            return {}
+
+        with mock.patch.object(sync, "cloudstack", fake_cs):
+            sync.restore_console_proxy_state()
+        return [c for c in calls if c[0] == "updateConfiguration"]
+
+    def test_restores_leftover_reset_suspending(self):
+        self.assertEqual(self.run_with("ResetSuspending"),
+                         [("updateConfiguration", {"name": "consoleproxy.management.state", "value": "Auto"})])
+
+    def test_leaves_other_states_alone(self):
+        for state in ("Auto", "Manual", "Suspending"):
+            self.assertEqual(self.run_with(state), [])
+
+
+class WaitForJobTest(unittest.TestCase):
+    def test_polls_until_done(self):
+        answers = iter([{"jobstatus": 0}, {"jobstatus": 0}, {"jobstatus": 1, "jobresult": {"ok": True}}])
+        with mock.patch.object(sync, "cloudstack", lambda command, **p: next(answers)), \
+                mock.patch.object(sync.time, "sleep", lambda s: None):
+            self.assertEqual(sync.wait_for_job("j")["jobresult"], {"ok": True})
+
+    def test_gives_up_after_the_timeout(self):
+        clock = iter(range(0, 1000, 10))
+        with mock.patch.object(sync, "cloudstack", lambda command, **p: {"jobstatus": 0}), \
+                mock.patch.object(sync.time, "sleep", lambda s: None), \
+                mock.patch.object(sync.time, "monotonic", lambda: next(clock)):
+            with self.assertRaises(RuntimeError):
+                sync.wait_for_job("j", timeout=60)
 
 
 class PresentedCertificateTest(unittest.TestCase):

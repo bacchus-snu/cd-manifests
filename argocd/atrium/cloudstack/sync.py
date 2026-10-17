@@ -13,11 +13,12 @@ import os
 import re
 import ssl
 import sys
+import time
 import tomllib
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, time, timedelta, timezone
+from datetime import datetime, time as daytime, timedelta, timezone
 
 API_URL = os.environ["CLOUDSTACK_API_URL"]
 API_KEY = os.environ["CLOUDSTACK_API_KEY"].strip()
@@ -49,7 +50,8 @@ CONSOLE_CERT_DOMAIN = "console-proxy.cloud.snucse.org"
 # every upload reboots the secondary storage VMs and resets the console proxies
 CONSOLE_CERT_UPLOAD_INTERVAL = timedelta(minutes=60)
 CONSOLE_CERT_ZONE = timezone(timedelta(hours=9))
-CONSOLE_CERT_WINDOW = (time(4, 0), time(6, 0))
+CONSOLE_CERT_WINDOW = (daytime(4, 0), daytime(6, 0))
+CONSOLE_PROXY_STATE = "consoleproxy.management.state"
 PEM_CERT_RE = re.compile(r"-----BEGIN CERTIFICATE-----.+?-----END CERTIFICATE-----", re.S)
 
 
@@ -130,6 +132,32 @@ def sync_console_endpoints():
     print(f"console proxy endpoints: {have} -> {addresses}")
 
 
+def wait_for_job(jobid, timeout=300, interval=2):
+    deadline = time.monotonic() + timeout
+    while True:
+        result = cloudstack("queryAsyncJobResult", jobid=jobid)
+        if result.get("jobstatus") == 1:
+            return result
+        if result.get("jobstatus") == 2:
+            raise RuntimeError(f"job {jobid} failed: {(result.get('jobresult') or {}).get('errortext')}")
+        if time.monotonic() > deadline:
+            raise RuntimeError(f"job {jobid} still running after {timeout}s")
+        time.sleep(interval)
+
+
+def restore_console_proxy_state():
+    """A server certificate upload sets the console proxy management state to
+    ResetSuspending so that the proxies restart with it. The state is read once
+    per management server process, though: the running server never acts on
+    it, and a server started while it is set stops every proxy for good.
+    Nothing else sets it, so it is put back to Auto and the proxies are
+    restarted by the caller instead."""
+    for s in cloudstack("listConfigurations", name=CONSOLE_PROXY_STATE).get("configuration", []):
+        if s.get("name") == CONSOLE_PROXY_STATE and s.get("value") == "ResetSuspending":
+            cloudstack("updateConfiguration", name=CONSOLE_PROXY_STATE, value="Auto")
+            print("console proxy management state: ResetSuspending -> Auto")
+
+
 def presented_certificate(address, port=443):
     """DER of the certificate the peer presents, unverified. b"" when the port
     refuses or the handshake fails: the peer serves no certificate. None when
@@ -192,13 +220,18 @@ def sync_console_certificate(now=None):
     if last and now - last < CONSOLE_CERT_UPLOAD_INTERVAL:
         print(f"console certificate: last upload at {last.isoformat()}, waiting")
         return
-    # the chain goes in top-down, under fixed aliases so later uploads replace it
+    # the chain goes in top-down, under fixed aliases so later uploads replace it;
+    # each upload is stored by its job, so the next step waits for it
     for index, cert in enumerate(reversed(chain[1:]), start=1):
-        cloudstack("uploadCustomCertificate", post=True, certificate=cert, id=index,
-                   name=f"console-chain-{index}", domainsuffix=CONSOLE_CERT_DOMAIN)
-    job = cloudstack("uploadCustomCertificate", post=True, certificate=chain[0], privatekey=key,
-                     domainsuffix=CONSOLE_CERT_DOMAIN)
-    print(f"console certificate: uploaded, proxies restart (job {job.get('jobid')})")
+        wait_for_job(cloudstack("uploadCustomCertificate", post=True, certificate=cert, id=index,
+                                name=f"console-chain-{index}", domainsuffix=CONSOLE_CERT_DOMAIN)["jobid"])
+    wait_for_job(cloudstack("uploadCustomCertificate", post=True, certificate=chain[0], privatekey=key,
+                            domainsuffix=CONSOLE_CERT_DOMAIN)["jobid"])
+    restore_console_proxy_state()
+    # a proxy loads the keystore when its agent connects, so a reboot brings the new one
+    for p in proxies:
+        cloudstack("rebootSystemVm", id=p["id"])
+    print(f"console certificate: uploaded, rebooting {sorted(p['name'] for p in proxies)}")
 
 
 class _WarpgateConnection(http.client.HTTPSConnection):
@@ -618,6 +651,7 @@ def main():
         sync_warpgate()
         sync_template_userdata()
     # last: a failed upload fails the run without holding back the rest
+    restore_console_proxy_state()
     sync_console_certificate()
 
 
