@@ -56,7 +56,7 @@ while read -r cid cname cstrategy; do
   status=false
   [ "$cname" = "$CONNECTION" ] && status=true
   auth0 api patch "connections/$cid/clients" \
-    --data "[{\"client_id\":\"$gate_id\",\"status\":$status},{\"client_id\":\"$wg_id\",\"status\":$status}]" > /dev/null
+    --data "[{\"client_id\":\"$gate_id\",\"status\":$status},{\"client_id\":\"$wg_id\",\"status\":$status}]" < /dev/null > /dev/null
   echo "connection $cname ($cstrategy): enabled=$status"
 done
 
