@@ -89,6 +89,9 @@ spec:
               volumeMounts:
                 - name: script
                   mountPath: /opt/sync
+                - name: console-tls
+                  mountPath: /etc/console-tls
+                  readOnly: true
               resources:
                 requests:
                   cpu: 20m
@@ -100,3 +103,14 @@ spec:
             - name: script
               configMap:
                 name: cloudstack-sync
+            # console proxy certificate (console.yaml); optional so the job
+            # keeps running until cert-manager has issued it
+            - name: console-tls
+              secret:
+                secretName: console-proxy-tls
+                optional: true
+                items:
+                  - key: tls.crt
+                    path: tls.crt
+                  - key: tls.key
+                    path: tls.key

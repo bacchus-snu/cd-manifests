@@ -1,21 +1,43 @@
 ---
-# Web console. The console proxy system VM serves noVNC on port 80 and the VNC
-# WebSocket on 8080 at its guest overlay address. The gateway terminates TLS
-# for console.cloud.snucse.org on 443 and forwards page and WebSocket alike to
-# the relay, which reaches the proxy through this selector-less Service, whose
-# EndpointSlice the sync job keeps at the current proxy address. The gateway itself cannot reach the
-# overlay (its proxy's upstream connections never arrive; cause not pinned
-# down), so the routes point at a relay pod in front of this Service.
+# Web console. The console proxy system VM serves noVNC over HTTPS on 443 and
+# the VNC WebSocket over TLS on 8443 at its guest overlay address, with the
+# certificate below, which the sync job uploads to CloudStack. The gateway
+# terminates TLS for console.cloud.snucse.org on 443 and forwards page and
+# WebSocket alike to the relay, which reaches the proxy through this
+# selector-less Service, whose EndpointSlice the sync job keeps at the current
+# proxy address, and verifies the proxy's certificate: the overlay crosses
+# networks that are not trusted. The gateway itself cannot reach the overlay
+# (its proxy's upstream connections never arrive; cause not pinned down), so
+# the routes point at a relay pod in front of this Service.
 apiVersion: v1
 kind: Service
 metadata:
   name: console-proxy
 spec:
   ports:
-    - name: http
-      port: 80
+    - name: https
+      port: 443
     - name: websocket
-      port: 8080
+      port: 8443
+---
+# the name only has to verify on the relay's side; it needs no DNS record
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: console-proxy-tls
+spec:
+  secretName: console-proxy-tls
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-prod
+  # CloudStack takes RSA keys in PKCS#8 only
+  privateKey:
+    algorithm: RSA
+    size: 2048
+    encoding: PKCS8
+    rotationPolicy: Always
+  dnsNames:
+    - console-proxy.cloud.snucse.org
 ---
 apiVersion: apps/v1
 kind: Deployment

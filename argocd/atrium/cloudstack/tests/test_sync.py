@@ -1,6 +1,14 @@
+import base64
 import importlib
+import io
+import json
 import os
+import ssl
+import tempfile
 import unittest
+import urllib.error
+from datetime import datetime, timedelta, timezone
+from unittest import mock
 
 os.environ.setdefault("CLOUDSTACK_API_URL", "http://cloudstack.test/client/api")
 os.environ.setdefault("CLOUDSTACK_API_KEY", "k")
@@ -290,6 +298,190 @@ class StaleKnownHostsTest(unittest.TestCase):
                    {"name": "web", "options": {"kind": "Http", "url": "https://10.94.1.7"}}]
         stale = sync.stale_known_hosts(known, targets, refreshed={("10.94.1.6", 22)})
         self.assertEqual([k["id"] for k in stale], ["k2", "k3", "k4"])
+
+
+def pem(der):
+    return f"-----BEGIN CERTIFICATE-----\n{base64.b64encode(der).decode()}\n-----END CERTIFICATE-----\n"
+
+
+LEAF, INT1, INT2 = pem(b"leaf"), pem(b"intermediate-1"), pem(b"intermediate-2")
+KEY = "-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----\n"
+DOMAIN = "console-proxy.cloud.snucse.org"
+INSIDE = datetime(2026, 10, 17, 19, 30, tzinfo=timezone.utc)  # 04:30 UTC+9
+OUTSIDE = datetime(2026, 10, 17, 3, 0, tzinfo=timezone.utc)  # 12:00 UTC+9
+
+
+def kst(dt):
+    return dt.astimezone(timezone(timedelta(hours=9))).strftime("%Y-%m-%dT%H:%M:%S%z")
+
+
+class ConsoleCertificateTest(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.dir = tmp.name
+        with open(f"{self.dir}/tls.crt", "w") as f:
+            f.write(LEAF + INT1 + INT2)
+        with open(f"{self.dir}/tls.key", "w") as f:
+            f.write(KEY)
+        self.ssl_enabled = "true"
+        self.proxies = [{"name": "v-1-VM", "publicip": "10.94.254.175"}]
+        self.presented = {"10.94.254.175": b"older"}
+        self.events = []
+        self.calls = []
+        self.upload_error = None
+
+        def fake_cs(command, post=False, **params):
+            self.calls.append((command, post, params))
+            if command == "listConfigurations":
+                return {"configuration": [{"name": params["name"], "value": self.ssl_enabled}]}
+            if command == "listSystemVms":
+                return {"systemvm": list(self.proxies)}
+            if command == "listEvents":
+                return {"event": list(self.events)}
+            if command == "uploadCustomCertificate":
+                if self.upload_error:
+                    raise self.upload_error
+                return {"jobid": f"job-{len(self.calls)}"}
+            raise AssertionError(f"unexpected {command}")
+
+        for p in (mock.patch.object(sync, "cloudstack", fake_cs),
+                  mock.patch.object(sync, "presented_certificate", lambda ip, port=443: self.presented[ip]),
+                  mock.patch.object(sync, "CONSOLE_TLS_DIR", self.dir)):
+            p.start()
+            self.addCleanup(p.stop)
+
+    def uploads(self):
+        return [(post, params) for command, post, params in self.calls if command == "uploadCustomCertificate"]
+
+    def test_skips_when_ssl_disabled(self):
+        self.ssl_enabled = "false"
+        sync.sync_console_certificate(INSIDE)
+        self.assertEqual(self.uploads(), [])
+
+    def test_no_upload_when_every_proxy_presents_the_leaf(self):
+        self.proxies.append({"name": "v-2-VM", "publicip": "10.94.254.180"})
+        self.presented = {"10.94.254.175": b"leaf", "10.94.254.180": b"leaf"}
+        sync.sync_console_certificate(INSIDE)
+        self.assertEqual(self.uploads(), [])
+
+    def test_uploads_chain_then_leaf(self):
+        sync.sync_console_certificate(INSIDE)
+        self.assertEqual(self.uploads(), [
+            (True, {"certificate": INT2, "id": 1, "name": "console-chain-1", "domainsuffix": DOMAIN}),
+            (True, {"certificate": INT1, "id": 2, "name": "console-chain-2", "domainsuffix": DOMAIN}),
+            (True, {"certificate": LEAF, "privatekey": KEY, "domainsuffix": DOMAIN}),
+        ])
+
+    def test_defers_replacement_outside_the_window(self):
+        sync.sync_console_certificate(OUTSIDE)
+        self.assertEqual(self.uploads(), [])
+
+    def test_replaces_inside_the_window(self):
+        sync.sync_console_certificate(INSIDE)
+        self.assertEqual(len(self.uploads()), 3)
+
+    def test_serves_missing_certificate_any_time(self):
+        self.presented = {"10.94.254.175": b""}
+        sync.sync_console_certificate(OUTSIDE)
+        self.assertEqual(len(self.uploads()), 3)
+
+    def test_uploads_when_a_proxy_serves_no_certificate(self):
+        self.presented = {"10.94.254.175": b""}
+        sync.sync_console_certificate(INSIDE)
+        self.assertEqual(len(self.uploads()), 3)
+
+    def test_waits_after_recent_upload(self):
+        self.events = [{"created": kst(INSIDE - timedelta(minutes=10))}]
+        sync.sync_console_certificate(INSIDE)
+        self.assertEqual(self.uploads(), [])
+
+    def test_retries_after_the_interval(self):
+        self.events = [{"created": kst(INSIDE - timedelta(minutes=61))}]
+        sync.sync_console_certificate(INSIDE)
+        self.assertEqual(len(self.uploads()), 3)
+
+    def test_event_time_with_offset(self):
+        self.events = [{"created": "2026-10-18T04:10:00+0900"}]  # 25 minutes before now
+        sync.sync_console_certificate(datetime(2026, 10, 17, 19, 35, tzinfo=timezone.utc))
+        self.assertEqual(self.uploads(), [])
+
+    def test_skips_without_certificate_files(self):
+        os.remove(f"{self.dir}/tls.crt")
+        sync.sync_console_certificate(INSIDE)
+        self.assertEqual(self.calls, [])
+
+    def test_skips_without_running_proxy(self):
+        self.proxies = [{"name": "v-1-VM"}]
+        sync.sync_console_certificate(INSIDE)
+        self.assertEqual(self.uploads(), [])
+
+    def test_skips_when_a_proxy_is_unobservable(self):
+        self.proxies.append({"name": "v-2-VM", "publicip": "10.94.254.180"})
+        self.presented = {"10.94.254.175": b"older", "10.94.254.180": None}
+        sync.sync_console_certificate(INSIDE)
+        self.assertEqual(self.uploads(), [])
+        self.assertNotIn("listEvents", [c[0] for c in self.calls])
+
+    def test_upload_error_fails_the_run(self):
+        self.upload_error = RuntimeError("rejected")
+        with self.assertRaises(RuntimeError):
+            sync.sync_console_certificate(INSIDE)
+
+
+class PresentedCertificateTest(unittest.TestCase):
+    def presented(self, outcome):
+        with mock.patch.object(sync.ssl, "get_server_certificate", side_effect=outcome):
+            return sync.presented_certificate("10.94.254.175")
+
+    def test_certificate(self):
+        self.assertEqual(self.presented([LEAF]), b"leaf")
+
+    def test_refused_or_failed_handshake_serves_none(self):
+        self.assertEqual(self.presented(ConnectionRefusedError()), b"")
+        self.assertEqual(self.presented(ssl.SSLError()), b"")
+
+    def test_unreachable_cannot_be_observed(self):
+        self.assertIsNone(self.presented(TimeoutError()))
+        self.assertIsNone(self.presented(OSError(113, "No route to host")))
+
+
+class CloudStackPostTest(unittest.TestCase):
+    def test_post_puts_parameters_in_the_body(self):
+        seen = []
+
+        def fake_urlopen(req, timeout):
+            seen.append(req)
+            return io.BytesIO(json.dumps({"uploadcustomcertificateresponse": {"jobid": "j"}}).encode())
+
+        with mock.patch.object(sync.urllib.request, "urlopen", fake_urlopen):
+            self.assertEqual(sync.cloudstack("uploadCustomCertificate", post=True, certificate="x"), {"jobid": "j"})
+        req = seen[0]
+        self.assertEqual(req.get_method(), "POST")
+        self.assertEqual(req.full_url, sync.API_URL)
+        self.assertIn(b"signature=", req.data)
+        self.assertIn(b"command=uploadCustomCertificate", req.data)
+
+
+class ConsoleEndpointsTest(unittest.TestCase):
+    def test_ports_are_tls(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        with open(f"{tmp.name}/namespace", "w") as f:
+            f.write("cloudstack")
+        written = []
+
+        def fake_kube(method, path, body=None):
+            if method == "GET":
+                return 404, {}
+            written.append(body)
+            return 201, {}
+
+        with mock.patch.object(sync, "SA_DIR", tmp.name), \
+                mock.patch.object(sync, "kube", fake_kube), \
+                mock.patch.object(sync, "cloudstack", lambda command, **p: {"systemvm": [{"publicip": "10.94.254.175"}]}):
+            sync.sync_console_endpoints()
+        self.assertEqual([(p["name"], p["port"]) for p in written[0]["ports"]], [("https", 443), ("websocket", 8443)])
 
 
 if __name__ == "__main__":

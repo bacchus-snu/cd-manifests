@@ -1,7 +1,8 @@
 """Reconcile state that follows CloudStack: the console proxy endpoints in
-Kubernetes, the users, roles and targets of the Warpgate bastion, and the
-user data that makes templates trust the bastion. Runs once per invocation;
-the CronJob provides the cadence."""
+Kubernetes and the certificate the console proxies serve, the users, roles
+and targets of the Warpgate bastion, and the user data that makes templates
+trust the bastion. Runs once per invocation; the CronJob provides the
+cadence."""
 
 import base64
 import hashlib
@@ -16,6 +17,7 @@ import tomllib
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime, time, timedelta, timezone
 
 API_URL = os.environ["CLOUDSTACK_API_URL"]
 API_KEY = os.environ["CLOUDSTACK_API_KEY"].strip()
@@ -40,9 +42,18 @@ USERNAME_RE = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
 USERDATA_PREFIX = "warpgate-ssh"  # user data objects with this name prefix are managed here
 PASSWORD_SCRIPT = "/var/lib/cloud/scripts/per-boot/cloudstack-password"
 CATALOG_PATH = os.environ.get("TEMPLATE_CATALOG", "/opt/sync/templates.toml")
+# certificate (leaf, then intermediates) and key that every running console
+# proxy must serve; cert-manager renews them in place
+CONSOLE_TLS_DIR = os.environ.get("CONSOLE_TLS_DIR", "/etc/console-tls")
+CONSOLE_CERT_DOMAIN = "console-proxy.cloud.snucse.org"
+# every upload reboots the secondary storage VMs and resets the console proxies
+CONSOLE_CERT_UPLOAD_INTERVAL = timedelta(minutes=60)
+CONSOLE_CERT_ZONE = timezone(timedelta(hours=9))
+CONSOLE_CERT_WINDOW = (time(4, 0), time(6, 0))
+PEM_CERT_RE = re.compile(r"-----BEGIN CERTIFICATE-----.+?-----END CERTIFICATE-----", re.S)
 
 
-def cloudstack(command, **params):
+def cloudstack(command, *, post=False, **params):
     params.update(command=command, response="json", apikey=API_KEY)
     query = "&".join(
         f"{k}={urllib.parse.quote(str(v), safe='-_.*')}"
@@ -50,7 +61,13 @@ def cloudstack(command, **params):
     )
     digest = hmac.new(SECRET_KEY.encode(), query.lower().encode(), hashlib.sha1).digest()
     signature = urllib.parse.quote(base64.b64encode(digest).decode(), safe="")
-    with urllib.request.urlopen(f"{API_URL}?{query}&signature={signature}", timeout=30) as resp:
+    if post:  # parameters that must never appear in a URL, such as private keys
+        request = urllib.request.Request(
+            API_URL, data=f"{query}&signature={signature}".encode(), method="POST",
+            headers={"Content-Type": "application/x-www-form-urlencoded"})
+    else:
+        request = f"{API_URL}?{query}&signature={signature}"
+    with urllib.request.urlopen(request, timeout=30) as resp:
         body = json.load(resp)
     return body[f"{command.lower()}response"]
 
@@ -98,8 +115,8 @@ def sync_console_endpoints():
         },
         "addressType": "IPv4",
         "ports": [
-            {"name": "http", "protocol": "TCP", "port": 80},
-            {"name": "websocket", "protocol": "TCP", "port": 8080},
+            {"name": "https", "protocol": "TCP", "port": 443},
+            {"name": "websocket", "protocol": "TCP", "port": 8443},
         ],
         "endpoints": [{"addresses": [a], "conditions": {"ready": True}} for a in addresses],
     }
@@ -111,6 +128,77 @@ def sync_console_endpoints():
     if status not in (200, 201):
         raise RuntimeError(f"endpointslice update failed: {status} {body.get('message')}")
     print(f"console proxy endpoints: {have} -> {addresses}")
+
+
+def presented_certificate(address, port=443):
+    """DER of the certificate the peer presents, unverified. b"" when the port
+    refuses or the handshake fails: the peer serves no certificate. None when
+    the peer cannot be reached at all: nothing is known about it."""
+    try:
+        return ssl.PEM_cert_to_DER_cert(ssl.get_server_certificate((address, port), timeout=10))
+    except (ConnectionRefusedError, ssl.SSLError):
+        return b""
+    except OSError:
+        return None
+
+
+def pem_blocks(bundle):
+    return [m.group(0) + "\n" for m in PEM_CERT_RE.finditer(bundle)]
+
+
+def last_certificate_upload():
+    events = cloudstack("listEvents", type="UPLOAD.CUSTOM.CERTIFICATE", listall="true").get("event", [])
+    return max((datetime.strptime(e["created"], "%Y-%m-%dT%H:%M:%S%z") for e in events if e.get("created")),
+               default=None)
+
+
+def sync_console_certificate(now=None):
+    """Makes the console proxies serve the mounted certificate. The proxies are
+    observed rather than CloudStack's stored copy, which the API does not
+    expose. An upload restarts the proxies and the secondary storage VMs, so a
+    renewed certificate waits for the nightly window while the old one is still
+    valid, a proxy that serves nothing is fixed at once, uploads are at least
+    an interval apart, and nothing happens while any proxy cannot be reached."""
+    try:
+        with open(f"{CONSOLE_TLS_DIR}/tls.crt") as f:
+            chain = pem_blocks(f.read())
+        with open(f"{CONSOLE_TLS_DIR}/tls.key") as f:
+            key = f.read()
+    except FileNotFoundError:
+        return
+    if not chain:
+        return
+    settings = cloudstack("listConfigurations", name="consoleproxy.sslEnabled").get("configuration", [])
+    if not any(s.get("name") == "consoleproxy.sslEnabled" and s.get("value") == "true" for s in settings):
+        return
+    proxies = [p for p in cloudstack("listSystemVms", systemvmtype="consoleproxy", state="Running").get("systemvm", [])
+               if p.get("publicip")]
+    if not proxies:
+        return
+    presented = {p["name"]: presented_certificate(p["publicip"]) for p in proxies}
+    unreachable = sorted(name for name, der in presented.items() if der is None)
+    if unreachable:
+        print(f"console certificate: cannot reach {unreachable}, not compared")
+        return
+    leaf = ssl.PEM_cert_to_DER_cert(chain[0])
+    if all(der == leaf for der in presented.values()):
+        return
+    now = now or datetime.now(timezone.utc)
+    start, end = CONSOLE_CERT_WINDOW
+    if all(presented.values()) and not start <= now.astimezone(CONSOLE_CERT_ZONE).time() < end:
+        print("console certificate: renewed, replacement deferred to the window")
+        return
+    last = last_certificate_upload()
+    if last and now - last < CONSOLE_CERT_UPLOAD_INTERVAL:
+        print(f"console certificate: last upload at {last.isoformat()}, waiting")
+        return
+    # the chain goes in top-down, under fixed aliases so later uploads replace it
+    for index, cert in enumerate(reversed(chain[1:]), start=1):
+        cloudstack("uploadCustomCertificate", post=True, certificate=cert, id=index,
+                   name=f"console-chain-{index}", domainsuffix=CONSOLE_CERT_DOMAIN)
+    job = cloudstack("uploadCustomCertificate", post=True, certificate=chain[0], privatekey=key,
+                     domainsuffix=CONSOLE_CERT_DOMAIN)
+    print(f"console certificate: uploaded, proxies restart (job {job.get('jobid')})")
 
 
 class _WarpgateConnection(http.client.HTTPSConnection):
@@ -529,6 +617,8 @@ def main():
     if WARPGATE_HOST and WARPGATE_TLS_NAME and WARPGATE_TOKEN:
         sync_warpgate()
         sync_template_userdata()
+    # last: a failed upload fails the run without holding back the rest
+    sync_console_certificate()
 
 
 if __name__ == "__main__":
