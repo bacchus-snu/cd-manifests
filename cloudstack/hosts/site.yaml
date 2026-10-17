@@ -159,11 +159,10 @@
 - name: Guest overlay gateways (VRRP + NAT + resolver)
   hosts: cloudstack_gateway
   tasks:
-    # guests get the gateway address as their DNS server: it resolves only
-    # "data-server" (the metadata server cloud-init looks for) and forwards
-    # everything else, so instance names stay private. Written before the
-    # package is installed so the service never starts with the stock
-    # listen-everywhere configuration.
+    # guests get the gateway address as their DNS server: it forwards every
+    # query and knows no names itself, so instance names stay private.
+    # Written before the package is installed so the service never starts
+    # with the stock listen-everywhere configuration.
     - name: Guest resolver directory
       ansible.builtin.file:
         path: /etc/dnsmasq.d
