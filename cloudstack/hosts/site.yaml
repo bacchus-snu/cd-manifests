@@ -92,6 +92,59 @@
         replace: '(VGA\\ compatible\\ controller|3D\\ controller|Processing\\ accelerators|Display\\ controller)'
       notify: restart cloudstack-agent
 
+    - name: libvirt host certificate, installed when CloudStack adds the host
+      ansible.builtin.stat:
+        path: /etc/pki/libvirt/servercert.pem
+      register: libvirt_cert
+
+    # The agent calls a host secured, and migrates over qemu+tls, only if
+    # libvirtd answers TLS on 16514. cloudstack-setup-agent masks libvirt's
+    # socket units and asks for the listener through libvirtd_opts, which
+    # Debian's unit does not read (it passes $LIBVIRTD_ARGS). Without its
+    # certificate libvirtd cannot listen on TLS and does not start, so a host
+    # CloudStack has not added yet keeps Debian's default; the first run after
+    # it has been added turns the listener on.
+    - name: libvirtd opens its own listeners
+      ansible.builtin.lineinfile:
+        path: /etc/default/libvirtd
+        regexp: '^#?LIBVIRTD_ARGS='
+        line: "{{ 'LIBVIRTD_ARGS=\"--listen\"' if libvirt_cert.stat.exists else '#LIBVIRTD_ARGS=\"--timeout 120\"' }}"
+      notify: [restart libvirtd, restart cloudstack-agent]
+
+    # The CA that signs the hosts' certificates signs the system VMs' too:
+    # only the hosts may drive libvirt, and only over the management overlay.
+    - name: libvirtd TLS listener scope
+      ansible.builtin.lineinfile:
+        path: /etc/libvirt/libvirtd.conf
+        regexp: '^#?\s*{{ item.key }}\s*='
+        line: '{{ item.key }} = {{ item.value }}'
+      loop:
+        - { key: listen_addr, value: '"{{ mgmt_ip }}"' }
+        - key: tls_allowed_dn_list
+          value: >-
+            {{ groups['cloudstack_hosts'] | map('extract', hostvars, 'ansible_host')
+               | map('regex_replace', '^(.*)$', 'CN=\1,OU=cloudstack,O=cloudstack,C=cloudstack')
+               | sort | to_json }}
+      notify: [restart libvirtd, restart cloudstack-agent]
+
+    # Boards shipped without a programmed SMBIOS UUID all report the same
+    # placeholder, and libvirt refuses to migrate between hosts whose UUIDs
+    # match ("Attempt to migrate guest to the same host").
+    - name: libvirt host UUID from the machine id
+      ansible.builtin.lineinfile:
+        path: /etc/libvirt/libvirtd.conf
+        regexp: '^#?\s*host_uuid_source\s*='
+        line: 'host_uuid_source = "machine-id"'
+      notify: [restart libvirtd, restart cloudstack-agent]
+
+    # the CPU check below asks libvirtd
+    - name: libvirtd running
+      ansible.builtin.service:
+        name: libvirtd
+        state: started
+      # in check mode the package above is not really installed yet
+      ignore_errors: '{{ ansible_check_mode }}'
+
     - name: Guest CPU model is one this host can run
       ansible.builtin.command: virsh domcapabilities
       register: domcapabilities
@@ -270,43 +323,6 @@
         src: files/libvirt-vm-xml-transformer.py
         dest: /etc/cloudstack/agent/hooks/libvirt-vm-xml-transformer.py
         mode: '0755'
-
-    # The agent calls a host secured, and migrates over qemu+tls, only if
-    # libvirtd answers TLS on 16514. cloudstack-setup-agent masks libvirt's
-    # socket units and asks for the listener through libvirtd_opts, which
-    # Debian's unit does not read (it passes $LIBVIRTD_ARGS).
-    - name: libvirtd opens its own listeners
-      ansible.builtin.lineinfile:
-        path: /etc/default/libvirtd
-        regexp: '^#?LIBVIRTD_ARGS='
-        line: 'LIBVIRTD_ARGS="--listen"'
-      notify: [restart libvirtd, restart cloudstack-agent]
-
-    # The CA that signs the hosts' certificates signs the system VMs' too:
-    # only the hosts may drive libvirt, and only over the management overlay.
-    - name: libvirtd TLS listener scope
-      ansible.builtin.lineinfile:
-        path: /etc/libvirt/libvirtd.conf
-        regexp: '^#?\s*{{ item.key }}\s*='
-        line: '{{ item.key }} = {{ item.value }}'
-      loop:
-        - { key: listen_addr, value: '"{{ mgmt_ip }}"' }
-        - key: tls_allowed_dn_list
-          value: >-
-            {{ groups['cloudstack_hosts'] | map('extract', hostvars, 'ansible_host')
-               | map('regex_replace', '^(.*)$', 'CN=\1,OU=cloudstack,O=cloudstack,C=cloudstack')
-               | sort | to_json }}
-      notify: [restart libvirtd, restart cloudstack-agent]
-
-    # Boards shipped without a programmed SMBIOS UUID all report the same
-    # placeholder, and libvirt refuses to migrate between hosts whose UUIDs
-    # match ("Attempt to migrate guest to the same host").
-    - name: libvirt host UUID from the machine id
-      ansible.builtin.lineinfile:
-        path: /etc/libvirt/libvirtd.conf
-        regexp: '^#?\s*host_uuid_source\s*='
-        line: 'host_uuid_source = "machine-id"'
-      notify: [restart libvirtd, restart cloudstack-agent]
 
     - name: Reboot needed
       ansible.builtin.debug:

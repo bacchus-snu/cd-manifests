@@ -76,6 +76,11 @@ CloudStack adds a KVM host over SSH and runs its setup with `sudo`, which a
 sudo password cannot answer: give the management server's public key
 (`cloud@cloudstack-management-0`, in derby's `/root/.ssh/authorized_keys`)
 to root on the new host and add it as `root` without a password.
+
+Adding the host installs its certificate. Until then libvirtd keeps Debian's
+default (it cannot listen on TLS without the certificate), so run `site.yaml`
+on the host once more after CloudStack has added it: libvirtd then listens on
+TLS and the agent reports the host secured, which live migration needs.
 Run `render.yaml` as well: it rewrites `argocd/atrium/cloudstack/overlay-gw/peers`
 and the `cloudstack_peers` set of `nodes/atrium/k8s-host-firewall.nft` from the
 inventory, so the host list is kept in `inventory.yaml` only.
