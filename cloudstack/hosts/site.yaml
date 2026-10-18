@@ -142,6 +142,37 @@
         fail_msg: 'hostname --fqdn is {{ fqdn.stdout }}, not {{ ansible_host }}'
       when: not ansible_check_mode
 
+    # On hosts people reach through a sudo user, root stays closed to them; the
+    # management server still adds a KVM host by logging in as root with its
+    # key, and its connections arrive from the overlay gateway's address.
+    # A Match block in an included file ends with that file.
+    - name: Root login only for the management server, by key
+      ansible.builtin.copy:
+        dest: /etc/ssh/sshd_config.d/cloudstack-root.conf
+        content: |
+          PermitRootLogin no
+          Match Address {{ management_server }}
+              PermitRootLogin prohibit-password
+        mode: '0644'
+        validate: sshd -t -f %s
+      when: inventory_hostname in groups['bacchus_login']
+      notify: reload ssh
+
+    - name: Root login as sshd resolves it, from the management server and from the campus
+      ansible.builtin.command: sshd -T -C user=root,addr={{ item }},host=probe,laddr={{ mgmt_ip }},lport=22
+      loop: ['{{ management_server }}', '{{ campus_gateway }}']
+      register: root_login
+      changed_when: false
+      check_mode: false
+      when: inventory_hostname in groups['bacchus_login']
+
+    - name: Root login check
+      ansible.builtin.assert:
+        that:
+          - root_login.results[0].stdout is search('(?m)^permitrootlogin without-password$')
+          - root_login.results[1].stdout is search('(?m)^permitrootlogin no$')
+      when: inventory_hostname in groups['bacchus_login'] and not ansible_check_mode
+
     - name: IP forwarding
       ansible.builtin.copy:
         dest: /etc/sysctl.d/90-cloudstack.conf
@@ -273,6 +304,10 @@
     # the initramfs carries the modprobe configuration of early-loaded drivers
     - name: update initramfs
       ansible.builtin.command: update-initramfs -u
+    - name: reload ssh
+      ansible.builtin.service:
+        name: ssh
+        state: reloaded
     # running guests are untouched; listed before the agent, which reports
     # whether the host is secured when it connects
     - name: restart libvirtd
