@@ -21,12 +21,30 @@
         content: "deb [signed-by=/usr/share/keyrings/bacchus-archive-keyring.gpg] {{ apt_repo }} trixie main\n"
         mode: '0644'
 
-    - name: Upstream CloudStack repository and SHA-1 policy override are gone
+    # The agent needs Java 17, which Debian 13 does not ship; Adoptium's
+    # Temurin 17 is pinned by name in Packages below.
+    - name: Adoptium apt keyring
+      ansible.builtin.get_url:
+        url: https://packages.adoptium.net/artifactory/api/gpg/key/public
+        dest: /usr/share/keyrings/adoptium.asc
+        mode: '0644'
+
+    - name: Adoptium apt repository
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/adoptium.list
+        content: "deb [signed-by=/usr/share/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb trixie main\n"
+        mode: '0644'
+
+    # keys in trusted.gpg.d are trusted for every repository; each repository
+    # above names its own key instead
+    - name: Upstream CloudStack repository, globally trusted keys and SHA-1 policy override are gone
       ansible.builtin.file:
         path: '{{ item }}'
         state: absent
       loop:
         - /etc/apt/sources.list.d/cloudstack.list
+        - /etc/apt/trusted.gpg.d/cloudstack.asc
+        - /etc/apt/trusted.gpg.d/adoptium.gpg
         - /etc/crypto-policies/back-ends/apt-sequoia.config
 
     - name: python3-apt for the apt module (installed even in check mode)

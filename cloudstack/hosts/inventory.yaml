@@ -127,14 +127,16 @@ all:
         jackdaniels:
         jimbeam:
     # hosts reached as bacchus, whose sudo password Ansible reads from Vault
-    # (`vault login` first); it is never written anywhere
+    # (`vault login` first); it is never written anywhere. Vault is on the
+    # campus network, which refuses a connection now and then, so retry.
     bacchus_login:
       vars:
         ansible_user: bacchus
         ansible_become: true
         ansible_become_password: >-
-          {{ lookup('ansible.builtin.pipe', 'VAULT_ADDR=https://vault.bacchus.io vault kv get'
-             ~ ' -mount=passwords -field=bacchus nodes/' ~ inventory_hostname) }}
+          {{ lookup('ansible.builtin.pipe', 'for i in 1 2 3 4; do VAULT_ADDR=https://vault.bacchus.io'
+             ~ ' vault kv get -mount=passwords -field=bacchus nodes/' ~ inventory_hostname
+             ~ ' && exit 0; sleep 3; done; exit 1') }}
       hosts:
         jackdaniels:
         jimbeam:
