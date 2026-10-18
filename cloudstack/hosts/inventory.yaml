@@ -98,6 +98,15 @@ all:
           mgmt_ip: 10.93.0.14
           vrrp_priority: 120
           vfio_pci_ids: ['10de:1b80', '10de:10f0']
+        jackdaniels:
+          ansible_host: jackdaniels.snucse.org
+          campus_ip: 147.46.242.203
+          campus_prefix: 24
+          campus_gateway: 147.46.242.1
+          campus_mac: 94:18:82:81:1d:14
+          campus_nic: eno1
+          mgmt_ip: 10.93.0.15
+          vrrp_priority: 110
         jimbeam:
           ansible_host: jimbeam.snucse.org
           campus_ip: 147.46.241.143
@@ -115,6 +124,7 @@ all:
         eggnog:
         faust:
         cojito:
+        jackdaniels:
         jimbeam:
     # hosts reached as bacchus, whose sudo password Ansible reads from Vault
     # (`vault login` first); it is never written anywhere
@@ -126,8 +136,11 @@ all:
           {{ lookup('ansible.builtin.pipe', 'VAULT_ADDR=https://vault.bacchus.io vault kv get'
              ~ ' -mount=passwords -field=bacchus nodes/' ~ inventory_hostname) }}
       hosts:
+        jackdaniels:
         jimbeam:
-    # host that exports the NFS secondary storage
+    # hosts that export the NFS secondary storage (CloudStack uses the stores
+    # registered with it; derby's is being moved to jackdaniels)
     cloudstack_secondary_storage:
       hosts:
         derby:
+        jackdaniels:
