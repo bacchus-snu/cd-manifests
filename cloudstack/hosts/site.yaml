@@ -1,7 +1,8 @@
 # Configures Debian 13 KVM hosts for CloudStack: packages from repo.snucse.org,
-# the VXLAN overlays, agent settings, guest gateway (VRRP + NAT) and NFS
-# secondary storage. Network changes are written to files only and take effect
-# on the next reboot; the playbook never restarts networking itself.
+# the VXLAN overlays, GPU passthrough binding, agent settings, guest gateway
+# (VRRP + NAT) and NFS secondary storage. Network and GPU binding changes are
+# written to files only and take effect on the next reboot; the playbook never
+# restarts networking itself.
 #
 #   ansible-playbook -i inventory.yaml site.yaml [--limit derby]
 ---
@@ -73,6 +74,74 @@
         replace: '(VGA\\ compatible\\ controller|3D\\ controller|Processing\\ accelerators|Display\\ controller)'
       notify: restart cloudstack-agent
 
+    - name: Guest CPU model is one this host can run
+      ansible.builtin.command: virsh domcapabilities
+      register: domcapabilities
+      changed_when: false
+      check_mode: false
+      # in check mode libvirt may not be installed yet
+      ignore_errors: '{{ ansible_check_mode }}'
+
+    - name: Guest CPU model check
+      ansible.builtin.assert:
+        that: domcapabilities.stdout is search("<model usable='yes'[^>]*>" ~ guest_cpu_model ~ "</model>")
+        fail_msg: >-
+          {{ guest_cpu_model }} is not usable on this host; usable models:
+          {{ domcapabilities.stdout | regex_findall("<model usable='yes'[^>]*>([^<]+)</model>") | join(' ') }}
+      when: domcapabilities is succeeded
+
+    # GPUs (with their audio functions) are claimed by vfio-pci at boot for
+    # passthrough; the softdeps load vfio-pci before the drivers that would
+    # otherwise take them
+    - name: GPU passthrough binding (takes effect on reboot)
+      ansible.builtin.copy:
+        dest: '{{ item.dest }}'
+        content: '{{ item.content }}'
+        mode: '0644'
+      loop:
+        - dest: /etc/modprobe.d/vfio.conf
+          content: |
+            options vfio-pci ids={{ vfio_pci_ids | join(',') }}
+            softdep nouveau pre: vfio-pci
+            softdep snd_hda_intel pre: vfio-pci
+        - dest: /etc/modprobe.d/blacklist-nouveau.conf
+          content: |
+            blacklist nouveau
+            options nouveau modeset=0
+        - dest: /etc/modules-load.d/vfio.conf
+          content: |
+            vfio
+            vfio_iommu_type1
+            vfio_pci
+      loop_control:
+        label: '{{ item.dest }}'
+      when: vfio_pci_ids is defined
+      register: vfio
+      notify: update initramfs
+
+    # The agent's certificate is issued to `hostname --fqdn`, and libvirt
+    # admits TLS peers (migration) only by the names in tls_allowed_dn_list.
+    - name: Host name resolves to its campus FQDN
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: '{{ item.regexp }}'
+        line: '{{ item.line }}'
+      loop:
+        - { regexp: '^127\.0\.0\.1\s', line: "127.0.0.1\tlocalhost" }
+        - { regexp: '^{{ campus_ip | regex_escape }}\s', line: "{{ campus_ip }}\t{{ ansible_host }}\t{{ inventory_hostname }}" }
+
+    - name: Host FQDN
+      ansible.builtin.command: hostname --fqdn
+      register: fqdn
+      changed_when: false
+      check_mode: false
+
+    - name: Host FQDN check
+      ansible.builtin.assert:
+        that: fqdn.stdout == ansible_host
+        fail_msg: 'hostname --fqdn is {{ fqdn.stdout }}, not {{ ansible_host }}'
+      when: not ansible_check_mode
+
     - name: IP forwarding
       ansible.builtin.copy:
         dest: /etc/sysctl.d/90-cloudstack.conf
@@ -132,10 +201,26 @@
         # NIC off the campus
         - { key: public.network.device, value: '{{ overlays.guest.bridge }}' }
         - { key: guest.network.device, value: '{{ overlays.guest.bridge }}' }
-        # guests see the host CPU (all hosts are the same model, so a migrated
-        # guest keeps its CPU), so x86-64-v2/v3 images boot
-        - { key: guest.cpu.mode, value: host-passthrough }
+        # the same named model on every host (guest_cpu_model), so a running
+        # guest keeps its CPU on any host it migrates to; x86-64-v2/v3 images
+        # need it (the KVM default is qemu64)
+        - { key: guest.cpu.mode, value: custom }
+        - { key: guest.cpu.model, value: '{{ guest_cpu_model }}' }
+        - { key: agent.hooks.libvirt_vm_xml_transformer.shell_script, value: libvirt-vm-xml-transformer.py }
       notify: restart cloudstack-agent
+
+    - name: Agent hook directory
+      ansible.builtin.file:
+        path: /etc/cloudstack/agent/hooks
+        state: directory
+        mode: '0755'
+
+    # read by the agent at every VM start; see the file for what it changes
+    - name: Agent domain XML hook
+      ansible.builtin.copy:
+        src: files/libvirt-vm-xml-transformer.py
+        dest: /etc/cloudstack/agent/hooks/libvirt-vm-xml-transformer.py
+        mode: '0755'
 
     # The agent calls a host secured, and migrates over qemu+tls, only if
     # libvirtd answers TLS on 16514. cloudstack-setup-agent masks libvirt's
@@ -176,12 +261,18 @@
 
     - name: Reboot needed
       ansible.builtin.debug:
-        msg: '{{ inventory_hostname }}: /etc/network/interfaces changed, reboot to apply (previous file kept as backup)'
-      when: interfaces.changed
+        msg: >-
+          {{ inventory_hostname }}: reboot to apply
+          {{ ((['/etc/network/interfaces (previous file kept as backup)'] if interfaces.changed else [])
+              + (['the GPU passthrough binding'] if vfio.changed else [])) | join(' and ') }}
+      when: interfaces.changed or vfio.changed
 
   handlers:
     - name: apply sysctl
       ansible.builtin.command: sysctl --system
+    # the initramfs carries the modprobe configuration of early-loaded drivers
+    - name: update initramfs
+      ansible.builtin.command: update-initramfs -u
     # running guests are untouched; listed before the agent, which reports
     # whether the host is secured when it connects
     - name: restart libvirtd

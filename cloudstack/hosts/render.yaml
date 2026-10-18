@@ -10,6 +10,10 @@
   gather_facts: false
   vars:
     out: '{{ playbook_dir }}/out/{{ inventory_hostname }}'
+    # the inventory's become settings are for the hosts, not this machine
+    # (and the password lookup must not run at all)
+    ansible_become: false
+    ansible_become_password: ''
   tasks:
     - ansible.builtin.file:
         path: '{{ out }}'

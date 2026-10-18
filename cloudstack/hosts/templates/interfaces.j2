@@ -5,14 +5,14 @@ source /etc/network/interfaces.d/*
 auto lo
 iface lo inet loopback
 
-auto eth0
-iface eth0 inet manual
+auto {{ campus_nic }}
+iface {{ campus_nic }} inet manual
 
 # Campus: host address and VXLAN endpoint. The bridge must keep the physical
 # NIC's MAC because the campus network binds addresses to registered MACs.
 auto {{ campus_bridge }}
 iface {{ campus_bridge }} inet static
-        bridge_ports eth0
+        bridge_ports {{ campus_nic }}
         bridge_fd 5
         bridge_stp off
         bridge_maxwait 1

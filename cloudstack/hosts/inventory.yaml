@@ -7,6 +7,13 @@ all:
     apt_keyring_url: https://repo.snucse.org/debian/bacchus-archive-keyring.gpg
     campus_dns: [147.46.80.1, 8.8.8.8]
     campus_bridge: cloudbr0
+    # NIC bridged into campus_bridge; hosts with several NICs name theirs
+    campus_nic: eth0
+
+    # CPU model of every VM. CloudStack offers any host of the zone as a live
+    # migration target and does not compare CPUs, so every host must present
+    # the same model; a host that cannot run it fails the playbook.
+    guest_cpu_model: Broadwell-noTSX-IBRS
 
     # VXLAN endpoint of the atrium overlay gateway: the campus address of the
     # node carrying the cloudstack.snucse.org/overlay-gateway label
@@ -63,6 +70,7 @@ all:
           campus_mac: 70:85:c2:32:5d:81
           mgmt_ip: 10.93.0.11
           vrrp_priority: 150
+          vfio_pci_ids: ['10de:1b80', '10de:10f0']
         eggnog:
           ansible_host: eggnog.snucse.org
           campus_ip: 147.46.240.145
@@ -71,6 +79,7 @@ all:
           campus_mac: 70:85:c2:32:5d:8d
           mgmt_ip: 10.93.0.12
           vrrp_priority: 140
+          vfio_pci_ids: ['10de:1b80', '10de:10f0']
         faust:
           ansible_host: faust.snucse.org
           campus_ip: 147.46.241.137
@@ -79,6 +88,7 @@ all:
           campus_mac: 70:85:c2:32:5d:8b
           mgmt_ip: 10.93.0.13
           vrrp_priority: 130
+          vfio_pci_ids: ['10de:1b80', '10de:10f0']
         cojito:
           ansible_host: cojito.snucse.org
           campus_ip: 147.46.240.221
@@ -87,6 +97,17 @@ all:
           campus_mac: 70:85:c2:32:5d:c9
           mgmt_ip: 10.93.0.14
           vrrp_priority: 120
+          vfio_pci_ids: ['10de:1b80', '10de:10f0']
+        jimbeam:
+          ansible_host: jimbeam.snucse.org
+          campus_ip: 147.46.241.143
+          campus_prefix: 24
+          campus_gateway: 147.46.241.1
+          campus_mac: 10:ff:e0:bc:a6:3e
+          campus_nic: ens2f0
+          mgmt_ip: 10.93.0.16
+          vrrp_priority: 100
+          vfio_pci_ids: ['10de:2230', '10de:1aef']
     # hosts that hold the guest overlay gateway VIP and NAT guest traffic to the campus
     cloudstack_gateway:
       hosts:
@@ -94,6 +115,18 @@ all:
         eggnog:
         faust:
         cojito:
+        jimbeam:
+    # hosts reached as bacchus, whose sudo password Ansible reads from Vault
+    # (`vault login` first); it is never written anywhere
+    bacchus_login:
+      vars:
+        ansible_user: bacchus
+        ansible_become: true
+        ansible_become_password: >-
+          {{ lookup('ansible.builtin.pipe', 'VAULT_ADDR=https://vault.bacchus.io vault kv get'
+             ~ ' -mount=passwords -field=bacchus nodes/' ~ inventory_hostname) }}
+      hosts:
+        jimbeam:
     # host that exports the NFS secondary storage
     cloudstack_secondary_storage:
       hosts:

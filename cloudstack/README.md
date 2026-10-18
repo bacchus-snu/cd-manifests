@@ -15,15 +15,21 @@ hosts/
 ├── site.yaml        # configure the hosts (network files only take effect on reboot)
 ├── render.yaml      # render the per-host files into hosts/out/ without connecting, and
 │                    # regenerate the atrium-side host lists from the inventory
+├── files/           # the agent's domain XML hook (tests in tests/)
 └── templates/
 ```
+
+`python3 -m unittest discover -s hosts/tests` runs the hook's tests.
 
 ## Usage
 
 The hosts are reachable only from the campus network; from outside, jump through
 martini, e.g. `-e "ansible_ssh_common_args='-J martini'"` or a `ProxyJump` entry
 in `~/.ssh/config` for the names the inventory connects to
-(`derby.snucse.org eggnog.snucse.org faust.snucse.org cojito.snucse.org`).
+(`derby.snucse.org eggnog.snucse.org faust.snucse.org cojito.snucse.org jimbeam.snucse.org`).
+Hosts in the `bacchus_login` group are reached as `bacchus`, whose sudo
+password Ansible reads from Vault (`passwords/nodes/<host>`) while it runs, so
+`vault login` first; the password is never written anywhere.
 From outside the campus the first SSH connection is refused and the following
 ones pass, so retry once (Ansible: `-e ansible_ssh_retries=3`). Work on one host
 at a time: dozens of simultaneous connections through martini have had the
@@ -55,9 +61,21 @@ Network changes are never applied to a live network: the playbook writes
 
 ## Adding a host
 
-Add it to `cloudstack_hosts` in `inventory.yaml` (campus address and MAC,
-management overlay address) and run `site.yaml` for every host: each host keeps
-a VXLAN forwarding entry for every other VTEP, so existing hosts change too.
+Add it to `cloudstack_hosts` in `inventory.yaml` (campus address, MAC and NIC
+name if not `eth0`, management overlay address, `vfio_pci_ids` of its GPU and
+the GPU's audio function) and, if it is reached through a sudo user, to
+`bacchus_login`. Run `site.yaml` for every host: each host keeps a VXLAN
+forwarding entry for every other VTEP, so existing hosts change too.
+
+The playbook fails on a host that cannot run `guest_cpu_model`: every VM uses
+that one CPU model so that it can live-migrate to any host (CloudStack offers
+every host of the zone and does not compare CPUs). Lowering it is a decision
+for all hosts; it applies to each VM at its next start.
+
+CloudStack adds a KVM host over SSH and runs its setup with `sudo`, which a
+sudo password cannot answer: give the management server's public key
+(`cloud@cloudstack-management-0`, in derby's `/root/.ssh/authorized_keys`)
+to root on the new host and add it as `root` without a password.
 Run `render.yaml` as well: it rewrites `argocd/atrium/cloudstack/overlay-gw/peers`
 and the `cloudstack_peers` set of `nodes/atrium/k8s-host-firewall.nft` from the
 inventory, so the host list is kept in `inventory.yaml` only.
