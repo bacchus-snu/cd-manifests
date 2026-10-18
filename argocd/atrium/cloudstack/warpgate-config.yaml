@@ -40,4 +40,4 @@ sso_providers:
       client_id: "${BACCHUS_CLIENT_ID}"
       client_secret: "${BACCHUS_CLIENT_SECRET}"
       issuer_url: https://dev-1p1l3bz6kxwkga5k.us.auth0.com/
-      scopes: [openid, email, profile]
+      scopes: [openid, email]
