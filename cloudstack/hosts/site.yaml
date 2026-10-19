@@ -83,13 +83,19 @@
     # "Processing accelerators" and "Display controller"; GPUs with a display
     # output enumerate as "VGA compatible controller" and are silently skipped
     # although the script's own sample output shows such a card (4.23.0.0
-    # scripts/vm/hypervisor/kvm/gpudiscovery.sh). The package overwrites the
-    # script on upgrade, so this is re-applied after every version change.
-    - name: GPU discovery also reports VGA-class GPUs
+    # scripts/vm/hypervisor/kvm/gpudiscovery.sh). Every board also has a VGA
+    # device of its own (BMC or onboard graphics), so a VGA-class device is
+    # reported only while bound to vfio-pci, that is, reserved for passthrough
+    # by vfio_pci_ids. The package overwrites the script on upgrade, so this is
+    # re-applied after every version change; the pattern also matches the line
+    # as the plain class-list edit left it.
+    - name: GPU discovery also reports VGA-class GPUs reserved for passthrough
       ansible.builtin.replace:
         path: /usr/share/cloudstack-common/scripts/vm/hypervisor/kvm/gpudiscovery.sh
-        regexp: '\(3D\\ controller\|Processing\\ accelerators\|Display\\ controller\)'
-        replace: '(VGA\\ compatible\\ controller|3D\\ controller|Processing\\ accelerators|Display\\ controller)'
+        regexp: '\((?:VGA\\ compatible\\ controller\|)?3D\\ controller\|Processing\\ accelerators\|Display\\ controller\) \]\]; then$'
+        replace: |-
+          (3D\\ controller|Processing\\ accelerators|Display\\ controller) ]] &&
+          	   ! [[ "$PCI_CLASS" =~ ^VGA\\ compatible\\ controller && "$(basename "$(readlink "/sys/bus/pci/devices/$SYSFS_ADDR/driver" 2>/dev/null)")" == vfio-pci ]]; then
       notify: restart cloudstack-agent
 
     - name: libvirt host certificate, installed when CloudStack adds the host
