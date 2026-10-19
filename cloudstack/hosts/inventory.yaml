@@ -140,9 +140,7 @@ all:
       hosts:
         jackdaniels:
         jimbeam:
-    # hosts that export the NFS secondary storage (CloudStack uses the stores
-    # registered with it; derby's is being moved to jackdaniels)
+    # host that exports the NFS secondary storage
     cloudstack_secondary_storage:
       hosts:
-        derby:
         jackdaniels:

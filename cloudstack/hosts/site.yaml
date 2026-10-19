@@ -467,3 +467,15 @@
   handlers:
     - name: reexport
       ansible.builtin.command: exportfs -ra
+
+# Any other host serves no NFS. The export directory is left for the operator
+# to remove once its store is gone; nfs-common stays, as the agent mounts the
+# secondary storage through it.
+- name: No NFS server outside the secondary storage host
+  hosts: cloudstack_hosts:!cloudstack_secondary_storage
+  tasks:
+    - name: NFS server removed
+      ansible.builtin.apt:
+        name: nfs-kernel-server
+        state: absent
+        purge: true
