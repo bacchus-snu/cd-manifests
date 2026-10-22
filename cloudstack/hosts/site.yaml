@@ -146,6 +146,32 @@
                | sort | to_json }}
       notify: [restart libvirtd, restart cloudstack-agent]
 
+    # Volume copies between hosts run qemu-nbd and qemu-img with QEMU's TLS
+    # credentials: the agent certificate under QEMU's file names, linked as
+    # keystore-cert-import links them, whichever script imported it.
+    - name: QEMU TLS credentials directory
+      ansible.builtin.file:
+        path: /etc/pki/qemu
+        state: directory
+        mode: '0755'
+      when: libvirt_cert.stat.exists
+
+    - name: QEMU TLS credentials are the agent certificate
+      ansible.builtin.file:
+        src: '{{ item.src }}'
+        dest: /etc/pki/qemu/{{ item.dest }}
+        state: link
+        force: true
+      loop:
+        - { dest: ca-cert.pem, src: /etc/pki/CA/cacert.pem }
+        - { dest: server-cert.pem, src: /etc/pki/libvirt/servercert.pem }
+        - { dest: server-key.pem, src: /etc/pki/libvirt/private/serverkey.pem }
+        - { dest: client-cert.pem, src: /etc/pki/libvirt/clientcert.pem }
+        - { dest: client-key.pem, src: /etc/pki/libvirt/private/clientkey.pem }
+      loop_control:
+        label: '{{ item.dest }}'
+      when: libvirt_cert.stat.exists
+
     # Boards shipped without a programmed SMBIOS UUID all report the same
     # placeholder, and libvirt refuses to migrate between hosts whose UUIDs
     # match ("Attempt to migrate guest to the same host").
