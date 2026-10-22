@@ -20,7 +20,7 @@ spec:
       - CreateNamespace=true
   sources:
     - repoURL: https://helm.releases.hashicorp.com
-      targetRevision: 1.6.0
+      targetRevision: 1.6.2
       chart: vault-secrets-operator
       helm:
         valueFiles:
