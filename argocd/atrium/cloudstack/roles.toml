@@ -43,6 +43,9 @@ rules = [
   ["unlinkDomainFromLdap", "deny"],
   ["linkAccountToLdap", "deny"],
   ["authorizeSamlSso", "deny"],
+  # an OpenID provider decides who gets an account of which role; only the
+  # built-in Root Admin role and the sync job configure providers
+  ["*OidcProvider*", "deny"],
   # accounts, their roles and their users come from sign-in; an Admin-type
   # caller may set its own password without the current one, which would be a
   # way in around the gate
@@ -50,6 +53,8 @@ rules = [
   ["createUser", "deny"],
   ["updateAccount", "deny"],
   ["updateUser", "deny"],
+  # a user moved into another account takes that account's role
+  ["moveUser", "deny"],
   # extensions run scripts on the management server
   ["*Extension", "deny"],
   ["*CustomAction", "deny"],
@@ -57,6 +62,11 @@ rules = [
   ["issueCertificate", "deny"],
   ["revokeCertificate", "deny"],
   ["uploadCustomCertificate", "deny"],
+  # these moves delete the source copy; a disk moves in its owner's approved
+  # flow, otherwise only the built-in Root Admin role moves it
+  ["migrateVolume", "deny"],
+  ["migrateVirtualMachine", "deny"],
+  ["migrateVirtualMachineWithVolume", "deny"],
   ["*", "allow"],
 ]
 

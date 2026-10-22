@@ -983,6 +983,25 @@ class RoleCatalogTest(unittest.TestCase):
     def test_missing_file_is_empty(self):
         self.assertEqual(sync.load_roles("/nonexistent/roles.toml"), [])
 
+    def test_members_do_not_move_users_between_accounts(self):
+        member = {r["name"]: r for r in sync.load_roles(REPO_ROLES)}["Bacchus Member"]
+        self.assertEqual(decision(member, "moveUser"), "deny")
+        self.assertIn(("moveUser", "deny"), member["rules"])
+        # an exact name: the other user commands keep their own rules
+        for api in ("listUsers", "disableUser", "enableUser"):
+            self.assertEqual(decision(member, api), "allow", api)
+
+    def test_repository_catalog_leaves_providers_and_source_deleting_moves_to_root(self):
+        member = {r["name"]: r for r in sync.load_roles(REPO_ROLES)}["Bacchus Member"]
+
+        def permission(api):  # the first matching rule decides, case-insensitively
+            return next(p for rule, p in member["rules"] if re.fullmatch(re.escape(rule).replace(r"\*", ".*"), api, re.I))
+        for api in ("createOidcProvider", "updateOidcProvider", "deleteOidcProvider", "listOidcProviders",
+                    "migrateVolume", "migrateVirtualMachine", "migrateVirtualMachineWithVolume"):
+            self.assertEqual(permission(api), "deny", api)
+        for api in ("oidcLogin", "migrateSystemVm", "listVolumes", "startVirtualMachine"):
+            self.assertEqual(permission(api), "allow", api)
+
     def test_repository_catalog(self):
         roles = {r["name"]: r for r in sync.load_roles(REPO_ROLES)}
         member = roles["Bacchus Member"]
