@@ -18,6 +18,78 @@
 
 # New accounts
 
+# The account defaults: every account's limits until a quota grant raises
+# them, read again by every quota recompute. 0 before launch; GPUs come by
+# grant only; the snapshot count is unlimited, as the storage quota bounds
+# what snapshots hold.
+[[setting]]
+key = "max.account.cpus"
+value = 0
+
+[[setting]]
+key = "max.account.memory"
+value = 0
+
+[[setting]]
+key = "max.account.gpus"
+value = 0
+
+[[setting]]
+key = "max.account.user.vms"
+value = 0
+
+[[setting]]
+key = "max.account.volumes"
+value = 0
+
+[[setting]]
+key = "max.account.primary.storage"
+value = 0
+
+[[setting]]
+key = "max.account.secondary.storage"
+value = 0
+
+[[setting]]
+key = "max.account.snapshots"
+value = -1
+
+[[setting]]
+key = "max.account.templates"
+value = 0
+
+[[setting]]
+key = "max.account.networks"
+value = 0
+
+[[setting]]
+key = "max.account.vpcs"
+value = 0
+
+[[setting]]
+key = "max.account.public.ips"
+value = 0
+
+[[setting]]
+key = "max.account.projects"
+value = 0
+
+[[setting]]
+key = "max.account.backups"
+value = 0
+
+[[setting]]
+key = "max.account.backup.storage"
+value = 0
+
+[[setting]]
+key = "max.account.buckets"
+value = 0
+
+[[setting]]
+key = "max.account.object.storage"
+value = 0
+
 # Quota requests and grants
 
 # Sign-in
