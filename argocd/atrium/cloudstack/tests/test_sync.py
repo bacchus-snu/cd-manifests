@@ -1019,7 +1019,7 @@ class RoleCatalogTest(unittest.TestCase):
             self.assertEqual(decision(member, api), "allow", api)
         user = roles["SNUCSE User"]
         self.assertEqual(user["type"], "User")
-        self.assertEqual(len(user["rules"]), 160)
+        self.assertEqual(len(user["rules"]), 166)
         self.assertIn(("*Template*", "deny"), user["rules"])
         self.assertIn(("updateUser", "deny"), user["rules"])
         self.assertNotIn(("updateUser", "allow"), user["rules"])
@@ -1038,6 +1038,25 @@ class RoleCatalogTest(unittest.TestCase):
         for api in ("createSnapshotPolicy", "listSnapshotPolicies", "deployVirtualMachine", "listVolumes",
                     "createSnapshot", "listSnapshots", "revertSnapshot", "deleteSnapshot"):
             self.assertEqual(decision(user, api), "allow", api)
+        # placement verdicts and capacity maxima: annotated for every user role, but the role must not rely on
+        # the annotation fallback, which a default-deny rule would end
+        for api in ("checkPlacement", "listPlacementCapacity"):
+            self.assertIn((api, "allow"), user["rules"])
+            self.assertEqual(decision(user, api), "allow", api)
+        self.assertIsNone(decision(user, "updateHostMoveRate"))
+        # resource limit requests: users ask, cancel and list their own; the role must not rely on the annotation fallback,
+        # and the decisions stay with the roles that reach them through other rules
+        for api in ("createResourceLimitRequest", "listResourceLimitRequests", "cancelResourceLimitRequest"):
+            self.assertIn((api, "allow"), user["rules"])
+            self.assertEqual(decision(user, api), "allow", api)
+        for api in ("approveResourceLimitRequest", "rejectResourceLimitRequest", "revokeResourceLimitRequest"):
+            self.assertIsNone(decision(user, api), api)
+            self.assertEqual(decision(member, api), "allow", api)
+        # users renew the lease of their running instances; setting a lease stays with the roles that reach the admin API
+        self.assertIn(("renewVirtualMachineLease", "allow"), user["rules"])
+        self.assertEqual(decision(user, "renewVirtualMachineLease"), "allow")
+        self.assertNotEqual(decision(user, "setVirtualMachineLease"), "allow")
+        self.assertEqual(decision(member, "setVirtualMachineLease"), "allow")
 
 
 class SyncRolesTest(unittest.TestCase):
