@@ -91,6 +91,11 @@ spec:
         - name: config
           configMap:
             name: bacchus-repo-caddy-config
+  # A StatefulSet's volumeClaimTemplates cannot be changed in place. To resize:
+  # push the change, patch the bound claim packages-bacchus-repo-0 to the new
+  # size, delete the StatefulSet with --cascade=orphan right before syncing, and
+  # sync without Replace. Never delete the claim: its volume's reclaim policy is
+  # Delete, so the packages would go with it.
   volumeClaimTemplates:
     - metadata:
         name: packages
@@ -99,4 +104,4 @@ spec:
           - ReadWriteOncePod
         resources:
           requests:
-            storage: 1Gi
+            storage: 4Gi
