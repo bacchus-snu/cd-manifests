@@ -10,10 +10,31 @@ all:
     # NIC bridged into campus_bridge; hosts with several NICs name theirs
     campus_nic: eth0
 
-    # CPU model of every VM. CloudStack offers any host of the zone as a live
-    # migration target and does not compare CPUs, so every host must present
-    # the same model; a host that cannot run it fails the playbook.
-    guest_cpu_model: Broadwell-noTSX-IBRS
+    # Each host's partition into housekeeping cores, one GPU unit per GPU
+    # position and the CPU pool is rendered on the host from its topology and
+    # these host variables (unset ones are left out):
+    #   gpu_type            catalog tag of its GPUs (argocd/atrium/cloudstack/compute-catalog.json);
+    #                       vfio-pci claims that type's PCI ids at boot
+    #   gpu_positions       PCI address of every GPU position, present or not, in position order
+    #   gpu_class           interconnect of the GPUs: pcie, nvlink or nvswitch
+    #   gpu_groups          position groups a VM may take (classes whose rule is "partitions")
+    #   fm_partitions       Fabric Manager partition id of each group, {"pos,pos": id}
+    #   fabric_manager      the group's Fabric Manager partition is activated per VM (default false)
+    #   housekeeping_cores  whole cores per socket kept for the host itself, {socket: n}
+    #   host_reserve_gib    memory kept for the host itself
+    #   qemu_overhead_gib   regular memory per GPU VM besides its hugepages
+    partition_inventory_keys: [gpu_type, gpu_positions, gpu_class, gpu_groups, fm_partitions,
+                               fabric_manager, housekeeping_cores, host_reserve_gib, qemu_overhead_gib]
+    # passed by name, so no other host variable reaches the renderer's command line
+    partition_declared: >-
+      {{ dict(partition_inventory_keys | select('in', hostvars[inventory_hostname])
+              | zip(partition_inventory_keys | select('in', hostvars[inventory_hostname])
+                    | map('extract', hostvars[inventory_hostname]))) }}
+    # The agent reports the reserved CPUs and memory and the GPU host tags of
+    # the partition only where this is true. Until then a host keeps reporting
+    # its full capacity, which a management server that does not count GPU
+    # units apart from the CPU pool needs.
+    partition_agent_values: false
 
     # VXLAN endpoint of the atrium overlay gateway: the campus address of the
     # node carrying the cloudstack.snucse.org/overlay-gateway label
@@ -70,7 +91,12 @@ all:
           campus_mac: 70:85:c2:32:5d:81
           mgmt_ip: 10.93.0.11
           vrrp_priority: 150
-          vfio_pci_ids: ['10de:1b80', '10de:10f0']
+          gpu_type: gtx1080
+          gpu_positions: ['0000:01:00.0']
+          gpu_class: pcie
+          housekeeping_cores: {0: 1}
+          host_reserve_gib: 2
+          qemu_overhead_gib: 1
         eggnog:
           ansible_host: eggnog.snucse.org
           campus_ip: 147.46.240.145
@@ -79,7 +105,12 @@ all:
           campus_mac: 70:85:c2:32:5d:8d
           mgmt_ip: 10.93.0.12
           vrrp_priority: 140
-          vfio_pci_ids: ['10de:1b80', '10de:10f0']
+          gpu_type: gtx1080
+          gpu_positions: ['0000:01:00.0']
+          gpu_class: pcie
+          housekeeping_cores: {0: 1}
+          host_reserve_gib: 2
+          qemu_overhead_gib: 1
         faust:
           ansible_host: faust.snucse.org
           campus_ip: 147.46.241.137
@@ -88,7 +119,12 @@ all:
           campus_mac: 70:85:c2:32:5d:8b
           mgmt_ip: 10.93.0.13
           vrrp_priority: 130
-          vfio_pci_ids: ['10de:1b80', '10de:10f0']
+          gpu_type: gtx1080
+          gpu_positions: ['0000:01:00.0']
+          gpu_class: pcie
+          housekeeping_cores: {0: 1}
+          host_reserve_gib: 2
+          qemu_overhead_gib: 1
         cojito:
           ansible_host: cojito.snucse.org
           campus_ip: 147.46.240.221
@@ -97,7 +133,12 @@ all:
           campus_mac: 70:85:c2:32:5d:c9
           mgmt_ip: 10.93.0.14
           vrrp_priority: 120
-          vfio_pci_ids: ['10de:1b80', '10de:10f0']
+          gpu_type: gtx1080
+          gpu_positions: ['0000:01:00.0']
+          gpu_class: pcie
+          housekeeping_cores: {0: 1}
+          host_reserve_gib: 2
+          qemu_overhead_gib: 1
         jackdaniels:
           ansible_host: jackdaniels.snucse.org
           campus_ip: 147.46.242.203
@@ -107,6 +148,8 @@ all:
           campus_nic: eno1
           mgmt_ip: 10.93.0.15
           vrrp_priority: 110
+          housekeeping_cores: {0: 1}
+          host_reserve_gib: 4
         jimbeam:
           ansible_host: jimbeam.snucse.org
           campus_ip: 147.46.241.143
@@ -116,7 +159,12 @@ all:
           campus_nic: ens2f0
           mgmt_ip: 10.93.0.16
           vrrp_priority: 100
-          vfio_pci_ids: ['10de:2230', '10de:1aef']
+          gpu_type: a6000
+          gpu_positions: ['0000:16:00.0']
+          gpu_class: pcie
+          housekeeping_cores: {1: 1}
+          host_reserve_gib: 4
+          qemu_overhead_gib: 2
     # hosts that hold the guest overlay gateway VIP and NAT guest traffic to the campus
     cloudstack_gateway:
       hosts:

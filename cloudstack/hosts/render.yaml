@@ -1,6 +1,8 @@
 # Renders the per-host files locally into out/<host>/ for review or manual
 # application, without connecting to the hosts, and writes the host lists that
 # the atrium side keeps (overlay gateway peers, node firewall) from the inventory.
+# Each host's partition is rendered from its captured topology in tests/fixtures;
+# on the host, site.yaml renders it from the live one.
 #
 #   ansible-playbook -i inventory.yaml render.yaml
 ---
@@ -14,6 +16,16 @@
     # (and the password lookup must not run at all)
     ansible_become: false
     ansible_become_password: ''
+    sysfs_fixtures:
+      derby: sysfs-i7
+      eggnog: sysfs-eggnog
+      faust: sysfs-faust
+      cojito: sysfs-cojito
+      jackdaniels: sysfs-jackdaniels
+      jimbeam: sysfs-jimbeam
+    sysfs_fixture: '{{ playbook_dir }}/tests/fixtures/{{ sysfs_fixtures[inventory_hostname] }}'
+    partition_rendered: '{{ partition_values.stdout | from_json }}'
+    partition_kernel_args: '{{ partition_rendered.kernel_args }}'
   tasks:
     - ansible.builtin.file:
         path: '{{ out }}'
@@ -32,6 +44,34 @@
         src: templates/nftables-gateway.nft.j2
         dest: '{{ out }}/nftables-gateway.nft'
       when: inventory_hostname in groups['cloudstack_gateway']
+
+    - name: Partition from the captured topology
+      ansible.builtin.command:
+        argv:
+          - '{{ playbook_dir }}/files/partition-render'
+          - --sysfs
+          - '{{ sysfs_fixture }}/sys'
+          - --proc
+          - '{{ sysfs_fixture }}/proc'
+          - --declared
+          - '{{ partition_declared | to_json }}'
+          - --catalog
+          - '{{ playbook_dir }}/../../argocd/atrium/cloudstack/compute-catalog.json'
+          - --out
+          - '{{ out }}/partition.json'
+          - --agent-values
+          - --kernel-args
+      environment:
+        PYTHONDONTWRITEBYTECODE: '1'
+      register: partition_values
+      changed_when: partition_rendered.changed
+    - ansible.builtin.template:
+        src: templates/grub-partition.cfg.j2
+        dest: '{{ out }}/90-partition.cfg'
+    - name: Agent values of the partition
+      ansible.builtin.copy:
+        dest: '{{ out }}/agent-partition.properties'
+        content: "{% for k, v in partition_rendered.agent_values.items() %}{{ k }}={{ v }}\n{% endfor %}"
 
     - name: Overlay gateway peers
       ansible.builtin.copy:

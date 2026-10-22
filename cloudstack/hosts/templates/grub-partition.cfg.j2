@@ -1,0 +1,5 @@
+# Managed by cd-manifests/cloudstack/hosts (Ansible). Do not edit by hand.
+# Kernel arguments of the host partition (partition-render): the GPU units'
+# 1 GiB pages, reserved per NUMA node at boot, and device interrupts on the
+# housekeeping cores. Recovery entries boot without them.
+GRUB_CMDLINE_LINUX_DEFAULT="$GRUB_CMDLINE_LINUX_DEFAULT {{ partition_kernel_args }}"

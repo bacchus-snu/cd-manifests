@@ -1,13 +1,24 @@
 # Configures Debian 13 KVM hosts for CloudStack: packages from repo.snucse.org,
-# the VXLAN overlays, GPU passthrough binding, agent settings, guest gateway
-# (VRRP + NAT) and NFS secondary storage. Network and GPU binding changes are
-# written to files only and take effect on the next reboot; the playbook never
-# restarts networking itself.
+# the VXLAN overlays, GPU passthrough binding, the host partition (housekeeping
+# cores, GPU units and CPU pool) and its hooks, agent settings, guest gateway
+# (VRRP + NAT) and NFS secondary storage. Network, GPU binding and kernel
+# argument changes are written to files only and take effect on the next
+# reboot; the playbook never restarts networking or reboots itself.
 #
+#   ./apply.sh <commit> [--limit derby]     (or, from a checkout:)
 #   ansible-playbook -i inventory.yaml site.yaml [--limit derby]
 ---
 - name: CloudStack KVM hosts
   hosts: cloudstack_hosts
+  # a restart that a later failure would otherwise drop still happens
+  force_handlers: true
+  vars:
+    # GPU types: PCI ids, unit sizes and interconnect classes
+    compute_catalog: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../../argocd/atrium/cloudstack/compute-catalog.json') | from_json }}"
+    partition_modules: "{{ query('ansible.builtin.fileglob', playbook_dir ~ '/files/partition/*.py') | map('basename') | sort }}"
+    partition_rendered: '{{ partition_values.stdout | from_json }}'
+    partition_kernel_args: '{{ partition_rendered.kernel_args }}'
+    partition_housekeeping: "{{ partition_rendered.partition.housekeeping | join(',') }}"
   tasks:
     - name: Bacchus apt keyring
       ansible.builtin.get_url:
@@ -88,9 +99,9 @@
     # scripts/vm/hypervisor/kvm/gpudiscovery.sh). Every board also has a VGA
     # device of its own (BMC or onboard graphics), so a VGA-class device is
     # reported only while bound to vfio-pci, that is, reserved for passthrough
-    # by vfio_pci_ids. The package overwrites the script on upgrade, so this is
-    # re-applied after every version change; the pattern also matches the line
-    # as the plain class-list edit left it.
+    # by the binding below. The package overwrites the script on upgrade, so
+    # this is re-applied after every version change; the pattern also matches
+    # the line as the plain class-list edit left it.
     - name: GPU discovery also reports VGA-class GPUs reserved for passthrough
       ansible.builtin.replace:
         path: /usr/share/cloudstack-common/scripts/vm/hypervisor/kvm/gpudiscovery.sh
@@ -145,7 +156,6 @@
         line: 'host_uuid_source = "machine-id"'
       notify: [restart libvirtd, restart cloudstack-agent]
 
-    # the CPU check below asks libvirtd
     - name: libvirtd running
       ansible.builtin.service:
         name: libvirtd
@@ -153,25 +163,9 @@
       # in check mode the package above is not really installed yet
       ignore_errors: '{{ ansible_check_mode }}'
 
-    - name: Guest CPU model is one this host can run
-      ansible.builtin.command: virsh domcapabilities
-      register: domcapabilities
-      changed_when: false
-      check_mode: false
-      # in check mode libvirt may not be installed yet
-      ignore_errors: '{{ ansible_check_mode }}'
-
-    - name: Guest CPU model check
-      ansible.builtin.assert:
-        that: domcapabilities.stdout is search("<model usable='yes'[^>]*>" ~ guest_cpu_model ~ "</model>")
-        fail_msg: >-
-          {{ guest_cpu_model }} is not usable on this host; usable models:
-          {{ domcapabilities.stdout | regex_findall("<model usable='yes'[^>]*>([^<]+)</model>") | join(' ') }}
-      when: domcapabilities is succeeded
-
-    # GPUs (with their audio functions) are claimed by vfio-pci at boot for
-    # passthrough; the softdeps load vfio-pci before the drivers that would
-    # otherwise take them
+    # GPUs, with their companion functions (the pci_ids of gpu_type in the
+    # catalog), are claimed by vfio-pci at boot for passthrough; the softdeps
+    # load vfio-pci before the drivers that would otherwise take them
     - name: GPU passthrough binding (takes effect on reboot)
       ansible.builtin.copy:
         dest: '{{ item.dest }}'
@@ -180,7 +174,7 @@
       loop:
         - dest: /etc/modprobe.d/vfio.conf
           content: |
-            options vfio-pci ids={{ vfio_pci_ids | join(',') }}
+            options vfio-pci ids={{ (compute_catalog.gpu_types | selectattr('tag', '==', gpu_type) | first).pci_ids | join(',') }}
             softdep nouveau pre: vfio-pci
             softdep snd_hda_intel pre: vfio-pci
         - dest: /etc/modprobe.d/blacklist-nouveau.conf
@@ -194,9 +188,42 @@
             vfio_pci
       loop_control:
         label: '{{ item.dest }}'
-      when: vfio_pci_ids is defined
+      when: gpu_type | default('', true) | length > 0
       register: vfio
-      notify: update initramfs
+
+    # The initramfs carries the modprobe configuration of early-loaded
+    # drivers. update-initramfs -u -k all rebuilds the image of every
+    # installed kernel that has one; it runs while one of those is older than
+    # that configuration, so a run that stopped before rebuilding is
+    # completed by the next one.
+    - name: GPU passthrough configuration files
+      ansible.builtin.stat:
+        path: '{{ item }}'
+      loop: [/etc/modprobe.d/vfio.conf, /etc/modprobe.d/blacklist-nouveau.conf, /etc/modules-load.d/vfio.conf]
+      register: vfio_files
+      when: gpu_type | default('', true) | length > 0
+
+    - name: Installed kernels
+      ansible.builtin.command: linux-version list
+      register: initramfs_kernels
+      changed_when: false
+      check_mode: false
+      when: gpu_type | default('', true) | length > 0
+
+    - name: Initramfs images
+      ansible.builtin.stat:
+        path: /boot/initrd.img-{{ item }}
+      loop: '{{ initramfs_kernels.stdout_lines | default([]) }}'
+      register: initramfs_images
+      when: gpu_type | default('', true) | length > 0
+
+    - name: Initramfs carries the GPU passthrough binding
+      ansible.builtin.command: update-initramfs -u -k all
+      when: >-
+        gpu_type | default('', true) | length > 0 and (
+          vfio is changed
+          or initramfs_images.results | selectattr('stat.exists') | map(attribute='stat.mtime')
+             | select('lt', vfio_files.results | map(attribute='stat.mtime') | max) | list | length > 0)
 
     # The agent's certificate is issued to `hostname --fqdn`, and libvirt
     # admits TLS peers (migration) only by the names in tls_allowed_dn_list.
@@ -296,28 +323,272 @@
       # in check mode the package above is not really installed yet
       ignore_errors: '{{ ansible_check_mode }}'
 
-    - name: Agent settings
-      ansible.builtin.lineinfile:
-        path: /etc/cloudstack/agent/agent.properties
-        regexp: '^#?{{ item.key }}='
-        line: '{{ item.key }}={{ item.value }}'
+    # The host partition: the housekeeping cores H, one GPU unit (whole cores
+    # and 1 GiB pages of the GPU's NUMA node) per GPU position, and the CPU
+    # pool. The library goes in first: the renderer and both hooks import it.
+    - name: Partition library directory
+      ansible.builtin.file:
+        path: /usr/local/lib/cloudstack-partition/partition
+        state: directory
+        mode: '0755'
+      register: partition_library_dir
+
+    - name: Partition library
+      ansible.builtin.copy:
+        src: files/partition/{{ item }}
+        dest: /usr/local/lib/cloudstack-partition/partition/
+        mode: '0644'
+      loop: '{{ partition_modules }}'
+      register: partition_library
+
+    # in check mode a directory that would be created holds nothing to remove
+    - name: Partition library modules installed
+      ansible.builtin.find:
+        paths: /usr/local/lib/cloudstack-partition/partition
+        patterns: '*.py'
+      register: partition_library_installed
+      when: not (ansible_check_mode and partition_library_dir is changed)
+
+    - name: Partition library keeps no module the repository no longer has
+      ansible.builtin.file:
+        path: /usr/local/lib/cloudstack-partition/partition/{{ item }}
+        state: absent
+      loop: "{{ partition_library_installed.files | default([]) | map(attribute='path') | map('basename') | difference(partition_modules) }}"
+      register: partition_library_pruned
+
+    - name: Partition renderer
+      ansible.builtin.copy:
+        src: files/partition-render
+        dest: /usr/local/sbin/partition-render
+        mode: '0755'
+      register: partition_renderer
+
+    # Only reads the host. In check mode it runs only when the copies above
+    # are current, so that what it prints is what a real run would apply;
+    # otherwise it and everything derived from it are skipped.
+    - name: Partition of this host
+      ansible.builtin.command:
+        argv:
+          - /usr/local/sbin/partition-render
+          - --declared
+          - '{{ partition_declared | to_json }}'
+          - --catalog
+          - '{{ compute_catalog | to_json }}'
+          - --agent-values
+          - --kernel-args
+      register: partition_values
+      changed_when: false
+      check_mode: false
+      when: >-
+        not (ansible_check_mode and (partition_library is changed or partition_library_pruned is changed
+                                     or partition_renderer is changed))
+
+    - name: Partition this run would write (check mode)
+      ansible.builtin.debug:
+        var: partition_rendered
+      when: ansible_check_mode and partition_values is not skipped
+
+    # read by both hooks at every domain start; rewritten only when it changes
+    - name: Partition file
+      ansible.builtin.command:
+        argv:
+          - /usr/local/sbin/partition-render
+          - --declared
+          - '{{ partition_declared | to_json }}'
+          - --catalog
+          - '{{ compute_catalog | to_json }}'
+          - --out
+          - /etc/cloudstack/agent/partition.json
+      register: partition_file
+      changed_when: (partition_file.stdout | from_json).changed
+      when: not ansible_check_mode
+
+    - name: Current partition file (check mode)
+      ansible.builtin.slurp:
+        src: /etc/cloudstack/agent/partition.json
+      register: partition_current
+      failed_when: false
+      when: ansible_check_mode and partition_values is not skipped
+
+    - name: Partition changed
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}: /etc/cloudstack/agent/partition.json
+          {{ 'would change' if ansible_check_mode else 'changed' }}; the management server
+          learns it from cloudstack/tools/cs_partition.py register-groups {{ inventory_hostname }}
+      when: >-
+        (partition_values is not skipped
+         and (partition_current.content is not defined
+              or (partition_current.content | b64decode | from_json) != partition_rendered.partition))
+        if ansible_check_mode else partition_file is changed
+
+    - name: GRUB configuration directory
+      ansible.builtin.file:
+        path: /etc/default/grub.d
+        state: directory
+        mode: '0755'
+
+    - name: Partition kernel arguments (take effect on reboot)
+      ansible.builtin.template:
+        src: templates/grub-partition.cfg.j2
+        dest: /etc/default/grub.d/90-partition.cfg
+        mode: '0644'
+        validate: sh -n %s
+      register: partition_grub
+      when: partition_values is not skipped
+
+    - name: GRUB configuration and the partition's drop-in
+      ansible.builtin.stat:
+        path: '{{ item }}'
+      loop: [/boot/grub/grub.cfg, /etc/default/grub.d/90-partition.cfg]
+      register: partition_grub_files
+
+    # Regenerated while grub.cfg is older than the drop-in, so a run that
+    # stopped before regenerating it, or whose update-grub failed, is
+    # completed by the next one.
+    - name: GRUB configuration carries the partition kernel arguments
+      ansible.builtin.command: update-grub
+      when: >-
+        partition_grub is changed
+        or not partition_grub_files.results[0].stat.exists
+        or (partition_grub_files.results[1].stat.exists
+            and partition_grub_files.results[0].stat.mtime < partition_grub_files.results[1].stat.mtime)
+
+    - name: 1 GiB hugepage mount unit
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/dev-hugepages1G.mount
+        content: |
+          # Managed by cd-manifests/cloudstack/hosts (Ansible). Do not edit by hand.
+          # libvirt backs GPU VMs' memory with these pages and does not start
+          # while this is not mounted, so it is mounted before sysinit.target,
+          # like the stock /dev/hugepages.
+          [Unit]
+          Description=Huge Pages File System (1 GiB pages)
+          DefaultDependencies=no
+          Before=sysinit.target
+
+          [Mount]
+          What=hugetlbfs
+          Where=/dev/hugepages1G
+          Type=hugetlbfs
+          Options=pagesize=1G,nosuid,nodev
+
+          [Install]
+          WantedBy=sysinit.target
+        mode: '0644'
+      register: partition_mount_unit
+
+    - name: Drop-in directories of the host's own units
+      ansible.builtin.file:
+        path: /etc/systemd/system/{{ item }}.d
+        state: directory
+        mode: '0755'
+      loop: [system.slice, user.slice, init.scope]
+
+    # The host's own processes run on H. Guests live in machine.slice, and
+    # libvirt pins each one to its cores.
+    - name: Host processes confined to the housekeeping cores
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/{{ item.unit }}.d/50-housekeeping.conf
+        content: |
+          # Managed by cd-manifests/cloudstack/hosts (Ansible). Do not edit by hand.
+          [{{ item.section }}]
+          AllowedCPUs={{ partition_housekeeping }}
+        mode: '0644'
       loop:
-        # once connected, the agent rewrites this line as "<servers>@<lb algorithm>"
-        # from the management server's list; write the same form so runs stay idempotent
-        - { key: host, value: '{{ management_server }}@static' }
-        - { key: private.network.device, value: '{{ overlays.mgmt.bridge }}' }
-        # a security-group zone has no Public traffic, but the agent refuses to
-        # start unless the device exists; the guest bridge keeps a stray Public
-        # NIC off the campus
-        - { key: public.network.device, value: '{{ overlays.guest.bridge }}' }
-        - { key: guest.network.device, value: '{{ overlays.guest.bridge }}' }
-        # the same named model on every host (guest_cpu_model), so a running
-        # guest keeps its CPU on any host it migrates to; x86-64-v2/v3 images
-        # need it (the KVM default is qemu64)
-        - { key: guest.cpu.mode, value: custom }
-        - { key: guest.cpu.model, value: '{{ guest_cpu_model }}' }
-        - { key: agent.hooks.libvirt_vm_xml_transformer.shell_script, value: libvirt-vm-xml-transformer.py }
-      notify: restart cloudstack-agent
+        - { unit: system.slice, section: Slice }
+        - { unit: user.slice, section: Slice }
+        - { unit: init.scope, section: Scope }
+      loop_control:
+        label: '{{ item.unit }}'
+      register: partition_slices
+      when: partition_values is not skipped
+
+    - name: Units systemd has not reloaded since they changed on disk
+      ansible.builtin.command: systemctl show system.slice user.slice init.scope dev-hugepages1G.mount -p NeedDaemonReload
+      register: partition_units_state
+      changed_when: false
+      check_mode: false
+
+    # also applies the confinement above to the running slices
+    - name: systemd reloads the units above
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+      when: >-
+        partition_mount_unit is changed or partition_slices is changed
+        or 'NeedDaemonReload=yes' in partition_units_state.stdout_lines
+
+    - name: 1 GiB hugepage mount
+      ansible.builtin.systemd_service:
+        name: dev-hugepages1G.mount
+        enabled: true
+        state: started
+      # in check mode the unit file above is not really written yet
+      ignore_errors: '{{ ansible_check_mode }}'
+
+    - name: Housekeeping CPUs of the host's own units, as systemd applies them
+      ansible.builtin.command: systemctl show system.slice user.slice init.scope -p AllowedCPUs
+      register: partition_allowed_cpus
+      changed_when: false
+      when: partition_values is not skipped and not ansible_check_mode
+
+    # systemd prints each unit's set as space-separated ranges ("62-63 126-127")
+    - name: Housekeeping CPUs check
+      ansible.builtin.assert:
+        that: partition_allowed_sets == [partition_housekeeping_set] * 3
+        fail_msg: >-
+          AllowedCPUs of system.slice, user.slice and init.scope are {{ partition_allowed_sets }},
+          not the housekeeping cores {{ partition_housekeeping_set }}
+      vars:
+        partition_housekeeping_set: "{{ partition_rendered.partition.housekeeping | sort | join(',') }}"
+        partition_allowed_sets: >-
+          {%- set ns = namespace(sets=[]) -%}
+          {%- for line in partition_allowed_cpus.stdout_lines if line.startswith('AllowedCPUs=') -%}
+          {%- set cpus = namespace(list=[]) -%}
+          {%- for r in line[12:].replace(',', ' ').split() -%}
+          {%- set ends = r.split('-') -%}
+          {%- set cpus.list = cpus.list + range(ends[0] | int, ends[-1] | int + 1) | list -%}
+          {%- endfor -%}
+          {%- set ns.sets = ns.sets + [cpus.list | sort | join(',')] -%}
+          {%- endfor -%}
+          {{ ns.sets }}
+      when: partition_allowed_cpus is not skipped
+
+    # libvirt does not start while a path named here is not a hugetlbfs
+    # mount, so this follows the mount above
+    - name: libvirt takes guest hugepages from the 1 GiB mount
+      ansible.builtin.lineinfile:
+        path: /etc/libvirt/qemu.conf
+        regexp: '^#?\s*hugetlbfs_mount\s*='
+        line: 'hugetlbfs_mount = "/dev/hugepages1G"'
+      notify: restart libvirtd
+
+    - name: libvirt hook directory
+      ansible.builtin.file:
+        path: /etc/libvirt/hooks
+        state: directory
+        mode: '0755'
+
+    # Admits each domain into the partition when it starts (fail closed) and
+    # refuses incoming live migration; see the file. libvirt looks for hook
+    # scripts when the daemon starts. The hook's ledger knows only the
+    # domains it admitted, so it goes on a host without running guests.
+    - name: libvirt qemu hook
+      ansible.builtin.copy:
+        src: files/libvirt-qemu-hook
+        dest: /etc/libvirt/hooks/qemu
+        mode: '0755'
+      register: partition_hook
+      notify: restart libvirtd
+
+    - name: Partition hook installed
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}: from the libvirtd restart at the end of this run, the
+          libvirt hook admits every domain start into the partition. Guests that were
+          already running are neither in its ledger nor pinned to the partition, so they
+          share cores and GPUs with the guests it admits: stop them.
+      when: partition_hook.changed
 
     - name: Agent hook directory
       ansible.builtin.file:
@@ -332,20 +603,62 @@
         dest: /etc/cloudstack/agent/hooks/libvirt-vm-xml-transformer.py
         mode: '0755'
 
+    - name: Agent settings
+      ansible.builtin.lineinfile:
+        path: /etc/cloudstack/agent/agent.properties
+        regexp: '^#?{{ item.key }}='
+        line: '{{ item.key }}={{ item.value }}'
+      loop: '{{ agent_settings + (partition_agent_settings if partition_agent_values | bool else []) }}'
+      vars:
+        agent_settings:
+          # once connected, the agent rewrites this line as "<servers>@<lb algorithm>"
+          # from the management server's list; write the same form so runs stay idempotent
+          - { key: host, value: '{{ management_server }}@static' }
+          - { key: private.network.device, value: '{{ overlays.mgmt.bridge }}' }
+          # a security-group zone has no Public traffic, but the agent refuses to
+          # start unless the device exists; the guest bridge keeps a stray Public
+          # NIC off the campus
+          - { key: public.network.device, value: '{{ overlays.guest.bridge }}' }
+          - { key: guest.network.device, value: '{{ overlays.guest.bridge }}' }
+          # VMs never live-migrate, so each one sees its host's CPU as it is
+          - { key: guest.cpu.mode, value: host-passthrough }
+          - { key: agent.hooks.libvirt_vm_xml_transformer.shell_script, value: libvirt-vm-xml-transformer.py }
+        # host.reserved.cpu.count, host.reserved.mem.mb and host.tags of the partition
+        partition_agent_settings: "{{ [] if partition_values is skipped else partition_rendered.agent_values | dict2items }}"
+      # the file also holds the keystore passphrase, which a diff would print
+      diff: false
+      notify: restart cloudstack-agent
+
+    - name: Agent names no guest CPU model
+      ansible.builtin.lineinfile:
+        path: /etc/cloudstack/agent/agent.properties
+        regexp: '^guest\.cpu\.model='
+        state: absent
+      diff: false
+      notify: restart cloudstack-agent
+
+    - name: Kernel command line of the running boot
+      ansible.builtin.slurp:
+        src: /proc/cmdline
+      register: proc_cmdline
+
     - name: Reboot needed
       ansible.builtin.debug:
         msg: >-
           {{ inventory_hostname }}: reboot to apply
-          {{ ((['/etc/network/interfaces (previous file kept as backup)'] if interfaces.changed else [])
-              + (['the GPU passthrough binding'] if vfio.changed else [])) | join(' and ') }}
-      when: interfaces.changed or vfio.changed
+          {{ ((['/etc/network/interfaces (previous file kept as backup)'] if interfaces is changed else [])
+              + (['the GPU passthrough binding'] if vfio is changed else [])
+              + (['the kernel arguments "' ~ partition_kernel_args ~ '"'] if partition_args_pending else [])) | join(' and ') }}
+      vars:
+        # the running kernel lacks one of the partition's arguments
+        partition_args_pending: >-
+          {{ partition_values is not skipped
+             and partition_kernel_args.split() | difference((proc_cmdline.content | b64decode).split()) | length > 0 }}
+      when: interfaces is changed or vfio is changed or partition_args_pending
 
   handlers:
     - name: apply sysctl
       ansible.builtin.command: sysctl --system
-    # the initramfs carries the modprobe configuration of early-loaded drivers
-    - name: update initramfs
-      ansible.builtin.command: update-initramfs -u
     - name: reload ssh
       ansible.builtin.service:
         name: ssh
