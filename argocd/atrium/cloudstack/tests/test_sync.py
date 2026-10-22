@@ -1739,6 +1739,17 @@ class SyncSettingsTest(unittest.TestCase):
         self.assertEqual(self.config[(None, None)]["capacity.skipcounting.hours"][0], "0")
         self.assertEqual(re.findall(r"restart required: (\S+)", out), ["capacity.skipcounting.hours"],
                          "only a changed key that is not dynamic")
+        # kept where an operator reads it and repeated every run until every running management server has
+        # started after the write
+        self.assertIn("restart.capacity.skipcounting.hours", self.state["data"])
+        self.calls.clear()
+        failed, out = self.run_sync([{"key": "capacity.skipcounting.hours", "value": 0}])
+        self.assertEqual((failed, self.updates()), ([], []))
+        self.assertEqual(re.findall(r"restart required: (\S+)", out), ["capacity.skipcounting.hours"])
+        self.started = "2999-01-01T00:00:00+0000"
+        failed, out = self.run_sync([{"key": "capacity.skipcounting.hours", "value": 0}])
+        self.assertNotIn("restart required", out)
+        self.assertNotIn("restart.capacity.skipcounting.hours", self.state["data"])
 
     def test_sync_settings_scopes(self):
         failed, out = self.run_sync([
@@ -1794,12 +1805,20 @@ class SyncSettingsTest(unittest.TestCase):
         self.assertEqual((failed, self.updates()), (["resource.request.smtp.username"], []))
         self.assertIn("SMTP_USERNAME", out)
 
-    def test_sync_settings_refuses_an_encrypted_value(self):
-        failed, out = self.run_sync([{"key": "resource.request.smtp.password", "value_env": "SMTP_PASSWORD"}],
-                                    env={"SMTP_PASSWORD": "pa55-word"})
-        self.assertEqual((failed, self.updates()), (["resource.request.smtp.password"], []),
-                         "an encrypted setting lists differently each time, so nothing tells whether it differs")
+    def test_sync_settings_compares_an_encrypted_value_by_digest(self):
+        settings = [{"key": "resource.request.smtp.password", "value_env": "SMTP_PASSWORD"}]
+        failed, out = self.run_sync(settings, env={"SMTP_PASSWORD": "pa55-word"})
+        self.assertEqual((failed, [(u["name"], u["value"]) for u in self.updates()]),
+                         ([], [("resource.request.smtp.password", "pa55-word")]))
         self.assertNotIn("pa55-word", out)
+        self.assertIn("value from SMTP_PASSWORD", out)
+        # an encrypted setting lists differently each time, so the digest of what was written decides
+        self.assertNotIn("pa55-word", json.dumps(self.state))
+        self.calls.clear()
+        self.assertEqual(self.run_sync(settings, env={"SMTP_PASSWORD": "pa55-word"})[0], [])
+        self.assertEqual(self.updates(), [], "the same secret is not written again")
+        self.run_sync(settings, env={"SMTP_PASSWORD": "rotated"})
+        self.assertEqual([u["name"] for u in self.updates()], ["resource.request.smtp.password"])
 
     def test_sync_settings_failing_entry_does_not_stop_the_rest(self):
         self.refuse.add("incorrect.login.attempts.allowed")
@@ -1837,6 +1856,15 @@ class SyncSettingsTest(unittest.TestCase):
         self.assertEqual(len(keys), len(set(keys)), "every setting is declared once")
         self.assertFalse([k for k in keys if k[2] not in (None, "*") and (k[0], k[1], "*") in keys])
         self.assertEqual(sync.load_settings("/nonexistent/settings.toml"), [])
+
+    def test_the_catalog_reaches_the_job(self):
+        self.assertEqual(sync.COMPUTE_CATALOG_PATH, "/opt/sync/compute-catalog.json")
+        with open(os.path.join(SETTINGS_REPO, "kustomization.yaml")) as f:
+            files = re.search(r"name: cloudstack-sync\n    files:\n((?:      - .*\n)*)", f.read()).group(1)
+        self.assertIn("      - compute-catalog.json\n", files)
+        catalog = sync.load_compute_catalog(os.path.join(SETTINGS_REPO, "compute-catalog.json"))
+        self.assertEqual(sync.resource_limit_host_tags(catalog),
+                         ",".join(["cpu"] + [t["tag"] for t in catalog["gpu_types"]]))
 
     def test_a_failing_setting_fails_the_run_after_every_other_step(self):
         ran, error = run_main_with(sync_settings=["vm.allocation.algorithm"])

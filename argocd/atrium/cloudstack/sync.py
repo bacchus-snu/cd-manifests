@@ -990,15 +990,24 @@ def setting_label(key, scope, target):
     return key if scope == "global" else f"{key} ({scope} {target})"
 
 
+def management_server_starts():
+    """When each running management server last started, in seconds since the epoch."""
+    from datetime import datetime
+    return [datetime.strptime(s["lastserverstart"], "%Y-%m-%dT%H:%M:%S%z").timestamp()
+            for s in cloudstack("listManagementServers").get("managementserver", []) if s.get("state") == "Up"]
+
+
 def sync_settings(settings=None, catalog=None, env=os.environ):
     """Reconcile CloudStack's settings with settings.toml, and resource.limit.host.tags with the compute catalog.
     A setting is written only where its value at its object (the global value, or a zone's, a cluster's, a
     storage pool's, a domain's or an account's; * is every object of the scope) differs. A key the running
-    management server does not know is skipped, as the file may name the settings of patches not deployed yet;
-    a changed key that is not dynamic is reported as restart required, and nothing here restarts. A value from
-    the environment is never printed, and a setting stored encrypted is refused, as no listing tells whether
-    it differs. The entries are settings.toml's and the catalog compute-catalog.json's unless given. Returns
-    what could not be applied; one entry's failure holds back none of the others."""
+    management server does not know is skipped, as the file may name the settings of patches not deployed yet.
+    A changed key that is not dynamic is reported as restart required at every run until each running
+    management server has started after the change; nothing here restarts. A value from the environment is
+    never printed, and one stored encrypted is compared by the digest of what this job last wrote. The written
+    keys awaiting a restart and those digests are kept in the job's state ConfigMap. The entries are
+    settings.toml's and the catalog compute-catalog.json's unless given. Returns what could not be applied; one
+    entry's failure holds back none of the others."""
     failed = []
 
     def fail(label, reason):
@@ -1030,7 +1039,7 @@ def sync_settings(settings=None, catalog=None, env=os.environ):
         except (AttributeError, KeyError, TypeError) as e:
             fail(HOST_TAGS_SETTING, f"compute catalog: {e!r}")
     declared = [e[:3] for e, error in entries if error is None]
-    objects, listings, restart = {}, {}, set()
+    objects, listings, state, written = {}, {}, {}, {}
 
     def listing(param, object_id):
         if (param, object_id) not in listings:
@@ -1046,6 +1055,14 @@ def sync_settings(settings=None, catalog=None, env=os.environ):
         if target != "*" and len(named) != 1:
             raise ValueError(f"{len(named)} {scope} objects are named {target}")
         return param, named
+
+    def stored():
+        if not state:
+            status, current = kube("GET", sync_state_path())
+            if status != 200:
+                raise RuntimeError(f"configmap {SYNC_STATE}: {status} {current.get('message')}")
+            state.update(current)
+        return state.get("data") or {}
 
     for (key, scope, target, value, from_env), error in entries:
         label = setting_label(key, scope, target)
@@ -1073,22 +1090,42 @@ def sync_settings(settings=None, catalog=None, env=os.environ):
                         continue
                     raise ValueError(f"not a {scope} setting")
                 # an encrypted value is listed encrypted anew each time
-                if live.get("category") in ("Secure", "Hidden"):
-                    raise ValueError("its value is stored encrypted, so no listing tells whether it differs")
-                if same_setting_value(live.get("value"), value):
+                encrypted = live.get("category") in ("Secure", "Hidden")
+                if encrypted:
+                    digest_key = f"setting.{key}" if param is None else f"setting.{param}.{object_id}.{key}"
+                    digest = secret_digest(f"setting:{param}:{object_id}", key, value)
+                    if stored().get(digest_key) == digest:
+                        continue
+                elif same_setting_value(live.get("value"), value):
                     continue
                 cloudstack("updateConfiguration", post=True, name=key, value=value,
                            **({param: object_id} if param else {}))
-                if from_env:
-                    print(f"setting {where}: written (value from {from_env})")
+                if encrypted:
+                    written[digest_key] = digest
+                if from_env or encrypted:
+                    print(f"setting {where}: written (value from {from_env or 'settings.toml'})")
                 else:
                     print(f"setting {where}: {live.get('value')!r} -> {value!r}")
                 if not live.get("isdynamic", True):
-                    restart.add(key)
+                    written[f"restart.{key}"] = str(int(time.time()))
             except (OSError, RuntimeError, ValueError, KeyError) as e:
                 fail(label, api_failure(e))
-    for key in sorted(restart):
-        print(f"restart required: {key}")
+    try:
+        data = {**stored(), **written}
+        waiting = {name: int(when) for name, when in data.items() if name.startswith("restart.")}
+        if waiting:
+            starts = management_server_starts()
+            for name, when in sorted(waiting.items()):
+                if starts and min(starts) > when:
+                    del data[name]
+                else:
+                    print(f"restart required: {name[len('restart.'):]}")
+        if data != (state.get("data") or {}):
+            status, answer = kube("PUT", sync_state_path(), {**state, "data": data})
+            if status != 200:
+                raise RuntimeError(f"configmap {SYNC_STATE}: {status} {answer.get('message')}")
+    except (OSError, RuntimeError, ValueError, KeyError) as e:
+        fail("settings state", f"{api_failure(e)}; what is not kept is written or reported again next run")
     return failed
 
 

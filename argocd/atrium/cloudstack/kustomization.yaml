@@ -25,6 +25,7 @@ configMapGenerator:
       - templates.toml
       - roles.toml
       - idps.toml
+      - compute-catalog.json
   - name: warpgate-config
     files:
       - warpgate-config.yaml
