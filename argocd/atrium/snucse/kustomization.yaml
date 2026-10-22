@@ -4,3 +4,4 @@ resources:
   - front
   - back
   - elasticsearch
+  - elasticsearch-v9
