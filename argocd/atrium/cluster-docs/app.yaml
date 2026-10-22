@@ -16,7 +16,7 @@ spec:
       - CreateNamespace=true
   sources:
     - repoURL: ghcr.io/bacchus-snu
-      targetRevision: '20261016.1'
+      targetRevision: '20261022.1'
       chart: cluster-docs
       helm:
         valueFiles:
