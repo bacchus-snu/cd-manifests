@@ -56,6 +56,8 @@
     - name: Packages
       ansible.builtin.apt:
         update_cache: true
+        # the hold below keeps apt from moving them; a new cloudstack_version moves them here
+        allow_change_held_packages: true
         name:
           - bridge-utils
           - chrony
