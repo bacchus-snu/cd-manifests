@@ -14,6 +14,72 @@ spec:
     create: true
     name: cloudstack-api
 ---
+# Client credentials of the OpenID providers (idps.toml). keys: client_id,
+# client_secret (client "cloudstack" at id.snucse.org, redirect
+# https://cloud.snucse.org/client/oidc/callback/snucse). The job reads the
+# Secret as it starts, every minute.
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: cloudstack-oauth
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: cloudstack/oauth-snucse-id
+  # without it VSO reads the path again only when this object changes
+  refreshAfter: 5m
+  destination:
+    create: true
+    name: cloudstack-oauth
+---
+# keys: client_id, client_secret (Auth0 application "cloudstack", redirect
+# https://cloud.snucse.org/client/oidc/callback/bacchus). Until the path exists
+# the provider is not created; the gate restarts when the secret appears or
+# changes.
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: cloudstack-oauth-bacchus
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: cloudstack/oauth-bacchus
+  refreshAfter: 5m
+  destination:
+    create: true
+    name: cloudstack-oauth-bacchus
+  rolloutRestartTargets:
+    - kind: Deployment
+      name: gate
+---
+# key: membership_secret, the JSON key of the Google Workspace service account
+# that reads group membership for the bacchus provider's periodic check. Until
+# the path exists the provider has no membership source.
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: cloudstack-oidc-membership-bacchus
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: cloudstack/oidc-membership-bacchus
+  refreshAfter: 5m
+  destination:
+    create: true
+    name: cloudstack-oidc-membership-bacchus
+---
+# The job's own state, which CloudStack never shows: keyed digests of the
+# write-only values it last wrote (provider secrets, encrypted settings), and
+# the settings it wrote that wait for a management server restart. It writes
+# only the data, which this manifest leaves out.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudstack-sync-state
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -27,6 +93,10 @@ rules:
   - apiGroups: [discovery.k8s.io]
     resources: [endpointslices]
     verbs: [get, create, update]
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [cloudstack-sync-state]
+    verbs: [get, update]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -89,6 +159,38 @@ spec:
                     secretKeyRef:
                       name: warpgate
                       key: admin_token
+                # OpenID providers (idps.toml): OIDC_<NAME>_CLIENT_ID,
+                # OIDC_<NAME>_CLIENT_SECRET, OIDC_<NAME>_MEMBERSHIP_SECRET
+                - name: OIDC_SNUCSE_CLIENT_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: cloudstack-oauth
+                      key: client_id
+                      optional: true
+                - name: OIDC_SNUCSE_CLIENT_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: cloudstack-oauth
+                      key: client_secret
+                      optional: true
+                - name: OIDC_BACCHUS_CLIENT_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: cloudstack-oauth-bacchus
+                      key: client_id
+                      optional: true
+                - name: OIDC_BACCHUS_CLIENT_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: cloudstack-oauth-bacchus
+                      key: client_secret
+                      optional: true
+                - name: OIDC_BACCHUS_MEMBERSHIP_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: cloudstack-oidc-membership-bacchus
+                      key: membership_secret
+                      optional: true
               volumeMounts:
                 - name: script
                   mountPath: /opt/sync

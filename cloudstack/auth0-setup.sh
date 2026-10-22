@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Registers the Auth0 applications of the CloudStack sign-in gate ("cloudstack")
-# and of Warpgate ("cloudstack-warpgate"), puts their client credentials into
-# Vault, allows only the Google Workspace connection on them, and prints what
-# the gate relies on: the groups claim of the post-login Action and the subject
-# prefix of the Workspace connection's users. Prints no secret; safe to run
-# again (existing applications are reused).
+# Registers the Auth0 applications of CloudStack sign-in ("cloudstack": the
+# bacchus OpenID provider of idps.toml and, until it is retired, the sign-in
+# gate's Bacchus door) and of Warpgate ("cloudstack-warpgate"), puts their
+# client credentials into Vault, allows only the Google Workspace connection on
+# them, and prints what sign-in relies on: the groups claim of the post-login
+# Action and the subject prefix of the Workspace connection's users. Prints no
+# secret; safe to run again (existing applications are reused, their callback
+# URLs replaced).
 #
 # Needs an Auth0 tenant administrator and a Vault login that may write
 # secret/cloudstack/*:
@@ -12,8 +14,9 @@
 #   auth0 login --scopes read:connections,update:connections
 #   VAULT_ADDR=https://vault.bacchus.io vault login -method=oidc
 #   bash cloudstack/auth0-setup.sh
-# The Vault Secrets Operator picks the credentials up within five minutes and
-# restarts the gate and Warpgate, which then open the Bacchus door.
+# The Vault Secrets Operator picks the credentials up within five minutes; the
+# sync job then creates the bacchus provider, and the gate and Warpgate restart
+# and open the Bacchus door.
 set -euo pipefail
 shopt -s inherit_errexit
 export VAULT_ADDR=${VAULT_ADDR:-https://vault.bacchus.io}
@@ -39,7 +42,7 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 umask 077
 
-gate_id=$(app cloudstack https://cloud.snucse.org/gate/bacchus/callback)
+gate_id=$(app cloudstack https://cloud.snucse.org/client/oidc/callback/bacchus,https://cloud.snucse.org/gate/bacchus/callback)
 wg_id=$(app cloudstack-warpgate https://login.cloud.snucse.org/@warpgate/api/sso/return)
 echo "client ids: cloudstack=$gate_id cloudstack-warpgate=$wg_id"
 

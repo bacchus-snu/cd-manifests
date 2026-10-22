@@ -58,6 +58,7 @@ USERDATA_BOUNDARY = "==cloudstack-user-data=="
 CATALOG_PATH = os.environ.get("TEMPLATE_CATALOG", "/opt/sync/templates.toml")
 ROLES_PATH = os.environ.get("ROLE_CATALOG", "/opt/sync/roles.toml")
 ROLE_TYPES = ("Admin", "ResourceAdmin", "DomainAdmin", "User")
+PROVIDERS_PATH = os.environ.get("IDP_CATALOG", "/opt/sync/idps.toml")
 # certificate (leaf, then intermediates) and key that every running console
 # proxy must serve; cert-manager renews them in place
 CONSOLE_TLS_DIR = os.environ.get("CONSOLE_TLS_DIR", "/etc/console-tls")
@@ -688,6 +689,198 @@ def sync_roles(catalog):
         print(f"role {entry['name']} {'updated' if role else 'created'} ({len(entry['rules'])} rules)")
 
 
+PROVIDER_NAME_RE = re.compile(r"[a-z][a-z0-9]{0,63}")
+PROVIDER_REQUIRED = ("name", "label", "issuer", "username_claim", "username_pattern", "groups_claim", "allowed_groups",
+                     "domain", "role")
+PROVIDER_FIELDS = PROVIDER_REQUIRED + ("scopes", "authorize_params", "lowercase_username", "require_verified_email",
+                                       "subject_prefix", "refusal", "jit", "end_session_url", "end_session_label",
+                                       "ca_certificate", "membership_source", "enabled")
+# what the job last wrote of the providers' write-only secrets, as digests keyed with its own API secret
+SYNC_STATE = "cloudstack-sync-state"
+
+
+def load_providers(path=PROVIDERS_PATH):
+    """OpenID providers people sign in with: for each, the createOidcProvider
+    parameters it is reconciled to, the domain path and role name of its
+    accounts and its optional membership source. Client credentials and the
+    membership source's secret come from the environment, never from the
+    file. No file means nothing managed."""
+    try:
+        with open(path, "rb") as f:
+            raw = tomllib.load(f).get("provider", [])
+    except FileNotFoundError:
+        return []
+    providers, seen = [], set()
+    for entry in raw:
+        name = entry.get("name", "")
+        if not isinstance(name, str) or not PROVIDER_NAME_RE.fullmatch(name) or name in seen:
+            raise ValueError(f"provider {name!r}: names are unique lowercase letters and digits, starting with a letter")
+        missing = [k for k in PROVIDER_REQUIRED if not entry.get(k)]
+        unknown = sorted(set(entry) - set(PROVIDER_FIELDS))
+        if missing or unknown:
+            raise ValueError(f"provider {name}: missing {missing}, unknown {unknown}")
+        if bool(entry.get("end_session_url")) != bool(entry.get("end_session_label")):
+            raise ValueError(f"provider {name}: end_session_url and end_session_label go together")
+        admission = {"groups_claim": entry["groups_claim"], "allowed_groups": list(entry["allowed_groups"])}
+        if entry.get("subject_prefix"):
+            admission["subject_prefix"] = entry["subject_prefix"]
+        params = {
+            "label": entry["label"],
+            "issuer": entry["issuer"],
+            "scopes": entry.get("scopes", "openid profile email"),
+            "authorizeparams": dict(entry.get("authorize_params", {})),
+            "usernameclaim": entry["username_claim"],
+            "lowercaseusername": bool(entry.get("lowercase_username", False)),
+            "usernamepattern": entry["username_pattern"],
+            "requireverifiedemail": bool(entry.get("require_verified_email", False)),
+            "admission": admission,
+            "refusal": entry.get("refusal", ""),
+            "jit": bool(entry.get("jit", True)),
+            "endsessionurl": entry.get("end_session_url", ""),
+            "endsessionlabel": entry.get("end_session_label", ""),
+            "cacertificate": entry.get("ca_certificate", ""),
+            "enabled": bool(entry.get("enabled", True)),
+        }
+        seen.add(name)
+        providers.append({"name": name, "domain": entry["domain"], "role": entry["role"], "params": params,
+                          "membership_source": dict(entry.get("membership_source", {}))})
+    return providers
+
+
+def api_value(value):
+    """A provider parameter as the API takes it; an empty value removes an optional one."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, dict):
+        return json.dumps(value, separators=(",", ":"), sort_keys=True) if value else ""
+    return value
+
+
+def provider_drift(live, params):
+    """The parameters whose value in the detailed listing differs from the wanted one."""
+    drift = {}
+    for key, want in params.items():
+        have = live.get(key)
+        if isinstance(want, bool):
+            same = (have is True) == want
+        elif isinstance(want, dict):
+            same = (json.loads(have) if have else {}) == want
+        else:
+            same = str(have or "").strip() == str(want).strip()
+        if not same:
+            drift[key] = want
+    return drift
+
+
+def secret_digest(name, kind, value):
+    return hmac.new(SECRET_KEY.encode(), f"{name}\0{kind}\0{value}".encode(), hashlib.sha256).hexdigest()
+
+
+def sync_state_path():
+    with open(f"{SA_DIR}/namespace") as f:
+        return f"/api/v1/namespaces/{f.read()}/configmaps/{SYNC_STATE}"
+
+
+def sync_oidc_providers(catalog=None, env=os.environ):
+    """Create catalogued OpenID providers that are missing, write back the
+    parameters that drifted, and disable providers the catalog does not list:
+    a provider decides who gets an account in which domain and role, so only
+    the catalog (and root) define providers. Secrets are write-only: one is
+    written when its provider is created, when the client changes, or when it
+    differs from the digest kept of the last one written. A provider without
+    client credentials in the environment is not created. The catalog is
+    idps.toml's unless one is given. Returns what could not be reconciled; one
+    provider's failure holds back none of the others, and a catalog that cannot
+    be read fails this step only."""
+    failed = []
+    try:
+        if catalog is None:
+            catalog = load_providers(PROVIDERS_PATH)
+        live = cloudstack("listOidcProviders").get("oidcprovider", [])
+        if any("issuer" not in p for p in live):
+            raise RuntimeError("listOidcProviders shows no configuration: the job's API key is not a root administrator's")
+        live = {p["name"]: p for p in live}
+        if not catalog and not live:
+            return failed
+        domains = {d["path"]: d["id"] for d in cloudstack_list("listDomains", "domain", listall="true")}
+        roles = {}
+        for r in cloudstack("listRoles").get("role", []):
+            roles.setdefault(r["name"], []).append(r["id"])
+        status, state = kube("GET", sync_state_path())
+        if status != 200:
+            raise RuntimeError(f"configmap {SYNC_STATE}: {status} {state.get('message')}")
+    except (OSError, RuntimeError, ValueError, KeyError) as e:
+        print(f"error: OpenID providers: {api_failure(e)}")
+        return ["providers"]
+    digests = dict(state.get("data") or {})
+    for entry in catalog:
+        name = entry["name"]
+        prefix = f"OIDC_{name.upper()}_"
+        client_id = (env.get(prefix + "CLIENT_ID") or "").strip()
+        client_secret = (env.get(prefix + "CLIENT_SECRET") or "").strip()
+        membership_secret = (env.get(prefix + "MEMBERSHIP_SECRET") or "").strip()
+        keys = {"clientsecret": f"oidc.{name}.clientsecret", "membershipsecret": f"oidc.{name}.membershipsecret"}
+        try:
+            domainid = domains.get(entry["domain"])
+            roleids = roles.get(entry["role"], [])
+            if domainid is None or len(roleids) != 1:
+                raise RuntimeError(f"domain {entry['domain']} or role {entry['role']} is missing or not unique")
+            wanted = {**entry["params"], "domainid": domainid, "roleid": roleids[0]}
+            current = live.get(name)
+            if current is None:
+                if not (client_id and client_secret):
+                    print(f"OpenID provider {name}: no {prefix}CLIENT_ID and {prefix}CLIENT_SECRET; not created")
+                    continue
+                changes = {**wanted, "clientid": client_id, "clientsecret": client_secret}
+            else:
+                changes = provider_drift(current, wanted)
+                secret_changed = digests.get(keys["clientsecret"]) != secret_digest(name, "clientsecret", client_secret)
+                if client_id and client_secret and (current.get("clientid") != client_id or secret_changed):
+                    changes.update(clientid=client_id, clientsecret=client_secret)
+            have_source = json.loads(current["membershipsource"]) if current and current.get("membershipsource") else {}
+            source = entry["membership_source"]
+            if source and membership_secret:
+                digest = secret_digest(name, "membershipsecret", membership_secret)
+                if have_source != source or digests.get(keys["membershipsecret"]) != digest:
+                    changes.update(membershipsource=source, membershipsecret=membership_secret)
+            elif source and have_source != source:
+                print(f"OpenID provider {name}: its membership source waits for {prefix}MEMBERSHIP_SECRET")
+            elif not source and have_source:
+                changes.update(membershipsource={}, membershipsecret="")
+            if not changes:
+                continue
+            params = {k: api_value(v) for k, v in changes.items()}
+            if current is None:
+                cloudstack("createOidcProvider", post=True, name=name, **{k: v for k, v in params.items() if v != ""})
+                print(f"OpenID provider {name} created ({entry['domain']}, {entry['role']})")
+            else:
+                cloudstack("updateOidcProvider", post=True, id=current["id"], **params)
+                print(f"OpenID provider {name} updated: {', '.join(sorted(changes))}")
+            for kind in keys:
+                if changes.get(kind):
+                    digests[keys[kind]] = secret_digest(name, kind, changes[kind])
+                elif changes.get(kind) == "":
+                    digests.pop(keys[kind], None)
+        except (OSError, RuntimeError, ValueError, KeyError) as e:
+            print(f"error: OpenID provider {name}: {api_failure(e)}")
+            failed.append(name)
+    catalogued = {entry["name"] for entry in catalog}
+    for name, p in live.items():
+        if name not in catalogued and p.get("enabled"):
+            try:
+                cloudstack("updateOidcProvider", post=True, id=p["id"], enabled="false")
+                print(f"OpenID provider {name}: not in the catalog, disabled")
+            except OSError as e:
+                print(f"error: OpenID provider {name}: {api_failure(e)}")
+                failed.append(name)
+    if digests != (state.get("data") or {}):
+        status, answer = kube("PUT", sync_state_path(), {**state, "data": digests})
+        if status != 200:
+            print(f"error: configmap {SYNC_STATE}: {status} {answer.get('message')}; the secrets are written again next run")
+            failed.append(SYNC_STATE)
+    return failed
+
+
 def sso_providers(spec=None):
     """Parses "domain path=provider,..." (default: BASTION_SSO) into a dict."""
     providers = {}
@@ -959,7 +1152,7 @@ def stale_known_hosts(known, targets, refreshed):
 
 def sync_warpgate():
     """Role per CloudStack account, user per enabled user of an enabled account (SSO credential =
-    the user's e-mail, which the sign-in gate keeps equal to the identity
+    the user's e-mail, which sign-in keeps equal to the identity
     provider's claim, at the provider of the user's domain), target per VM plus
     one per guest account a co-owner has tagged on it. A VM is reachable by its
     account, or by every member account of the project that owns it; a guest
@@ -1160,6 +1353,7 @@ def main():
     sync_console_endpoints()
     prune_management_servers()
     sync_roles(load_roles())
+    unreconciled = sync_oidc_providers()
     unapplied = sync_settings()
     if WARPGATE_HOST and WARPGATE_TLS_NAME and WARPGATE_TOKEN:
         sync_warpgate()
@@ -1167,6 +1361,8 @@ def main():
     # last: a failed upload fails the run without holding back the rest
     restore_console_proxy_state()
     sync_console_certificate()
+    if unreconciled:
+        raise RuntimeError(f"OpenID providers not reconciled: {', '.join(unreconciled)}")
     if unapplied:
         raise RuntimeError(f"settings not applied: {', '.join(unapplied)}")
 

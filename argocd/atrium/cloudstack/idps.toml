@@ -1,0 +1,65 @@
+# OpenID providers people sign in to CloudStack with (sync.py:
+# sync_oidc_providers), kept by the sync job; only the built-in Root Admin role
+# and the job may change them. Each provider admits the people in one of its
+# allowed groups into accounts of one domain and role, created at their first
+# sign-in when jit is true. The redirect URI to register at the provider is
+# https://cloud.snucse.org/client/oidc/callback/<name>. The client id and
+# secret come from OIDC_<NAME>_CLIENT_ID and OIDC_<NAME>_CLIENT_SECRET (Vault,
+# sync.yaml), a membership source's secret from OIDC_<NAME>_MEMBERSHIP_SECRET;
+# a provider without client credentials is not created. Usernames of different
+# providers can never be equal (username_pattern): the bastion has one
+# namespace for all domains.
+
+# students: SNUCSE ID, major only
+[[provider]]
+name = "snucse"
+label = "SNUCSE ID"
+issuer = "https://id.snucse.org/o"
+groups_claim = "groups"
+allowed_groups = ["major"]
+# the SNUCSE ID username claim, never an e-mail address; SNUCSE ID's own rule
+# for usernames
+username_claim = "username"
+username_pattern = "[a-z][a-z0-9]{1,19}"
+# SNUCSE ID presents its address without saying whether it verified it
+require_verified_email = false
+domain = "ROOT/snucse"
+role = "SNUCSE User"
+jit = true
+end_session_url = "https://id.snucse.org/o/session/end"
+end_session_label = "SNUCSE ID 로그아웃"
+# off until the cut-over: the redirect URI is registered and oidc.client.url is set
+enabled = false
+refusal = """<p>SNUCSE Cloud(cloud.snucse.org)와 SSH 접속(Warpgate)은 <b>컴퓨터공학부 주전공 회원과 허가된 외부 회원</b>만 쓸 수 있습니다.</p>
+<ol>
+<li><a href="https://id.snucse.org">SNUCSE ID</a>에 로그인해 <b>주전공 인증</b>을 진행하세요(SNU 계정으로 학과를 확인합니다).</li>
+<li>인증이 끝나면 다시 <a href="/client/api?command=oidcLogin&amp;provider=snucse">로그인</a>하세요. 첫 로그인에서 계정이 자동으로 만들어집니다.</li>
+</ol>
+<p>주전공이 아니지만 사용 허가가 필요하면 Bacchus에 문의하세요. 외부 회원을 위한 게스트 그룹을 SNUCSE ID에 신설할 예정이며, 허용 그룹에 추가되면 같은 방법으로 로그인할 수 있습니다.</p>
+<p>자세한 내용은 <a href="https://docs.cloud.snucse.org/">사용 안내</a>를 보세요.</p>"""
+
+# Bacchus members: their bacchus.snucse.org Google account through Auth0
+[[provider]]
+name = "bacchus"
+label = "Bacchus"
+issuer = "https://dev-1p1l3bz6kxwkga5k.us.auth0.com/"
+authorize_params = { connection = "bacchus-workspace" }
+# added by the Auth0 post-login Action from the Google groups
+groups_claim = "https://bacchus.io/groups"
+allowed_groups = ["regular-members@bacchus.snucse.org"]
+username_claim = "email"
+lowercase_username = true
+username_pattern = "[a-z0-9._-]+@bacchus\\.snucse\\.org"
+require_verified_email = true
+# accounts of the Google Workspace connection, not of any other Auth0 connection
+subject_prefix = "google-apps|"
+domain = "ROOT"
+role = "Bacchus Member"
+jit = true
+end_session_url = "https://dev-1p1l3bz6kxwkga5k.us.auth0.com/oidc/logout"
+end_session_label = "Bacchus 로그아웃"
+# off until the cut-over: the redirect URI is registered and oidc.client.url is set
+enabled = false
+refusal = """<p>Bacchus 로그인은 <b>Bacchus 정회원</b>(regular-members@bacchus.snucse.org)만 쓸 수 있습니다.</p>
+<p>학생으로 쓰려면 <a href="/client/api?command=oidcLogin&amp;provider=snucse">SNUCSE ID로 로그인</a>하세요. 정회원인데 이 화면이 나오면 Bacchus에 문의하세요.</p>
+<p>자세한 내용은 <a href="https://docs.cloud.snucse.org/">사용 안내</a>를 보세요.</p>"""

@@ -2,44 +2,11 @@
 # Sign-in gate (gate.py): the only way into CloudStack. Its doors (gate.toml)
 # are SNUCSE ID for students and Auth0 (bacchus.snucse.org Google accounts) for
 # Bacchus members; the gate checks the door's group, creates or updates the
-# account and starts the CloudStack session itself. CloudStack's OAuth plugin
-# is not used.
-# keys: client_id, client_secret (client "cloudstack" at id.snucse.org,
-# redirect https://cloud.snucse.org/gate/snucse/callback)
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultStaticSecret
-metadata:
-  name: cloudstack-oauth
-spec:
-  vaultAuthRef: default
-  type: kv-v2
-  mount: secret
-  path: cloudstack/oauth-snucse-id
-  destination:
-    create: true
-    name: cloudstack-oauth
----
-# keys: client_id, client_secret (Auth0 application "cloudstack", redirect
-# https://cloud.snucse.org/gate/bacchus/callback). Until the path exists the
-# door stays closed; the gate restarts when the secret appears or changes.
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultStaticSecret
-metadata:
-  name: cloudstack-oauth-bacchus
-spec:
-  vaultAuthRef: default
-  type: kv-v2
-  mount: secret
-  path: cloudstack/oauth-bacchus
-  # without it VSO reads the path again only when this object changes
-  refreshAfter: 5m
-  destination:
-    create: true
-    name: cloudstack-oauth-bacchus
-  rolloutRestartTargets:
-    - kind: Deployment
-      name: gate
----
+# account and starts the CloudStack session itself. The client credentials of
+# its doors (Secrets cloudstack-oauth, cloudstack-oauth-bacchus) are shared with
+# the OpenID providers of the same names (sync.yaml); each client has the
+# gate's redirect, https://cloud.snucse.org/gate/<door>/callback, registered
+# next to the provider's.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

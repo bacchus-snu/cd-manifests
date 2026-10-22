@@ -24,6 +24,7 @@ configMapGenerator:
       - sync.py
       - templates.toml
       - roles.toml
+      - idps.toml
   - name: warpgate-config
     files:
       - warpgate-config.yaml

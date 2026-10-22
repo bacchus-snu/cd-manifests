@@ -1131,6 +1131,293 @@ class SyncRolesTest(unittest.TestCase):
             sync.sync_roles([self.ENTRY])
 
 
+REPO_PROVIDERS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "idps.toml")
+REPO_SYNC_MANIFEST = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "sync.yaml")
+REPO_KUSTOMIZATION = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "kustomization.yaml")
+
+
+class ProvidersFromIdpsTomlTest(unittest.TestCase):
+    def load(self, text):
+        tmp = tempfile.NamedTemporaryFile("w", suffix=".toml", delete=False)
+        self.addCleanup(os.unlink, tmp.name)
+        tmp.write(text)
+        tmp.close()
+        return sync.load_providers(tmp.name)
+
+    def test_providers_from_idps_toml(self):
+        providers = {p["name"]: p for p in sync.load_providers(REPO_PROVIDERS)}
+        self.assertEqual(list(providers), ["snucse", "bacchus"])
+        snucse, bacchus = providers["snucse"]["params"], providers["bacchus"]["params"]
+        self.assertEqual((providers["snucse"]["domain"], providers["snucse"]["role"]), ("ROOT/snucse", "SNUCSE User"))
+        self.assertEqual((providers["bacchus"]["domain"], providers["bacchus"]["role"]), ("ROOT", "Bacchus Member"))
+        # the student username is the SNUCSE ID username claim, the member username the lowercased address
+        self.assertEqual((snucse["usernameclaim"], snucse["lowercaseusername"]), ("username", False))
+        self.assertEqual((bacchus["usernameclaim"], bacchus["lowercaseusername"]), ("email", True))
+        self.assertEqual(snucse["admission"], {"groups_claim": "groups", "allowed_groups": ["major"]})
+        self.assertEqual(bacchus["admission"], {"groups_claim": "https://bacchus.io/groups",
+                                                "allowed_groups": ["regular-members@bacchus.snucse.org"],
+                                                "subject_prefix": "google-apps|"})
+        self.assertEqual((snucse["requireverifiedemail"], bacchus["requireverifiedemail"]), (False, True))
+        self.assertEqual(bacchus["authorizeparams"], {"connection": "bacchus-workspace"})
+        self.assertEqual((snucse["jit"], bacchus["jit"]), (True, True))
+        self.assertEqual(snucse["endsessionurl"], "https://id.snucse.org/o/session/end")
+        self.assertEqual(bacchus["endsessionurl"], bacchus["issuer"] + "oidc/logout")
+        self.assertTrue(snucse["endsessionlabel"] and bacchus["endsessionlabel"])
+        self.assertEqual((snucse["cacertificate"], bacchus["cacertificate"]), ("", ""))
+        for p in (snucse, bacchus):
+            self.assertEqual(p["scopes"], "openid profile email")
+            self.assertTrue(p["issuer"].startswith("https://"))
+            self.assertIn("/client/api?command=oidcLogin&amp;provider=snucse", p["refusal"])
+            self.assertNotIn("/gate/", p["refusal"])
+        # one bastion namespace: no student username can be a member username, and the other way round
+        self.assertIsNone(re.fullmatch(snucse["usernamepattern"], "someone@bacchus.snucse.org"))
+        self.assertIsNone(re.fullmatch(bacchus["usernamepattern"], "someone"))
+        self.assertIsNotNone(re.fullmatch(snucse["usernamepattern"], "someone"))
+        self.assertIsNotNone(re.fullmatch(bacchus["usernamepattern"], "someone@bacchus.snucse.org"))
+
+    def test_every_provider_reaches_the_job(self):
+        names = [p["name"] for p in sync.load_providers(REPO_PROVIDERS)]
+        with open(REPO_SYNC_MANIFEST) as f:
+            manifest = f.read()
+        for name in names:
+            for suffix in ("CLIENT_ID", "CLIENT_SECRET"):
+                self.assertIn(f"- name: OIDC_{name.upper()}_{suffix}\n", manifest)
+        with open(REPO_KUSTOMIZATION) as f:
+            self.assertRegex(f.read(), r"name: cloudstack-sync\n    files:\n(      - .*\n)*      - idps.toml\n")
+        self.assertEqual(sync.PROVIDERS_PATH, "/opt/sync/idps.toml")
+
+    def test_rejects_malformed_entries(self):
+        good = ('[[provider]]\nname = "p"\nlabel = "P"\nissuer = "https://p.example"\nusername_claim = "u"\n'
+                'username_pattern = "[a-z]+"\ngroups_claim = "g"\nallowed_groups = ["a"]\ndomain = "ROOT"\nrole = "R"\n')
+        self.assertEqual([p["name"] for p in self.load(good)], ["p"])
+        for text in (good.replace('name = "p"', 'name = "P-1"'),
+                     good.replace('issuer = "https://p.example"\n', ""),
+                     good + 'require_verifed_email = true\n',
+                     good + 'end_session_url = "https://p.example/logout"\n',
+                     good + good):
+            with self.assertRaises(ValueError):
+                self.load(text)
+
+    def test_missing_file_is_empty(self):
+        self.assertEqual(sync.load_providers("/nonexistent/idps.toml"), [])
+
+
+class SyncOidcProvidersTest(unittest.TestCase):
+    ENTRY = {"name": "students", "domain": "ROOT/students", "role": "Student", "membership_source": {},
+             "params": {"label": "Students", "issuer": "https://id.example", "scopes": "openid profile email",
+                        "authorizeparams": {}, "usernameclaim": "username", "lowercaseusername": False,
+                        "usernamepattern": "[a-z]+", "requireverifiedemail": False,
+                        "admission": {"groups_claim": "groups", "allowed_groups": ["major"]}, "refusal": "<p>No.</p>",
+                        "jit": True, "endsessionurl": "https://id.example/session/end", "endsessionlabel": "Log out",
+                        "cacertificate": "", "enabled": True}}
+    ENV = {"OIDC_STUDENTS_CLIENT_ID": "client-1", "OIDC_STUDENTS_CLIENT_SECRET": "very-secret"}
+
+    def setUp(self):
+        self.calls = []
+        self.live = []
+        self.state = {"metadata": {"name": "cloudstack-sync-state", "resourceVersion": "1"}}
+        self.puts = []
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        with open(f"{tmp.name}/namespace", "w") as f:
+            f.write("cloudstack")
+
+        def fake_cs(command, **params):
+            self.calls.append((command, params))
+            if command == "listOidcProviders":
+                return {"oidcprovider": [dict(p) for p in self.live]}
+            if command == "listDomains":
+                return {"domain": [{"id": "d-root", "path": "ROOT"}, {"id": "d-students", "path": "ROOT/students"}]}
+            if command == "listRoles":
+                return {"role": [{"id": "r-student", "name": "Student"}, {"id": "r-admin", "name": "Root Admin"}]}
+            return {}
+
+        def fake_kube(method, path, body=None):
+            self.assertEqual(path, "/api/v1/namespaces/cloudstack/configmaps/cloudstack-sync-state")
+            if method == "GET":
+                return 200, json.loads(json.dumps(self.state))
+            self.puts.append(body)
+            self.state = body
+            return 200, body
+
+        for p in (mock.patch.object(sync, "cloudstack", fake_cs), mock.patch.object(sync, "kube", fake_kube),
+                  mock.patch.object(sync, "SA_DIR", tmp.name)):
+            p.start()
+            self.addCleanup(p.stop)
+
+    def provider_calls(self):
+        return [(c, p) for c, p in self.calls if c in ("createOidcProvider", "updateOidcProvider")]
+
+    def listed(self, **overrides):
+        params = self.ENTRY["params"]
+        provider = {"id": "op-1", "name": "students", "label": params["label"], "issuer": params["issuer"],
+                    "clientid": "client-1", "scopes": params["scopes"], "usernameclaim": "username",
+                    "lowercaseusername": False, "usernamepattern": "[a-z]+", "requireverifiedemail": False,
+                    "admission": '{"groups_claim":"groups","allowed_groups":["major"]}', "refusal": "<p>No.</p>",
+                    "jit": True, "endsessionurl": "https://id.example/session/end", "endsessionlabel": "Log out",
+                    "domainid": "d-students", "domainpath": "/students/", "roleid": "r-student", "rolename": "Student",
+                    "enabled": True, "callbackurl": "https://cloud.example/client/oidc/callback/students"}
+        provider.update(overrides)
+        return provider
+
+    def run_sync(self, catalog=None, env=None):
+        with mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+            failed = sync.sync_oidc_providers([self.ENTRY] if catalog is None else catalog, self.ENV if env is None else env)
+        return failed, out.getvalue()
+
+    def test_creates_a_missing_provider_with_its_client(self):
+        failed, out = self.run_sync()
+        self.assertEqual(failed, [])
+        ((command, params),) = self.provider_calls()
+        self.assertEqual(command, "createOidcProvider")
+        self.assertTrue(params["post"])
+        self.assertEqual(params["name"], "students")
+        self.assertEqual((params["clientid"], params["clientsecret"]), ("client-1", "very-secret"))
+        self.assertEqual((params["domainid"], params["roleid"]), ("d-students", "r-student"))
+        self.assertEqual((params["jit"], params["lowercaseusername"], params["enabled"]), ("true", "false", "true"))
+        self.assertEqual(json.loads(params["admission"]), {"groups_claim": "groups", "allowed_groups": ["major"]})
+        self.assertEqual((params["endsessionurl"], params["endsessionlabel"]), ("https://id.example/session/end", "Log out"))
+        self.assertNotIn("authorizeparams", params)
+        self.assertNotIn("cacertificate", params)
+        self.assertIn("OpenID provider students created", out)
+        (put,) = self.puts
+        self.assertEqual(set(put["data"]), {"oidc.students.clientsecret"})
+        self.assertEqual(put["metadata"]["resourceVersion"], "1")
+        self.assertNotIn("very-secret", json.dumps(put) + out)
+
+    def test_provider_without_client_credentials_is_not_created(self):
+        failed, out = self.run_sync(env={})
+        self.assertEqual((failed, self.provider_calls(), self.puts), ([], [], []))
+        self.assertIn("no OIDC_STUDENTS_CLIENT_ID and OIDC_STUDENTS_CLIENT_SECRET; not created", out)
+
+    def test_matching_provider_is_left_alone(self):
+        self.run_sync()
+        self.live = [self.listed()]
+        self.calls.clear()
+        self.puts.clear()
+        self.assertEqual(self.run_sync(), ([], ""))
+        self.assertEqual((self.provider_calls(), self.puts), ([], []))
+
+    def test_drift_is_written_back_and_nothing_else(self):
+        self.run_sync()
+        self.live = [self.listed(label="Old", refusal=None, jit=False, admission='{"allowed_groups":["major"],"groups_claim":"groups"}',
+                                 endsessionurl=None, endsessionlabel=None, domainid="d-root")]
+        self.calls.clear()
+        failed, out = self.run_sync()
+        ((command, params),) = self.provider_calls()
+        self.assertEqual(command, "updateOidcProvider")
+        self.assertEqual(params["id"], "op-1")
+        self.assertEqual({k: v for k, v in params.items() if k not in ("id", "post")},
+                         {"label": "Students", "refusal": "<p>No.</p>", "jit": "true", "domainid": "d-students",
+                          "endsessionurl": "https://id.example/session/end", "endsessionlabel": "Log out"})
+        self.assertIn("OpenID provider students updated: domainid, endsessionlabel, endsessionurl, jit, label, refusal", out)
+
+    def test_optional_values_left_out_of_the_catalog_are_removed(self):
+        self.run_sync()
+        entry = {**self.ENTRY, "params": {**self.ENTRY["params"], "refusal": "", "endsessionurl": "", "endsessionlabel": ""}}
+        self.live = [self.listed(authorizeparams='{"prompt":"login"}', cacertificate="-----BEGIN CERTIFICATE-----")]
+        self.calls.clear()
+        self.run_sync(catalog=[entry])
+        ((_, params),) = self.provider_calls()
+        self.assertEqual({k: v for k, v in params.items() if k not in ("id", "post")},
+                         {"refusal": "", "endsessionurl": "", "endsessionlabel": "", "authorizeparams": "", "cacertificate": ""})
+
+    def test_a_changed_secret_is_written_once(self):
+        self.run_sync()
+        self.live = [self.listed()]
+        self.calls.clear()
+        env = {**self.ENV, "OIDC_STUDENTS_CLIENT_SECRET": "rotated"}
+        self.run_sync(env=env)
+        ((_, params),) = self.provider_calls()
+        self.assertEqual((params["clientid"], params["clientsecret"]), ("client-1", "rotated"))
+        self.calls.clear()
+        self.run_sync(env=env)
+        self.assertEqual(self.provider_calls(), [])
+
+    def test_a_changed_client_brings_its_secret(self):
+        self.run_sync()
+        self.live = [self.listed(clientid="client-0")]
+        self.calls.clear()
+        self.run_sync()
+        ((_, params),) = self.provider_calls()
+        self.assertEqual((params["clientid"], params["clientsecret"]), ("client-1", "very-secret"))
+
+    def test_lost_state_writes_the_secret_again(self):
+        self.live = [self.listed()]
+        self.run_sync()
+        ((_, params),) = self.provider_calls()
+        self.assertEqual(set(params) - {"id", "post"}, {"clientid", "clientsecret"})
+
+    def test_membership_source_waits_for_its_secret(self):
+        entry = {**self.ENTRY, "membership_source": {"type": "google-directory"}}
+        self.run_sync()
+        self.live = [self.listed()]
+        self.calls.clear()
+        failed, out = self.run_sync(catalog=[entry])
+        self.assertEqual(self.provider_calls(), [])
+        self.assertIn("membership source waits for OIDC_STUDENTS_MEMBERSHIP_SECRET", out)
+
+        env = {**self.ENV, "OIDC_STUDENTS_MEMBERSHIP_SECRET": '{"type": "service_account"}'}
+        self.run_sync(catalog=[entry], env=env)
+        ((_, params),) = self.provider_calls()
+        self.assertEqual(json.loads(params["membershipsource"]), {"type": "google-directory"})
+        self.assertEqual(params["membershipsecret"], '{"type": "service_account"}')
+        self.assertIn("oidc.students.membershipsecret", self.state["data"])
+
+        self.live = [self.listed(membershipsource='{"type":"google-directory"}')]
+        self.calls.clear()
+        self.run_sync(catalog=[entry], env=env)
+        self.assertEqual(self.provider_calls(), [])
+
+        self.run_sync(env=env)
+        ((_, params),) = self.provider_calls()
+        self.assertEqual((params["membershipsource"], params["membershipsecret"]), ("", ""))
+        self.assertNotIn("oidc.students.membershipsecret", self.state["data"])
+
+    def test_a_provider_the_catalog_does_not_list_is_disabled_not_deleted(self):
+        self.live = [self.listed(), self.listed(id="op-2", name="intruder", clientid="x")]
+        self.run_sync()
+        self.assertIn(("updateOidcProvider", {"post": True, "id": "op-2", "enabled": "false"}), self.provider_calls())
+        self.assertNotIn("deleteOidcProvider", [c for c, _ in self.calls])
+        self.calls.clear()
+        self.live[1]["enabled"] = False
+        self.run_sync()
+        self.assertFalse([p for c, p in self.provider_calls() if p.get("id") == "op-2"])
+
+    def test_a_listing_without_configuration_changes_nothing(self):
+        self.live = [{"id": "op-1", "name": "students", "label": "Students"}]
+        failed, out = self.run_sync()
+        self.assertEqual((failed, self.provider_calls()), (["providers"], []))
+        self.assertIn("not a root administrator", out)
+
+    def test_one_provider_failing_holds_back_none_of_the_others(self):
+        broken = {**self.ENTRY, "name": "elsewhere", "domain": "ROOT/missing"}
+        env = {**self.ENV, "OIDC_ELSEWHERE_CLIENT_ID": "c", "OIDC_ELSEWHERE_CLIENT_SECRET": "s"}
+        failed, out = self.run_sync(catalog=[broken, self.ENTRY], env=env)
+        self.assertEqual(failed, ["elsewhere"])
+        self.assertEqual([p["name"] for c, p in self.provider_calls()], ["students"])
+        self.assertIn("error: OpenID provider elsewhere: domain ROOT/missing", out)
+
+    # every step of a run but the providers'
+    STEPS = ("sync_console_endpoints", "prune_management_servers", "load_roles", "sync_roles", "sync_warpgate",
+             "sync_template_userdata", "restore_console_proxy_state", "sync_console_certificate")
+
+    def test_an_unreadable_catalog_fails_the_run_after_every_other_step(self):
+        tmp = tempfile.NamedTemporaryFile("w", suffix=".toml", delete=False)
+        self.addCleanup(os.unlink, tmp.name)
+        tmp.write("[[provider]\n")
+        tmp.close()
+        with mock.patch.multiple(sync, **{step: mock.DEFAULT for step in self.STEPS}) as steps, \
+                mock.patch.multiple(sync, PROVIDERS_PATH=tmp.name, WARPGATE_HOST="warpgate.example",
+                                    WARPGATE_TLS_NAME="warpgate.example", WARPGATE_TOKEN="token"), \
+                mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+            with self.assertRaisesRegex(RuntimeError, "OpenID providers not reconciled: providers"):
+                sync.main()
+        self.assertEqual({step: steps[step].call_count for step in self.STEPS}, dict.fromkeys(self.STEPS, 1))
+        self.assertEqual(self.calls, [])
+        self.assertIn("error: OpenID providers:", out.getvalue())
+
+
 class SsoProvidersTest(unittest.TestCase):
     def test_parses_domain_paths(self):
         self.assertEqual(sync.sso_providers("ROOT=bacchus, ROOT/snucse=snucse,"),
