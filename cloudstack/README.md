@@ -13,6 +13,7 @@ an Auth0 tenant administrator (usage in the script).
 hosts/
 ├── inventory.yaml   # hosts, addresses, overlays, gateway and storage roles
 ├── site.yaml        # configure the hosts (network files only take effect on reboot)
+├── apply.sh         # run site.yaml as it is in a given commit, in the background
 ├── render.yaml      # render the per-host files into hosts/out/ without connecting, and
 │                    # regenerate the atrium-side host lists from the inventory
 ├── files/           # the agent's domain XML hook (tests in tests/)
@@ -35,12 +36,23 @@ ones pass, so retry once (Ansible: `-e ansible_ssh_retries=3`). Work on one host
 at a time: dozens of simultaneous connections through martini have had the
 source address cut off for minutes.
 
+Hosts are changed from a commit, never from a working tree:
+`hosts/apply.sh <commit> [ansible-playbook args]` exports what `site.yaml`
+reads at that commit (`cloudstack/hosts` and the compute catalog) into
+`.scratch/rollout/<commit id>/tree` and runs it there in the background,
+detached from the terminal, one host at a time with the martini jump and SSH
+retries. The log next to the tree ends with `EXIT <code>`; the tree and the
+log are readable by their owner only, and concurrent runs export one commit
+once. It takes
+`ansible-playbook` from `PATH` or from `ANSIBLE_PLAYBOOK`; `APPLY_DRY_RUN=1`
+only exports the tree and prints the command.
+
 ```console
 $ cd hosts
 $ ansible-playbook -i inventory.yaml render.yaml            # review hosts/out/<host>/
-$ ansible-playbook -i inventory.yaml site.yaml --limit derby --check --diff
-$ ansible-playbook -i inventory.yaml site.yaml --limit derby
-$ ssh root@derby reboot                                     # network changes apply on reboot
+$ ./apply.sh <commit> --limit derby --check                 # see the log for what would change
+$ ./apply.sh <commit> --limit derby
+$ ssh root@derby reboot                                     # network and kernel changes apply on reboot
 ```
 
 Every host also gets an input firewall (`/etc/nftables.d/host.nft`): VXLAN is
