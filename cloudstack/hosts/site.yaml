@@ -483,10 +483,12 @@
         path: /etc/systemd/system/{{ item }}.d
         state: directory
         mode: '0755'
-      loop: [system.slice, user.slice, init.scope]
+      loop: [system.slice, user.slice, init.scope, volumetransfer.slice]
 
-    # The host's own processes run on H. Guests live in machine.slice, and
-    # libvirt pins each one to its cores.
+    # The host's own processes run on H, and so do the agent's volume
+    # transfers (volumetransfer.slice, shipped by the agent package; the agent
+    # refuses a transfer while that slice may use other CPUs than system.slice).
+    # Guests live in machine.slice, and libvirt pins each one to its cores.
     - name: Host processes confined to the housekeeping cores
       ansible.builtin.copy:
         dest: /etc/systemd/system/{{ item.unit }}.d/50-housekeeping.conf
@@ -499,13 +501,14 @@
         - { unit: system.slice, section: Slice }
         - { unit: user.slice, section: Slice }
         - { unit: init.scope, section: Scope }
+        - { unit: volumetransfer.slice, section: Slice }
       loop_control:
         label: '{{ item.unit }}'
       register: partition_slices
       when: partition_values is not skipped
 
     - name: Units systemd has not reloaded since they changed on disk
-      ansible.builtin.command: systemctl show system.slice user.slice init.scope dev-hugepages1G.mount -p NeedDaemonReload
+      ansible.builtin.command: systemctl show system.slice user.slice init.scope volumetransfer.slice dev-hugepages1G.mount -p NeedDaemonReload
       register: partition_units_state
       changed_when: false
       check_mode: false
@@ -527,7 +530,7 @@
       ignore_errors: '{{ ansible_check_mode }}'
 
     - name: Housekeeping CPUs of the host's own units, as systemd applies them
-      ansible.builtin.command: systemctl show system.slice user.slice init.scope -p AllowedCPUs
+      ansible.builtin.command: systemctl show system.slice user.slice init.scope volumetransfer.slice -p AllowedCPUs
       register: partition_allowed_cpus
       changed_when: false
       when: partition_values is not skipped and not ansible_check_mode
@@ -535,9 +538,9 @@
     # systemd prints each unit's set as space-separated ranges ("62-63 126-127")
     - name: Housekeeping CPUs check
       ansible.builtin.assert:
-        that: partition_allowed_sets == [partition_housekeeping_set] * 3
+        that: partition_allowed_sets == [partition_housekeeping_set] * 4
         fail_msg: >-
-          AllowedCPUs of system.slice, user.slice and init.scope are {{ partition_allowed_sets }},
+          AllowedCPUs of system.slice, user.slice, init.scope and volumetransfer.slice are {{ partition_allowed_sets }},
           not the housekeeping cores {{ partition_housekeeping_set }}
       vars:
         partition_housekeeping_set: "{{ partition_rendered.partition.housekeeping | sort | join(',') }}"
