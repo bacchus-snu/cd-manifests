@@ -68,6 +68,7 @@ CONSOLE_CERT_ZONE = timezone(timedelta(hours=9))
 CONSOLE_CERT_WINDOW = (daytime(4, 0), daytime(6, 0))
 CONSOLE_PROBE_RETRY = 30  # seconds
 CONSOLE_PROXY_STATE = "consoleproxy.management.state"
+LIST_PAGE_SIZE = 500  # default.page.size, the largest page the server accepts
 PEM_CERT_RE = re.compile(r"-----BEGIN CERTIFICATE-----.+?-----END CERTIFICATE-----", re.S)
 
 
@@ -88,6 +89,17 @@ def cloudstack(command, *, post=False, **params):
     with urllib.request.urlopen(request, timeout=30) as resp:
         body = json.load(resp)
     return body[f"{command.lower()}response"]
+
+
+def cloudstack_list(command, key, **params):
+    """Every item of a list command. Unpaged, the server returns only its first default.page.size items."""
+    items, page = [], 1
+    while True:
+        batch = cloudstack(command, page=page, pagesize=LIST_PAGE_SIZE, **params).get(key, [])
+        items += batch
+        if len(batch) < LIST_PAGE_SIZE:
+            return items
+        page += 1
 
 
 def kube(method, path, body=None):
@@ -204,7 +216,7 @@ def pem_blocks(bundle):
 
 
 def last_certificate_upload():
-    events = cloudstack("listEvents", type="UPLOAD.CUSTOM.CERTIFICATE", listall="true").get("event", [])
+    events = cloudstack_list("listEvents", "event", type="UPLOAD.CUSTOM.CERTIFICATE", listall="true")
     return max((datetime.strptime(e["created"], "%Y-%m-%dT%H:%M:%S%z") for e in events if e.get("created")),
                default=None)
 
@@ -583,7 +595,7 @@ def sync_templates(catalog):
     Returns template id -> guest user for the catalogued ones. Templates are
     never deleted here: an old one may still back a VM's reinstall."""
     def user_templates():
-        return [t for t in cloudstack("listTemplates", templatefilter="all", listall="true").get("template", [])
+        return [t for t in cloudstack_list("listTemplates", "template", templatefilter="all", listall="true")
                 if t.get("templatetype") == "USER"]
     templates = user_templates()
     by_name = {t["name"]: t for t in templates}
@@ -747,7 +759,7 @@ def stale_known_hosts(known, targets, refreshed):
 
 
 def sync_warpgate():
-    """Role per CloudStack account, user per CloudStack user (SSO credential =
+    """Role per CloudStack account, user per enabled user of an enabled account (SSO credential =
     the user's e-mail, which the sign-in gate keeps equal to the identity
     provider's claim, at the provider of the user's domain), target per VM plus
     one per guest account a co-owner has tagged on it. A VM is reachable by its
@@ -759,11 +771,15 @@ def sync_warpgate():
     if not providers:  # with no mapping every user would be removed, with their keys
         raise ValueError("BASTION_SSO is empty")
     sync_warpgate_parameters()
-    paths = {d["id"]: d["path"] for d in cloudstack("listDomains", listall="true").get("domain", [])}
+    paths = {d["id"]: d["path"] for d in cloudstack_list("listDomains", "domain", listall="true")}
+    all_accounts = cloudstack_list("listAccounts", "account", listall="true")
+    # disabling or locking an account leaves its users' own state enabled
+    enabled_accounts = {(a.get("domainid"), a["name"]) for a in all_accounts if a.get("state") == "enabled"}
     provider_of = {}
     users = []
-    for u in cloudstack("listUsers", listall="true").get("user", []):
-        if u.get("state") != "enabled" or u["account"] in BUILTIN_ACCOUNTS or not u.get("email"):
+    for u in cloudstack_list("listUsers", "user", listall="true"):
+        if (u.get("state") != "enabled" or (u.get("domainid"), u["account"]) not in enabled_accounts
+                or u["account"] in BUILTIN_ACCOUNTS or not u.get("email")):
             continue
         provider = providers.get(paths.get(u.get("domainid")))
         if provider is None:
@@ -777,8 +793,8 @@ def sync_warpgate():
         print(f"warning: user name {name} exists in several domains; not mirrored")
     users = [u for u in users if u["username"] not in clashing]
     # project-owned VMs are only listed when asked for explicitly
-    vms = cloudstack("listVirtualMachines", listall="true").get("virtualmachine", [])
-    vms += cloudstack("listVirtualMachines", listall="true", projectid=-1).get("virtualmachine", [])
+    vms = cloudstack_list("listVirtualMachines", "virtualmachine", listall="true")
+    vms += cloudstack_list("listVirtualMachines", "virtualmachine", listall="true", projectid=-1)
     vms = list({vm["id"]: vm for vm in vms}.values())
     per_account, users_of_role = {}, {}
     for u in users:
@@ -788,12 +804,12 @@ def sync_warpgate():
         if len(names) > 1:  # roles are per account: every user of it would share access
             print(f"warning: account {account} has {len(names)} users: {sorted(names)}")
     members = {}  # project id -> member account names
-    for p in cloudstack("listProjects", listall="true").get("project", []):
+    for p in cloudstack_list("listProjects", "project", listall="true"):
         members[p["id"]] = {m["account"] for m in cloudstack("listProjectAccounts", projectid=p["id"]).get("projectaccount", [])}
 
     user_by_template = sync_templates(load_catalog())
-    volumes = cloudstack("listVolumes", type="ROOT", listall="true").get("volume", [])
-    volumes += cloudstack("listVolumes", type="ROOT", listall="true", projectid=-1).get("volume", [])
+    volumes = cloudstack_list("listVolumes", "volume", type="ROOT", listall="true")
+    volumes += cloudstack_list("listVolumes", "volume", type="ROOT", listall="true", projectid=-1)
     root_by_vm = {v["virtualmachineid"]: v["id"] for v in volumes if v.get("virtualmachineid")}
     wanted, reach = plan_targets(vms, members, user_by_template, root_by_vm=root_by_vm)
     guests = {i for vm in vms for ids in guest_accounts(vm).values() for i in ids}
@@ -801,8 +817,7 @@ def sync_warpgate():
     relevant = {u["account"] for u in users} | {vm["account"] for vm in vms if not vm.get("projectid")}
     relevant |= set().union(*members.values()) if members else set()
     relevant |= guests
-    accounts = {a["name"]: a for a in cloudstack("listAccounts", listall="true").get("account", [])
-                if a["name"] in relevant}
+    accounts = {a["name"]: a for a in all_accounts if a["name"] in relevant}
 
     roles = {r["name"]: r for r in warpgate("GET", "/roles")[1]}
     for name in accounts:
@@ -908,19 +923,19 @@ def sync_template_userdata():
     if not public:
         print("warning: warpgate has no client keys; template user data not managed")
         return
-    networks = cloudstack("listNetworks", listall="true").get("network", [])
+    networks = cloudstack_list("listNetworks", "network", listall="true")
     script = render_userdata(public, network_mtus(networks))
     name = userdata_name(script)
 
-    existing = {u["name"]: u for u in cloudstack("listUserData", listall="true").get("userdata", [])}
+    existing = {u["name"]: u for u in cloudstack_list("listUserData", "userdata", listall="true")}
     if name not in existing:
         cloudstack("registerUserData", post=True, name=name, userdata=base64.b64encode(script.encode()).decode())
         print(f"cloudstack user data {name} registered")
-        existing = {u["name"]: u for u in cloudstack("listUserData", listall="true").get("userdata", [])}
+        existing = {u["name"]: u for u in cloudstack_list("listUserData", "userdata", listall="true")}
     current = existing[name]["id"]
 
     linked = set()
-    for t in cloudstack("listTemplates", templatefilter="all", listall="true").get("template", []):
+    for t in cloudstack_list("listTemplates", "template", templatefilter="all", listall="true"):
         if t.get("templatetype") != "USER":
             continue
         have, have_name = t.get("userdataid"), t.get("userdataname") or ""

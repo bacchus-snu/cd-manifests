@@ -62,13 +62,13 @@ rules = [
 
 # SNUCSE ID students (gate door "snucse"): the built-in User role without
 # projects, templates and ISOs, security groups, SSH key pairs and networking.
-# Instances, volumes, snapshots, tags and API keys remain; listing stays allowed
+# Instances, volumes, volume snapshots, tags and API keys remain; listing stays allowed
 # so that the UI works. The user itself is the gate's: no password of one's own,
 # and the UI hides its password and edit actions.
 [[role]]
 name = "SNUCSE User"
 type = "User"
-description = "SNUCSE ID students: instances, volumes, snapshots, tags and API keys"
+description = "SNUCSE ID students: instances, volumes, volume snapshots, tags and API keys"
 rules = [
   ["addAnnotation", "allow"],
   ["listAnnotations", "allow"],
@@ -81,7 +81,6 @@ rules = [
   ["createSnapshot", "allow"],
   ["createSnapshotPolicy", "allow"],
   ["createTags", "allow"],
-  ["createVMSnapshot", "allow"],
   ["createVolume", "allow"],
   ["deleteAffinityGroup", "allow"],
   ["deleteEvents", "allow"],
@@ -89,7 +88,6 @@ rules = [
   ["deleteSnapshot", "allow"],
   ["deleteSnapshotPolicies", "allow"],
   ["deleteTags", "allow"],
-  ["deleteVMSnapshot", "allow"],
   ["deleteVolume", "allow"],
   ["deployVirtualMachine", "allow"],
   ["destroyVirtualMachine", "allow"],
@@ -157,7 +155,6 @@ rules = [
   ["listTemplatePermissions", "allow"],
   ["listTemplates", "allow"],
   ["listUsers", "allow"],
-  ["listVMSnapshot", "allow"],
   ["listVPCOfferings", "allow"],
   ["listVPCs", "allow"],
   ["listVirtualMachines", "allow"],
@@ -182,7 +179,6 @@ rules = [
   ["resizeVolume", "allow"],
   ["restoreVirtualMachine", "allow"],
   ["revertSnapshot", "allow"],
-  ["revertToVMSnapshot", "allow"],
   ["scaleVirtualMachine", "allow"],
   ["startVirtualMachine", "allow"],
   ["stopVirtualMachine", "allow"],
@@ -194,7 +190,6 @@ rules = [
   ["uploadVolume", "allow"],
   ["deleteUserKeys", "allow"],
   ["listUserKeyRules", "allow"],
-  ["createSnapshotFromVMSnapshot", "allow"],
   ["*Project*", "deny"],
   ["*SecurityGroup*", "deny"],
   ["*SSHKeyPair*", "deny"],
@@ -218,4 +213,25 @@ rules = [
   ["*Ipv6*", "deny"],
   ["*Template*", "deny"],
   ["*Iso*", "deny"],
+  # features this cloud does not offer, which their commands open to every user
+  # role by annotation when no rule matches
+  ["*Webhook*", "deny"],
+  ["*Bucket*", "deny"],
+  ["*ObjectStorage*", "deny"],
+  ["*Kubernetes*", "deny"],
+  ["*SharedFileSystem*", "deny"],
+  ["*Vnf*", "deny"],
+  ["*Dns*", "deny"],
+  ["*KMS*", "deny"],
+  ["*HSM*", "deny"],
+  ["*Schedule*", "deny"],
+  ["*TwoFactor*", "deny"],
+  ["*CustomAction*", "deny"],
+  ["*PrivateGateway*", "deny"],
+  ["*ASNumber*", "deny"],
+  ["uploadResourceIcon", "deny"],
+  # VM snapshots; volume snapshots stay allowed
+  ["*VMSnapshot*", "deny"],
+  # lists every GPU device with the instance using it, across accounts
+  ["listGpuDevices", "deny"],
 ]

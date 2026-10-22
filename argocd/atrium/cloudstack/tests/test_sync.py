@@ -950,6 +950,14 @@ class ConsoleEndpointsTest(unittest.TestCase):
 REPO_ROLES = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "roles.toml")
 
 
+def decision(role, api):
+    """The first matching rule's permission, matched case-insensitively like the server; None if no rule matches."""
+    for rule, permission in role["rules"]:
+        if re.fullmatch(re.escape(rule).replace(r"\*", ".*"), api, re.IGNORECASE):
+            return permission
+    return None
+
+
 class RoleCatalogTest(unittest.TestCase):
     def load(self, text):
         with tempfile.NamedTemporaryFile("w", suffix=".toml", delete=False) as f:
@@ -985,17 +993,32 @@ class RoleCatalogTest(unittest.TestCase):
         for api in ("createRole", "updateRolePermission", "importRole", "updateConfiguration", "registerOauthProvider",
                     "createAccount", "createUser", "updateAccount", "updateUser", "issueCertificate"):
             self.assertIn(api, denied)
-        rules = [re.compile("^" + rule.replace("*", ".*") + "$") for rule in denied]
         for api in ("createExtension", "registerExtension", "updateRegisteredExtension", "runCustomAction", "addCustomAction"):
-            self.assertTrue(any(r.match(api) for r in rules), api)
-        for api in ("listExtensions", "listCustomActions", "prepareHostForMaintenance", "deployVirtualMachine"):
-            self.assertFalse(any(r.match(api) for r in rules), api)
+            self.assertEqual(decision(member, api), "deny", api)
+        for api in ("listExtensions", "listCustomActions", "prepareHostForMaintenance", "deployVirtualMachine",
+                    "createVMSnapshot", "revertToVMSnapshot", "listGpuDevices"):
+            self.assertEqual(decision(member, api), "allow", api)
         user = roles["SNUCSE User"]
         self.assertEqual(user["type"], "User")
-        self.assertEqual(len(user["rules"]), 148)
+        self.assertEqual(len(user["rules"]), 160)
         self.assertIn(("*Template*", "deny"), user["rules"])
         self.assertIn(("updateUser", "deny"), user["rules"])
         self.assertNotIn(("updateUser", "allow"), user["rules"])
+
+        for api in ("createWebhook", "createBucket", "createKubernetesCluster", "createSharedFileSystem",
+                    "deployVnfAppliance", "createDnsZone", "createKMSKey", "createVMSchedule",
+                    "setupUserTwoFactorAuthentication", "runCustomAction", "uploadResourceIcon", "listGpuDevices",
+                    "addObjectStoragePool", "createHSMProfile", "createPrivateGateway", "listASNumbers",
+                    "createVMSnapshot", "revertToVMSnapshot", "deleteVMSnapshot", "listVMSnapshot",
+                    "createSnapshotFromVMSnapshot"):
+            self.assertEqual(decision(user, api), "deny", api)
+        # implicitly allowed commands the UI needs stay unmatched
+        for api in ("listGuiThemes", "createConsoleEndpoint", "listVirtualMachinesMetrics", "listResourceIcon",
+                    "listDetailOptions", "getUserKeys", "recoverVolume"):
+            self.assertIsNone(decision(user, api), api)
+        for api in ("createSnapshotPolicy", "listSnapshotPolicies", "deployVirtualMachine", "listVolumes",
+                    "createSnapshot", "listSnapshots", "revertSnapshot", "deleteSnapshot"):
+            self.assertEqual(decision(user, api), "allow", api)
 
 
 class SyncRolesTest(unittest.TestCase):
@@ -1081,6 +1104,13 @@ class SsoProvidersTest(unittest.TestCase):
                 sync.sso_providers(spec)
 
 
+def paged(items, params):
+    """One page of a list response; like the server, an unpaged request gets only the first page."""
+    size = params.get("pagesize", sync.LIST_PAGE_SIZE)
+    start = (params.get("page", 1) - 1) * size
+    return items[start:start + size]
+
+
 class WarpgateSsoTest(unittest.TestCase):
     """Credentials follow the provider of the user's domain."""
 
@@ -1089,6 +1119,7 @@ class WarpgateSsoTest(unittest.TestCase):
         self.creds = {"wu-bob": [{"id": "c-null", "provider": None, "email": "bob@snu.ac.kr"},
                                  {"id": "c-old", "provider": "snucse", "email": "old@snu.ac.kr"}]}
         self.wg_calls = []
+        self.account_states = {}  # (domain id, account name) -> state; enabled when absent
         users = [
             {"id": "u-bob", "username": "bob", "account": "bob", "domainid": "d-snucse", "email": "bob@snu.ac.kr",
              "state": "enabled", "accounttype": 0},
@@ -1101,12 +1132,14 @@ class WarpgateSsoTest(unittest.TestCase):
 
         def fake_cs(command, **params):
             if command == "listDomains":
-                return {"domain": [{"id": "d-root", "path": "ROOT"}, {"id": "d-snucse", "path": "ROOT/snucse"},
-                                   {"id": "d-other", "path": "ROOT/other"}]}
+                return {"domain": paged([{"id": "d-root", "path": "ROOT"}, {"id": "d-snucse", "path": "ROOT/snucse"},
+                                         {"id": "d-other", "path": "ROOT/other"}], params)}
             if command == "listUsers":
-                return {"user": users}
+                return {"user": paged(users, params)}
             if command == "listAccounts":
-                return {"account": [{"id": f"a-{u['account']}", "name": u["account"]} for u in users]}
+                return {"account": paged([{"id": f"a-{u['account']}", "name": u["account"], "domainid": u["domainid"],
+                                           "state": self.account_states.get((u["domainid"], u["account"]), "enabled")}
+                                          for u in users], params)}
             return {}
 
         def fake_wg(method, path, body=None):
@@ -1179,11 +1212,43 @@ class WarpgateSsoTest(unittest.TestCase):
         twin = {"id": "u-bob2", "username": "bob", "account": "bob", "domainid": "d-root", "email": "bob@bacchus.snucse.org",
                 "state": "enabled", "accounttype": 1}
         listed = sync.cloudstack("listUsers")["user"]
-        with mock.patch.object(sync, "cloudstack", lambda c, **p: {"user": listed + [twin]} if c == "listUsers"
-                               else self.fake_cs_orig(c, **p)):
+        accounts = sync.cloudstack("listAccounts")["account"] + [
+            {"id": "a-bob2", "name": "bob", "domainid": "d-root", "state": "enabled"}]
+
+        def cs(c, **p):
+            if c == "listUsers":
+                return {"user": listed + [twin]}
+            if c == "listAccounts":
+                return {"account": accounts}
+            return self.fake_cs_orig(c, **p)
+        with mock.patch.object(sync, "cloudstack", cs):
             sync.sync_warpgate()
         self.assertFalse([b for m, p, b in self.wg_calls if m == "POST" and p == "/users/wu-bob/credentials/sso"])
         self.assertIn(("DELETE", "/users/wu-bob", None), self.wg_calls)
+
+    def test_disabled_account_loses_its_bastion_user(self):
+        self.account_states[("d-snucse", "bob")] = "disabled"
+        sync.sync_warpgate()
+        self.assertIn(("DELETE", "/users/wu-bob", None), self.wg_calls)
+        self.assertFalse([p for m, p, b in self.wg_calls if m == "POST" and p == "/users/wu-bob/credentials/sso"])
+
+    def test_locked_account_loses_its_bastion_user(self):
+        self.account_states[("d-snucse", "bob")] = "locked"
+        sync.sync_warpgate()
+        self.assertIn(("DELETE", "/users/wu-bob", None), self.wg_calls)
+
+    def test_account_state_is_per_domain(self):
+        # a disabled account of the same name in another domain leaves this one's user in place
+        self.account_states[("d-root", "bob")] = "disabled"
+        sync.sync_warpgate()
+        self.assertNotIn(("DELETE", "/users/wu-bob", None), self.wg_calls)
+
+    def test_users_past_the_first_page_are_kept(self):
+        with mock.patch.object(sync, "LIST_PAGE_SIZE", 1):
+            sync.sync_warpgate()
+        self.assertNotIn(("DELETE", "/users/wu-bob", None), self.wg_calls)
+        created = {b["username"] for m, p, b in self.wg_calls if m == "POST" and p == "/users"}
+        self.assertEqual(created, {"m@bacchus.snucse.org"})
 
     def test_empty_mapping_fails_instead_of_removing_everyone(self):
         with mock.patch.object(sync, "WARPGATE_SSO", ""):
