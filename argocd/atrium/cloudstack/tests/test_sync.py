@@ -1257,5 +1257,251 @@ class WarpgateSsoTest(unittest.TestCase):
         self.assertFalse([c for c in self.wg_calls if c[0] == "DELETE"])
 
 
+SETTINGS_REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def run_main_with(**results):
+    """Runs main() with every step it calls replaced by a stand-in that finds nothing to reconcile, but for the
+    steps given, which return the results given. Returns how often each stand-in ran and the error main() ended
+    with."""
+    steps = [n for n in sync.main.__code__.co_names if callable(getattr(sync, n, None)) and n not in results]
+    with mock.patch.multiple(sync, **{n: mock.DEFAULT for n in steps}) as patched, \
+            mock.patch.multiple(sync, **{n: mock.Mock(return_value=r) for n, r in results.items()}), \
+            mock.patch.multiple(sync, WARPGATE_HOST="warpgate.example", WARPGATE_TLS_NAME="warpgate.example",
+                                WARPGATE_TOKEN="token"):
+        for step in patched.values():
+            step.return_value = []
+        try:
+            sync.main()
+            error = None
+        except RuntimeError as e:
+            error = e
+        return {n: patched[n].call_count for n in steps}, error
+
+
+class SyncSettingsTest(unittest.TestCase):
+    CATALOG = {"gpu_types": [{"tag": "a6000"}, {"tag": "gtx1080"}, {"tag": "a100-40g"}]}
+    SCOPE_PARAMS = ("zoneid", "clusterid", "storageid", "domainid", "accountid")
+
+    def setUp(self):
+        self.calls = []
+        self.refuse = set()
+        self.started = "2020-01-01T00:00:00+0000"
+        self.state = {"metadata": {"name": "cloudstack-sync-state", "resourceVersion": "1"}}
+        # (scope parameter, object id) -> key -> (value, dynamic, category); the global listing names every key
+        self.config = {
+            (None, None): {
+                "capacity.skipcounting.hours": ("3600", False, "Advanced"),
+                "vm.allocation.algorithm": ("random", True, "Advanced"),
+                "max.account.gpus": ("20", False, "Account Defaults"),
+                "cluster.cpu.allocated.capacity.disablethreshold": ("0.85", True, "Alert"),
+                "storage.overprovisioning.factor": ("2", True, "Storage"),
+                "vm.root.disk.size.min": ("10", True, "Advanced"),
+                "enable.dynamic.scale.vm": ("false", True, "Advanced"),
+                "incorrect.login.attempts.allowed": ("0", False, "Advanced"),
+                "resource.limit.host.tags": ("cpu", True, "Advanced"),
+                "resource.request.smtp.username": ("", True, "Advanced"),
+                "resource.request.smtp.password": ("x8Jq0w==", True, "Secure"),
+            },
+            ("zoneid", "z-1"): {"enable.dynamic.scale.vm": ("false", True, "Advanced")},
+            ("domainid", "d-root"): {"vm.root.disk.size.min": ("10", True, "Advanced")},
+            ("domainid", "d-snucse"): {"vm.root.disk.size.min": ("10", True, "Advanced")},
+            ("clusterid", "c-1"): {"cluster.cpu.allocated.capacity.disablethreshold": ("0.85", True, "Alert")},
+            ("storageid", "p-1"): {"storage.overprovisioning.factor": ("2.0", True, "Storage")},
+            ("storageid", "p-2"): {"storage.overprovisioning.factor": ("1", True, "Storage")},
+        }
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        with open(f"{tmp.name}/namespace", "w") as f:
+            f.write("cloudstack")
+
+        def fake_cs(command, post=False, **params):
+            self.calls.append((command, params))
+            scope = next(((p, params[p]) for p in self.SCOPE_PARAMS if p in params), (None, None))
+            if command == "listConfigurations":
+                assert params.get("page", 1) == 1
+                return {"configuration": [{"name": k, "value": v, "isdynamic": d, "category": c}
+                                          for k, (v, d, c) in self.config.get(scope, {}).items()]}
+            if command == "updateConfiguration":
+                assert post, "settings are written by POST"
+                if params["name"] in self.refuse:
+                    raise urllib.error.HTTPError("http://cloudstack.test", 431, "Only the Root Admin role can change "
+                                                 f"{params['name']}", {}, io.BytesIO(b"{}"))
+                _, dynamic, category = self.config[scope][params["name"]]
+                self.config[scope][params["name"]] = (params["value"], dynamic, category)
+                return {"configuration": {"name": params["name"], "value": params["value"]}}
+            if command == "listZones":
+                return {"zone": [{"id": "z-1", "name": "snucse"}]}
+            if command == "listClusters":
+                return {"cluster": [{"id": "c-1", "name": "302bldg-kvm"}]}
+            if command == "listStoragePools":
+                return {"storagepool": [{"id": "p-1", "name": "derby-local"}, {"id": "p-2", "name": "eggnog-local"}]}
+            if command == "listDomains":
+                return {"domain": [{"id": "d-root", "path": "ROOT"}, {"id": "d-snucse", "path": "ROOT/snucse"}]}
+            if command == "listAccounts":
+                return {"account": []}
+            if command == "listManagementServers":
+                return {"managementserver": [{"name": "ms-0", "state": "Up", "lastserverstart": self.started},
+                                             {"name": "ms-1", "state": "Down",
+                                              "lastserverstart": "2019-01-01T00:00:00+0000"}]}
+            raise AssertionError(command)
+
+        def fake_kube(method, path, body=None):
+            self.assertTrue(path.endswith("/namespaces/cloudstack/configmaps/cloudstack-sync-state"), path)
+            if method == "GET":
+                return 200, json.loads(json.dumps(self.state))
+            self.state = body
+            return 200, body
+
+        for p in (mock.patch.object(sync, "cloudstack", fake_cs), mock.patch.object(sync, "kube", fake_kube),
+                  mock.patch.object(sync, "SA_DIR", tmp.name)):
+            p.start()
+            self.addCleanup(p.stop)
+
+    def run_sync(self, settings, catalog=None, env=None):
+        with mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+            failed = sync.sync_settings(settings, catalog if catalog is not None else {"gpu_types": []}, env or {})
+        return failed, out.getvalue()
+
+    def updates(self):
+        return [p for c, p in self.calls if c == "updateConfiguration"]
+
+    def test_sync_settings_applies_only_differences(self):
+        settings = [{"key": "vm.allocation.algorithm", "value": "firstfitmostconsumed"},
+                    {"key": "max.account.gpus", "value": 20},
+                    {"key": "capacity.skipcounting.hours", "value": "3600"},
+                    {"key": "storage.overprovisioning.factor", "scope": "storagepool", "target": "*", "value": 1.0}]
+        failed, out = self.run_sync(settings)
+        self.assertEqual(failed, [])
+        self.assertEqual([(u["name"], u["value"], u.get("storageid")) for u in self.updates()],
+                         [("vm.allocation.algorithm", "firstfitmostconsumed", None),
+                          ("storage.overprovisioning.factor", "1.0", "p-1")],
+                         "only what differs; 1.0 equals a stored 1.0 or 1")
+        self.assertIn("'random' -> 'firstfitmostconsumed'", out)
+        self.calls.clear()
+        failed, out = self.run_sync(settings)
+        self.assertEqual((failed, self.updates()), ([], []), "a second run writes nothing")
+
+    def test_sync_settings_skips_unknown_key(self):
+        failed, out = self.run_sync([{"key": "volume.move.keep.source", "value": True},
+                                     {"key": "vm.allocation.algorithm", "value": "firstfitmostconsumed"}])
+        self.assertEqual(failed, [], "a key of a patch that is not deployed yet is no error")
+        self.assertEqual([u["name"] for u in self.updates()], ["vm.allocation.algorithm"])
+        self.assertIn("setting volume.move.keep.source: unknown to this management server, skipped", out)
+
+    def test_sync_settings_reports_restart_required_for_a_non_dynamic_key(self):
+        failed, out = self.run_sync([{"key": "capacity.skipcounting.hours", "value": 0},
+                                     {"key": "vm.allocation.algorithm", "value": "firstfitmostconsumed"},
+                                     {"key": "max.account.gpus", "value": 20}])
+        self.assertEqual(failed, [])
+        self.assertEqual(self.config[(None, None)]["capacity.skipcounting.hours"][0], "0")
+        self.assertEqual(re.findall(r"restart required: (\S+)", out), ["capacity.skipcounting.hours"],
+                         "only a changed key that is not dynamic")
+
+    def test_sync_settings_scopes(self):
+        failed, out = self.run_sync([
+            {"key": "incorrect.login.attempts.allowed", "value": 5},
+            {"key": "vm.root.disk.size.min", "scope": "domain", "target": "ROOT/snucse", "value": 12},
+            {"key": "cluster.cpu.allocated.capacity.disablethreshold", "scope": "cluster", "target": "302bldg-kvm",
+             "value": 1.0},
+            {"key": "storage.overprovisioning.factor", "scope": "storagepool", "target": "eggnog-local", "value": 1.5},
+            {"key": "enable.dynamic.scale.vm", "scope": "zone", "target": "*", "value": True}])
+        self.assertEqual(failed, [])
+        self.assertEqual([{k: v for k, v in u.items()} for u in self.updates()], [
+            {"name": "incorrect.login.attempts.allowed", "value": "5"},
+            {"name": "vm.root.disk.size.min", "value": "12", "domainid": "d-snucse"},
+            {"name": "cluster.cpu.allocated.capacity.disablethreshold", "value": "1.0", "clusterid": "c-1"},
+            {"name": "storage.overprovisioning.factor", "value": "1.5", "storageid": "p-2"},
+            {"name": "enable.dynamic.scale.vm", "value": "true", "zoneid": "z-1"}])
+        self.assertEqual(self.config[("domainid", "d-root")]["vm.root.disk.size.min"][0], "10", "the other domain keeps its value")
+        self.calls.clear()
+        failed, _ = self.run_sync([{"key": "storage.overprovisioning.factor", "scope": "storagepool", "target": "*",
+                                    "value": "1.0"}])
+        self.assertEqual([(u["value"], u["storageid"]) for u in self.updates()], [("1.0", "p-1"), ("1.0", "p-2")],
+                         "* is every pool")
+
+    def test_sync_settings_host_tags_come_from_the_catalog(self):
+        failed, out = self.run_sync([{"key": "resource.limit.host.tags", "value": "cpu,a6000"}], catalog=self.CATALOG)
+        self.assertEqual(failed, ["resource.limit.host.tags"], "an entry for the derived key is refused")
+        self.assertIn("error: setting resource.limit.host.tags:", out)
+        self.assertEqual([(u["name"], u["value"]) for u in self.updates()],
+                         [("resource.limit.host.tags", "cpu,a6000,gtx1080,a100-40g")])
+        self.calls.clear()
+        failed, _ = self.run_sync([], catalog={**self.CATALOG, "cpu_only": {"name": "cpu", "tag": "cpu"},
+                                               "gpu_types": self.CATALOG["gpu_types"] + [{"tag": "h100"}]})
+        self.assertEqual([u["value"] for u in self.updates()], ["cpu,a6000,gtx1080,a100-40g,h100"],
+                         "a new GPU type is one catalog edit")
+        self.calls.clear()
+        with mock.patch.object(sync, "COMPUTE_CATALOG_PATH", "/nonexistent/compute-catalog.json"), \
+                mock.patch("sys.stdout", new_callable=io.StringIO):
+            sync.sync_settings([], None, {})
+        self.assertEqual(self.updates(), [], "without a catalog nothing is derived")
+
+    def test_sync_settings_reads_value_env_and_never_logs_it(self):
+        settings = [{"key": "resource.request.smtp.username", "value_env": "SMTP_USERNAME"}]
+        failed, out = self.run_sync(settings, env={"SMTP_USERNAME": "relay-user"})
+        self.assertEqual(failed, [])
+        self.assertEqual([(u["name"], u["value"]) for u in self.updates()],
+                         [("resource.request.smtp.username", "relay-user")])
+        self.assertNotIn("relay-user", out)
+        self.assertIn("value from SMTP_USERNAME", out)
+        self.calls.clear()
+        self.assertEqual(self.run_sync(settings, env={"SMTP_USERNAME": "relay-user"})[0], [])
+        self.assertEqual(self.updates(), [], "a second run writes nothing")
+        failed, out = self.run_sync(settings, env={})
+        self.assertEqual((failed, self.updates()), (["resource.request.smtp.username"], []))
+        self.assertIn("SMTP_USERNAME", out)
+
+    def test_sync_settings_refuses_an_encrypted_value(self):
+        failed, out = self.run_sync([{"key": "resource.request.smtp.password", "value_env": "SMTP_PASSWORD"}],
+                                    env={"SMTP_PASSWORD": "pa55-word"})
+        self.assertEqual((failed, self.updates()), (["resource.request.smtp.password"], []),
+                         "an encrypted setting lists differently each time, so nothing tells whether it differs")
+        self.assertNotIn("pa55-word", out)
+
+    def test_sync_settings_failing_entry_does_not_stop_the_rest(self):
+        self.refuse.add("incorrect.login.attempts.allowed")
+        failed, out = self.run_sync([
+            {"key": "vm.root.disk.size.min", "scope": "domain", "target": "ROOT/missing", "value": 12},
+            {"key": "incorrect.login.attempts.allowed", "value": 5},
+            {"key": "capacity.skipcounting.hours", "value": 0, "value_env": "X"},
+            {"key": "vm.root.disk.size.min", "scope": "cluster", "target": "302bldg-kvm", "value": 12},
+            {"key": "max.account.gpus", "scope": "global", "target": "ROOT", "value": 0},
+            {"key": "vm.allocation.algorithm", "value": "firstfitmostconsumed"},
+            {"key": "vm.allocation.algorithm", "scope": "global", "value": "firstfit"},
+            {"key": "storage.overprovisioning.factor", "scope": "storagepool", "target": "derby-local", "value": 1.5},
+            {"key": "storage.overprovisioning.factor", "scope": "storagepool", "target": "*", "value": 1.0}])
+        self.assertEqual(failed, ["vm.root.disk.size.min (domain ROOT/missing)", "incorrect.login.attempts.allowed",
+                                  "capacity.skipcounting.hours", "vm.root.disk.size.min (cluster 302bldg-kvm)",
+                                  "max.account.gpus", "vm.allocation.algorithm",
+                                  "storage.overprovisioning.factor (storagepool derby-local)"])
+        self.assertIn("error: setting incorrect.login.attempts.allowed: HTTP Error 431", out)
+        self.assertIn("not a cluster setting", out)
+        self.assertIn("declared more than once", out)
+        self.assertIn("the entry for every storagepool sets it already", out)
+        self.assertEqual([(u["name"], u.get("storageid")) for u in self.updates()],
+                         [("incorrect.login.attempts.allowed", None), ("storage.overprovisioning.factor", "p-1")],
+                         "the refused write was tried and the rest still applied")
+
+    def test_settings_reach_the_job(self):
+        self.assertEqual(sync.SETTINGS_PATH, "/opt/sync/settings.toml")
+        with open(os.path.join(SETTINGS_REPO, "kustomization.yaml")) as f:
+            files = re.search(r"name: cloudstack-sync\n    files:\n((?:      - .*\n)*)", f.read()).group(1)
+        self.assertIn("      - settings.toml\n", files)
+        entries = sync.load_settings(os.path.join(SETTINGS_REPO, "settings.toml"))
+        for entry in entries:
+            sync.checked_setting(entry, {e["value_env"]: "" for e in entries if "value_env" in e})
+        keys = [(e["key"], e.get("scope", "global"), e.get("target")) for e in entries]
+        self.assertEqual(len(keys), len(set(keys)), "every setting is declared once")
+        self.assertFalse([k for k in keys if k[2] not in (None, "*") and (k[0], k[1], "*") in keys])
+        self.assertEqual(sync.load_settings("/nonexistent/settings.toml"), [])
+
+    def test_a_failing_setting_fails_the_run_after_every_other_step(self):
+        ran, error = run_main_with(sync_settings=["vm.allocation.algorithm"])
+        self.assertRegex(str(error), "settings not applied: vm.allocation.algorithm")
+        self.assertIn("sync_console_certificate", ran)
+        self.assertEqual(ran, dict.fromkeys(ran, 1), "every other step ran once")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,64 @@
+# CloudStack settings, kept by the sync job (sync.py: sync_settings) as the
+# admin user, whose account has the built-in Root Admin role: only that role
+# may change the settings that govern access control. A setting is written
+# only where its value differs. A key the running management server does not
+# know yet is skipped; a changed key that is not dynamic is logged as
+# "restart required: <key>" and applies from the management server's next
+# start. A failing entry fails the run once the others are applied.
+#
+# Each [[setting]] has a key and either value (a string, number or boolean)
+# or value_env, the variable of the job's environment that holds the value (a
+# Vault secret, sync.yaml; never printed). Its scope is global (the default),
+# zone, cluster, storagepool, domain or account; any scope but global names
+# its target: the zone, cluster, storage pool or account name, the domain path
+# (ROOT/snucse), or * for every one of them.
+#
+# resource.limit.host.tags is not set here: the job writes it from
+# compute-catalog.json, the CPU-only offering's tag and then every GPU type's.
+
+# New accounts
+
+# Quota requests and grants
+
+# Sign-in
+
+# What users are offered
+
+# Product name
+
+# Placement and capacity
+
+# Volumes, snapshots and moves
+
+# GPU lease
+
+# Mail of the quota requests, once a relay exists: uncomment and fill in, and
+# give the job the password from Vault as RESOURCE_REQUEST_SMTP_PASSWORD
+# (sync.yaml).
+# [[setting]]
+# key = "resource.request.smtp.host"
+# value = "relay.example.org"
+#
+# [[setting]]
+# key = "resource.request.smtp.port"
+# value = 587
+#
+# [[setting]]
+# key = "resource.request.smtp.useStartTLS"
+# value = true
+#
+# [[setting]]
+# key = "resource.request.smtp.useAuth"
+# value = true
+#
+# [[setting]]
+# key = "resource.request.smtp.username"
+# value = "cloud@example.org"
+#
+# [[setting]]
+# key = "resource.request.smtp.password"
+# value_env = "RESOURCE_REQUEST_SMTP_PASSWORD"
+#
+# [[setting]]
+# key = "resource.request.smtp.sender"
+# value = "SNUCSE Cloud <cloud@example.org>"

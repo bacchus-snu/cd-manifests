@@ -20,6 +20,7 @@ labels:
 configMapGenerator:
   - name: cloudstack-sync
     files:
+      - settings.toml
       - sync.py
       - templates.toml
       - roles.toml

@@ -700,6 +700,205 @@ def sso_providers(spec=None):
     return providers
 
 
+def api_failure(e):
+    """A failed call as one log line; the server's error text names the parameter it refused."""
+    if isinstance(e, urllib.error.HTTPError):
+        return f"{e} {e.read()[:300]!r}"
+    return str(e)
+
+
+SETTINGS_PATH = os.environ.get("SETTINGS_CATALOG", "/opt/sync/settings.toml")
+COMPUTE_CATALOG_PATH = os.environ.get("COMPUTE_CATALOG", "/opt/sync/compute-catalog.json")
+SETTING_FIELDS = {"key", "scope", "target", "value", "value_env"}
+# scope -> the listConfigurations / updateConfiguration parameter of its object, and how its objects are listed
+SETTING_SCOPES = {
+    "global": None,
+    "zone": ("zoneid", "listZones", "zone", "name", {}),
+    "cluster": ("clusterid", "listClusters", "cluster", "name", {}),
+    "storagepool": ("storageid", "listStoragePools", "storagepool", "name", {}),
+    "domain": ("domainid", "listDomains", "domain", "path", {"listall": "true"}),
+    "account": ("accountid", "listAccounts", "account", "name", {"listall": "true"}),
+}
+# the list of host tags that carry resource limits has one source, the compute catalog
+HOST_TAGS_SETTING = "resource.limit.host.tags"
+
+
+def load_settings(path=SETTINGS_PATH):
+    """The [[setting]] entries of settings.toml as written. No file means none."""
+    try:
+        with open(path, "rb") as f:
+            return tomllib.load(f).get("setting", [])
+    except FileNotFoundError:
+        return []
+
+
+def load_compute_catalog(path=COMPUTE_CATALOG_PATH):
+    """The compute catalog: the GPU types and the CPU-only offering. No file means nothing managed (None)."""
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return None
+
+
+def resource_limit_host_tags(catalog):
+    """The host tags with resource limits: the CPU-only offering's tag, which every host carries, then each GPU type's."""
+    tags = [(catalog.get("cpu_only") or {}).get("tag", "cpu")]
+    tags += [t["tag"] for t in catalog.get("gpu_types", []) if t["tag"] not in tags]
+    return ",".join(tags)
+
+
+def setting_value(value):
+    """A settings.toml value as CloudStack stores it."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float, str)):
+        return str(value)
+    raise ValueError(f"value {value!r} is not a string, number or boolean")
+
+
+def same_setting_value(live, wanted):
+    if (live or "") == wanted:
+        return True
+    try:
+        return float(live) == float(wanted)
+    except (TypeError, ValueError):
+        return False
+
+
+def checked_setting(entry, env):
+    """(key, scope, target, value, environment variable or None) of a settings.toml entry; ValueError says what
+    is wrong with it."""
+    if not isinstance(entry, dict):
+        raise ValueError("an entry is a [[setting]] table")
+    unknown = sorted(set(entry) - SETTING_FIELDS)
+    key, scope, target = entry.get("key"), entry.get("scope", "global"), entry.get("target")
+    if unknown:
+        raise ValueError(f"unknown fields {unknown}")
+    if not isinstance(key, str) or not key:
+        raise ValueError("no key")
+    if key == HOST_TAGS_SETTING:
+        raise ValueError("written from the compute catalog (the CPU tag and every GPU type's), so an entry is refused")
+    if scope not in SETTING_SCOPES:
+        raise ValueError(f"scope {scope!r} is not one of {', '.join(SETTING_SCOPES)}")
+    if (scope == "global") != (target is None) or not (target is None or isinstance(target, str) and target):
+        raise ValueError("a global setting has no target; any other names its object, or * for every one")
+    if ("value" in entry) == ("value_env" in entry):
+        raise ValueError("give either value or value_env")
+    if "value_env" in entry:
+        name = entry["value_env"]
+        if not isinstance(name, str) or name not in env:
+            raise ValueError(f"the environment variable {name!r} of its value is not set")
+        return key, scope, target, env[name], name
+    return key, scope, target, setting_value(entry["value"]), None
+
+
+def setting_label(key, scope, target):
+    return key if scope == "global" else f"{key} ({scope} {target})"
+
+
+def sync_settings(settings=None, catalog=None, env=os.environ):
+    """Reconcile CloudStack's settings with settings.toml, and resource.limit.host.tags with the compute catalog.
+    A setting is written only where its value at its object (the global value, or a zone's, a cluster's, a
+    storage pool's, a domain's or an account's; * is every object of the scope) differs. A key the running
+    management server does not know is skipped, as the file may name the settings of patches not deployed yet;
+    a changed key that is not dynamic is reported as restart required, and nothing here restarts. A value from
+    the environment is never printed, and a setting stored encrypted is refused, as no listing tells whether
+    it differs. The entries are settings.toml's and the catalog compute-catalog.json's unless given. Returns
+    what could not be applied; one entry's failure holds back none of the others."""
+    failed = []
+
+    def fail(label, reason):
+        print(f"error: setting {label}: {reason}")
+        if label not in failed:
+            failed.append(label)
+
+    if settings is None:
+        try:
+            settings = load_settings(SETTINGS_PATH)
+        except (OSError, ValueError) as e:
+            fail("settings.toml", e)
+            settings = []
+    if catalog is None:
+        try:
+            catalog = load_compute_catalog(COMPUTE_CATALOG_PATH)
+        except (OSError, ValueError) as e:
+            fail(HOST_TAGS_SETTING, f"compute catalog: {e}")
+    entries = []  # (key, scope, target, value, environment variable), and why the entry cannot be applied
+    for entry in settings:
+        try:
+            entries.append((checked_setting(entry, env), None))
+        except ValueError as e:
+            entry = entry if isinstance(entry, dict) else {}
+            entries.append(((entry.get("key") or "?", entry.get("scope", "global"), entry.get("target"), None, None), e))
+    if catalog:
+        try:
+            entries.append(((HOST_TAGS_SETTING, "global", None, resource_limit_host_tags(catalog), None), None))
+        except (AttributeError, KeyError, TypeError) as e:
+            fail(HOST_TAGS_SETTING, f"compute catalog: {e!r}")
+    declared = [e[:3] for e, error in entries if error is None]
+    objects, listings, restart = {}, {}, set()
+
+    def listing(param, object_id):
+        if (param, object_id) not in listings:
+            scoped = {param: object_id} if param else {}
+            listings[param, object_id] = {c["name"]: c for c in cloudstack_list("listConfigurations", "configuration", **scoped)}
+        return listings[param, object_id]
+
+    def scope_objects(scope, target):
+        param, command, key, field, params = SETTING_SCOPES[scope]
+        if scope not in objects:
+            objects[scope] = [(o["id"], o[field]) for o in cloudstack_list(command, key, **params)]
+        named = objects[scope] if target == "*" else [o for o in objects[scope] if o[1] == target]
+        if target != "*" and len(named) != 1:
+            raise ValueError(f"{len(named)} {scope} objects are named {target}")
+        return param, named
+
+    for (key, scope, target, value, from_env), error in entries:
+        label = setting_label(key, scope, target)
+        if error is not None:
+            fail(label, error)
+            continue
+        if declared.count((key, scope, target)) > 1:
+            fail(label, "declared more than once in settings.toml")
+            continue
+        if target not in (None, "*") and (key, scope, "*") in declared:
+            fail(label, f"the entry for every {scope} sets it already")
+            continue
+        try:
+            param, targets = (None, [(None, None)]) if scope == "global" else scope_objects(scope, target)
+        except (OSError, RuntimeError, ValueError, KeyError) as e:
+            fail(label, api_failure(e))
+            continue
+        for object_id, object_name in targets:
+            where = setting_label(key, scope, object_name)
+            try:
+                live = listing(param, object_id).get(key)
+                if live is None:
+                    if param is None or key not in listing(None, None):
+                        print(f"setting {where}: unknown to this management server, skipped")
+                        continue
+                    raise ValueError(f"not a {scope} setting")
+                # an encrypted value is listed encrypted anew each time
+                if live.get("category") in ("Secure", "Hidden"):
+                    raise ValueError("its value is stored encrypted, so no listing tells whether it differs")
+                if same_setting_value(live.get("value"), value):
+                    continue
+                cloudstack("updateConfiguration", post=True, name=key, value=value,
+                           **({param: object_id} if param else {}))
+                if from_env:
+                    print(f"setting {where}: written (value from {from_env})")
+                else:
+                    print(f"setting {where}: {live.get('value')!r} -> {value!r}")
+                if not live.get("isdynamic", True):
+                    restart.add(key)
+            except (OSError, RuntimeError, ValueError, KeyError) as e:
+                fail(label, api_failure(e))
+    for key in sorted(restart):
+        print(f"restart required: {key}")
+    return failed
+
+
 def plan_targets(vms, members, user_by_template=None, guest_user=GUEST_USER, root_by_vm=None):
     """Warpgate targets a set of VMs should have, and the roles that reach each.
     One target per VM for its co-owners (the account, or every member account
@@ -961,12 +1160,15 @@ def main():
     sync_console_endpoints()
     prune_management_servers()
     sync_roles(load_roles())
+    unapplied = sync_settings()
     if WARPGATE_HOST and WARPGATE_TLS_NAME and WARPGATE_TOKEN:
         sync_warpgate()
         sync_template_userdata()
     # last: a failed upload fails the run without holding back the rest
     restore_console_proxy_state()
     sync_console_certificate()
+    if unapplied:
+        raise RuntimeError(f"settings not applied: {', '.join(unapplied)}")
 
 
 if __name__ == "__main__":
