@@ -1,0 +1,114 @@
+<domain type='kvm'>
+<name>i-2-101-VM</name>
+<uuid>6b7c8d9e-0f1a-4b2c-8d3e-4f5a6b7c8d01</uuid>
+<description>Ubuntu 24.04 LTS</description>
+<cpu mode='host-passthrough'><topology sockets='2' cores='6' threads='1' /></cpu><sysinfo type='smbios'>
+<system>
+<entry name='manufacturer'>Apache Software Foundation</entry>
+<entry name='product'>CloudStack KVM Hypervisor</entry>
+<entry name='uuid'>6b7c8d9e-0f1a-4b2c-8d3e-4f5a6b7c8d01</entry>
+<entry name='serial'>6b7c8d9e-0f1a-4b2c-8d3e-4f5a6b7c8d01</entry>
+</system>
+</sysinfo>
+<os>
+<type  arch='x86_64' machine='pc'>hvm</type>
+<boot dev='cdrom'/>
+<boot dev='hd'/>
+<smbios mode='sysinfo'/>
+</os>
+<on_reboot>restart</on_reboot>
+<on_poweroff>destroy</on_poweroff>
+<on_crash>destroy</on_crash>
+<memory>100663296</memory>
+<currentMemory>100663296</currentMemory>
+<devices>
+<memballoon model='virtio' autodeflate='on' freePageReporting='on'>
+<stats period='0'/>
+</memballoon>
+</devices>
+<vcpu current="12">12</vcpu>
+<features>
+<pae/>
+<apic/>
+<acpi/>
+</features>
+<metadata>
+    <cloudstack:instance xmlns:cloudstack="http://cloudstack.apache.org/instance">
+        <cloudstack:zone uuid="1b0f3c52-8e61-4d0a-a5c4-3a7d9e2b6f10">snucse</cloudstack:zone>
+        <cloudstack:pod uuid="5c6d7e8f-9a0b-4c1d-8e2f-3a4b5c6d7e8f">ferrari</cloudstack:pod>
+        <cloudstack:cluster uuid="7e8f9a0b-1c2d-4e3f-9a4b-5c6d7e8f9a0b">ferrari-kvm</cloudstack:cluster>
+        <cloudstack:name>llm-1</cloudstack:name>
+        <cloudstack:internal_name>i-2-101-VM</cloudstack:internal_name>
+        <cloudstack:display_name>llm-1</cloudstack:display_name>
+        <cloudstack:uuid>6b7c8d9e-0f1a-4b2c-8d3e-4f5a6b7c8d01</cloudstack:uuid>
+        <cloudstack:service_offering>
+            <cloudstack:name>a100-80g-1</cloudstack:name>
+            <cloudstack:cpu>12</cloudstack:cpu>
+            <cloudstack:memory>98304</cloudstack:memory>
+            <cloudstack:host_tags>
+                <cloudstack:tag>a100-80g</cloudstack:tag>
+            </cloudstack:host_tags>
+        </cloudstack:service_offering>
+        <cloudstack:created_at>2026-10-19T05:00:00</cloudstack:created_at>
+        <cloudstack:started_at>2026-10-19T05:10:00</cloudstack:started_at>
+        <cloudstack:owner>
+            <cloudstack:domain uuid="0d2c8b6e-3f1a-4b7c-9e5d-6a4b3c2d1e0f">ROOT</cloudstack:domain>
+            <cloudstack:account uuid="9f8e7d6c-5b4a-4c3d-8e2f-1a0b9c8d7e6f">alice</cloudstack:account>
+            <cloudstack:project uuid=""/>
+        </cloudstack:owner>
+        <cloudstack:resource_tags/>
+    </cloudstack:instance>
+</metadata>
+<cputune>
+<shares>469</shares>
+</cputune>
+<clock offset='utc'>
+<timer name='kvmclock' >
+</timer>
+</clock>
+<devices>
+<emulator>/usr/bin/qemu-system-x86_64</emulator>
+<hostdev mode='subsystem' type='pci' managed='yes' display='off'>
+  <driver name='vfio'/>
+  <source>
+    <address domain='0x0000' bus='0x90' slot='0x00' function='0x0'/>
+  </source>
+</hostdev>
+<watchdog model='i6300esb' action='none'/>
+<console type='pty'>
+<target port='0'/>
+</console>
+<disk  device='disk' type='file'>
+<driver name='qemu' type='qcow2' cache='none' />
+<source file='/var/lib/libvirt/images/1f2e3d4c-5b6a-4978-8a9b-0c1d2e3f4a01'/>
+<target dev='vda' bus='virtio'/>
+<serial>1f2e3d4c5b6a49788a9b</serial>
+</disk>
+<disk  device='cdrom' type='file'>
+<driver name='qemu' type='raw' />
+<source file=''/>
+<target dev='hdc' bus='ide'/>
+</disk>
+<disk  device='cdrom' type='file'>
+<driver name='qemu' type='raw' />
+<source file=''/>
+<target dev='hdd' bus='ide'/>
+</disk>
+<serial type='pty'>
+<target port='0'/>
+</serial>
+<graphics type='vnc' autoport='yes' listen='10.89.0.31' passwd='Rm5tK8vB'/>
+<channel type='unix'>
+<source mode='bind' path='/var/lib/libvirt/qemu/i-2-101-VM.org.qemu.guest_agent.0'/>
+<address type='virtio-serial'/>
+<target type='virtio' name='org.qemu.guest_agent.0'/>
+</channel>
+<input type='tablet' bus='usb'/>
+<interface type='bridge'>
+<source bridge='breth1-1021'/>
+<mac address='02:01:00:2c:01:01'/>
+<model type='virtio'/>
+<link state='up'/>
+</interface>
+</devices>
+</domain>

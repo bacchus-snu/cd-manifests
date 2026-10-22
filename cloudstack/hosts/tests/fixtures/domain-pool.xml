@@ -1,0 +1,112 @@
+<domain type='kvm'>
+<name>i-2-41-VM</name>
+<uuid>7c3e2a10-5d4b-4f6e-9a81-0b2c3d4e5f61</uuid>
+<description>Ubuntu 24.04 LTS</description>
+<cpu mode='host-passthrough'><topology sockets='1' cores='4' threads='1' /></cpu><sysinfo type='smbios'>
+<system>
+<entry name='manufacturer'>Apache Software Foundation</entry>
+<entry name='product'>CloudStack KVM Hypervisor</entry>
+<entry name='uuid'>7c3e2a10-5d4b-4f6e-9a81-0b2c3d4e5f61</entry>
+<entry name='serial'>7c3e2a10-5d4b-4f6e-9a81-0b2c3d4e5f61</entry>
+</system>
+</sysinfo>
+<os>
+<type  arch='x86_64' machine='pc'>hvm</type>
+<boot dev='cdrom'/>
+<boot dev='hd'/>
+<smbios mode='sysinfo'/>
+</os>
+<on_reboot>restart</on_reboot>
+<on_poweroff>destroy</on_poweroff>
+<on_crash>destroy</on_crash>
+<memory>8388608</memory>
+<currentMemory>8388608</currentMemory>
+<devices>
+<memballoon model='virtio' autodeflate='on' freePageReporting='on'>
+<stats period='0'/>
+</memballoon>
+</devices>
+<vcpu current="4">4</vcpu>
+<features>
+<pae/>
+<apic/>
+<acpi/>
+</features>
+<metadata>
+    <cloudstack:instance xmlns:cloudstack="http://cloudstack.apache.org/instance">
+        <cloudstack:zone uuid="1b0f3c52-8e61-4d0a-a5c4-3a7d9e2b6f10">snucse</cloudstack:zone>
+        <cloudstack:pod uuid="6a2d9c41-0b7e-4f35-8d16-c4e5f7a8b902">302bldg</cloudstack:pod>
+        <cloudstack:cluster uuid="e4b8a7c3-1d2f-4e5a-9b6c-7d8e9f0a1b23">302bldg-kvm</cloudstack:cluster>
+        <cloudstack:name>web</cloudstack:name>
+        <cloudstack:internal_name>i-2-41-VM</cloudstack:internal_name>
+        <cloudstack:display_name>web</cloudstack:display_name>
+        <cloudstack:uuid>7c3e2a10-5d4b-4f6e-9a81-0b2c3d4e5f61</cloudstack:uuid>
+        <cloudstack:service_offering>
+            <cloudstack:name>cpu</cloudstack:name>
+            <cloudstack:cpu>4</cloudstack:cpu>
+            <cloudstack:memory>8192</cloudstack:memory>
+            <cloudstack:host_tags>
+                <cloudstack:tag>cpu</cloudstack:tag>
+            </cloudstack:host_tags>
+        </cloudstack:service_offering>
+        <cloudstack:created_at>2026-10-19T03:10:00</cloudstack:created_at>
+        <cloudstack:started_at>2026-10-19T04:20:00</cloudstack:started_at>
+        <cloudstack:owner>
+            <cloudstack:domain uuid="0d2c8b6e-3f1a-4b7c-9e5d-6a4b3c2d1e0f">ROOT</cloudstack:domain>
+            <cloudstack:account uuid="9f8e7d6c-5b4a-4c3d-8e2f-1a0b9c8d7e6f">alice</cloudstack:account>
+            <cloudstack:project uuid=""/>
+        </cloudstack:owner>
+        <cloudstack:resource_tags/>
+        <cloudstack:cores>
+            <cloudstack:core>8,24</cloudstack:core>
+            <cloudstack:core>9,25</cloudstack:core>
+        </cloudstack:cores>
+    </cloudstack:instance>
+</metadata>
+<cputune>
+<shares>1250</shares>
+</cputune>
+<clock offset='utc'>
+<timer name='kvmclock' >
+</timer>
+</clock>
+<devices>
+<emulator>/usr/bin/qemu-system-x86_64</emulator>
+<watchdog model='i6300esb' action='none'/>
+<console type='pty'>
+<target port='0'/>
+</console>
+<disk  device='disk' type='file'>
+<driver name='qemu' type='qcow2' cache='none' />
+<source file='/var/lib/libvirt/images/5e7d1f0a-2c3b-4d4e-8f5a-6b7c8d9e0f12'/>
+<target dev='vda' bus='virtio'/>
+<serial>5e7d1f0a2c3b4d4e8f5a</serial>
+</disk>
+<disk  device='cdrom' type='file'>
+<driver name='qemu' type='raw' />
+<source file=''/>
+<target dev='hdc' bus='ide'/>
+</disk>
+<disk  device='cdrom' type='file'>
+<driver name='qemu' type='raw' />
+<source file=''/>
+<target dev='hdd' bus='ide'/>
+</disk>
+<serial type='pty'>
+<target port='0'/>
+</serial>
+<graphics type='vnc' autoport='yes' listen='10.89.0.12' passwd='Xk3pQ9wL'/>
+<channel type='unix'>
+<source mode='bind' path='/var/lib/libvirt/qemu/i-2-41-VM.org.qemu.guest_agent.0'/>
+<address type='virtio-serial'/>
+<target type='virtio' name='org.qemu.guest_agent.0'/>
+</channel>
+<input type='tablet' bus='usb'/>
+<interface type='bridge'>
+<source bridge='breth1-1021'/>
+<mac address='02:01:00:2c:00:12'/>
+<model type='virtio'/>
+<link state='up'/>
+</interface>
+</devices>
+</domain>

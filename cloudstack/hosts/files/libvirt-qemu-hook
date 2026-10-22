@@ -1,0 +1,145 @@
+#!/usr/bin/python3
+"""libvirt qemu hook: admits a domain into the host partition, releases it,
+and refuses every incoming live migration.
+
+libvirt runs `<this> <domain> <operation> <sub-operation> <extra>` with the
+domain XML on stdin.
+- prepare begin: refuses (exit 1, reasons on stderr) a domain that does not
+  fit the partition or overlaps a running domain; otherwise activates its
+  Fabric Manager partition, when the host has Fabric Manager, and records it
+  in the ledger.
+- release end: deactivates the partition the ledger records for the domain
+  and removes its entry. Failures are logged; the exit status is 0.
+- migrate begin: always exit 1.
+- Every other operation: exit 0 with no output.
+
+The hook never calls libvirt: libvirt runs hooks while it holds the domain.
+Only prepare and release load the partition library. Every other operation
+must succeed without it: libvirt stops a running domain whose reconnect hook
+fails when the daemon restarts.
+
+The environment may override the paths (tests do):
+- CLOUDSTACK_PARTITION_FILE   (/etc/cloudstack/agent/partition.json)
+- CLOUDSTACK_PARTITION_LEDGER (/run/cloudstack-partition/ledger)
+- CLOUDSTACK_PARTITION_SYSFS  (/sys)
+"""
+import json
+import os
+import sys
+import syslog
+from pathlib import Path
+
+sys.path.insert(1, "/usr/local/lib/cloudstack-partition")
+
+PARTITION_FILE = Path(os.environ.get("CLOUDSTACK_PARTITION_FILE", "/etc/cloudstack/agent/partition.json"))
+LEDGER = Path(os.environ.get("CLOUDSTACK_PARTITION_LEDGER", "/run/cloudstack-partition/ledger"))
+SYSFS = Path(os.environ.get("CLOUDSTACK_PARTITION_SYSFS", "/sys"))
+
+
+def report(message: str) -> None:
+    print(message, file=sys.stderr)
+
+
+def log(name: str, message: str) -> None:
+    """For failures libvirt ignores: it drops the output of a hook that exits 0."""
+    report(message)
+    syslog.openlog("cloudstack-partition", 0, syslog.LOG_DAEMON)
+    syslog.syslog(syslog.LOG_ERR, f"{name}: {message}")
+
+
+def _fm_record(entry: dict) -> dict:
+    return {"fm_partitions": {",".join(map(str, sorted(entry["positions"]))): entry["fm_partition"]}}
+
+
+def prepare(name: str, xml: str) -> int:
+    from partition import domain, fm, ledger
+
+    try:
+        p = json.loads(PARTITION_FILE.read_text())
+    except (OSError, ValueError) as e:
+        report(f"cannot read the partition table {PARTITION_FILE}: {e}")
+        return 1
+    name, uuid = domain.identity(xml)
+    with ledger.locked(LEDGER):
+        others = ledger.entries(LEDGER)
+        # libvirt prepares only an inactive domain, so an entry of its own was
+        # left by a start that was never released.
+        stale = others.pop(uuid.lower(), None)
+        if stale is not None and stale["fm_partition"] is not None:
+            try:
+                fm.deactivate(stale["positions"], _fm_record(stale))
+            except fm.FmError as e:
+                log(name, f"leftover Fabric Manager partition: {e}")
+        violations = domain.validate(xml, p, ledger=list(others.values()), sysfs=SYSFS)
+        if violations:
+            for v in violations:
+                report(v)
+            return 1
+        group = domain.gpu_group(xml, p)
+        pid = None
+        if group and p["fabric_manager"]:
+            try:
+                pid = fm.partition_id(group, p)
+                fm.activate(group, p)
+            except fm.FmError as e:
+                report(str(e))
+                return 1
+        entry = {"name": name, "uuid": uuid, **domain.claim(xml, p), "fm_partition": pid}
+        try:
+            ledger.write(LEDGER, uuid, entry)
+        except BaseException:
+            if pid is not None:
+                try:
+                    fm.deactivate(group, p)
+                except fm.FmError as e:
+                    report(str(e))
+            raise
+    return 0
+
+
+def release(name: str, xml: str) -> None:
+    from partition import PartitionError, domain, fm, ledger
+
+    with ledger.locked(LEDGER):
+        try:
+            name, uuid = domain.identity(xml)
+        except PartitionError:
+            uuid = ledger.find(LEDGER, name)
+            if uuid is None:
+                return
+        try:
+            entry = ledger.read(LEDGER, uuid)
+        except PartitionError as e:
+            log(name, str(e))
+            entry = None
+        if entry is not None and entry["fm_partition"] is not None:
+            try:
+                fm.deactivate(entry["positions"], _fm_record(entry))
+            except fm.FmError as e:
+                log(name, str(e))
+        ledger.remove(LEDGER, uuid)
+
+
+def main(argv: list[str]) -> int:
+    if len(argv) < 4:
+        return 0
+    name, op, sub = argv[1:4]
+    if (op, sub) == ("migrate", "begin"):
+        report("live migration is disabled")
+        return 1
+    if (op, sub) == ("prepare", "begin"):
+        try:
+            return prepare(name, sys.stdin.read())
+        except BaseException as e:
+            report(f"refused: {e}")
+            return 1
+    if (op, sub) == ("release", "end"):
+        try:
+            release(name, sys.stdin.read())
+        except BaseException as e:
+            log(name, f"release failed: {e}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
