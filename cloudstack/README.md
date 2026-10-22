@@ -25,6 +25,15 @@ hosts/
 `python3 -m unittest discover -s hosts/tests` runs the tests of the renderer
 and the hooks.
 
+`tools/cs_partition.py` registers each host's partition with the management
+server from the host's live `/etc/cloudstack/agent/partition.json`, read over
+SSH as the inventory reaches the host (`register-groups <host> [--pool-cores]`,
+`check-groups [<host> ...] [--pool-cores]`), sets a host's volume copy rate
+(`set-move-rate`) and enters quota grants (`set-quota`), calling the API with
+the sync job's keys from the cluster secret; `--help` lists the arguments.
+Zone settings are `argocd/atrium/cloudstack/settings.toml`'s, which the sync
+job applies. `python3 -m unittest discover -s tools/tests` runs its tests.
+
 ## Usage
 
 The hosts are reachable only from the campus network; from outside, jump through
