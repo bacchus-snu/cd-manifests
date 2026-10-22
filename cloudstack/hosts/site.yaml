@@ -116,8 +116,8 @@
         path: /etc/pki/libvirt/servercert.pem
       register: libvirt_cert
 
-    # The agent calls a host secured, and migrates over qemu+tls, only if
-    # libvirtd answers TLS on 16514. cloudstack-setup-agent masks libvirt's
+    # The agent calls a host secured only if libvirtd answers its own
+    # connection over qemu+tls on 16514. cloudstack-setup-agent masks libvirt's
     # socket units and asks for the listener through libvirtd_opts, which
     # Debian's unit does not read (it passes $LIBVIRTD_ARGS). Without its
     # certificate libvirtd cannot listen on TLS and does not start, so a host
@@ -130,8 +130,11 @@
         line: "{{ 'LIBVIRTD_ARGS=\"--listen\"' if libvirt_cert.stat.exists else '#LIBVIRTD_ARGS=\"--timeout 120\"' }}"
       notify: [restart libvirtd, restart cloudstack-agent]
 
-    # The CA that signs the hosts' certificates signs the system VMs' too:
-    # only the hosts may drive libvirt, and only over the management overlay.
+    # The CA that signs the hosts' certificates signs the system VMs' too. Only
+    # the host's own agent drives libvirt over TLS, to check that the host is
+    # secured; no other host does (instances never live-migrate, and volume
+    # copies between hosts go through QEMU's TLS with their own per-copy
+    # authorization), so libvirt admits only this host's certificate.
     - name: libvirtd TLS listener scope
       ansible.builtin.lineinfile:
         path: /etc/libvirt/libvirtd.conf
@@ -141,9 +144,7 @@
         - { key: listen_addr, value: '"{{ mgmt_ip }}"' }
         - key: tls_allowed_dn_list
           value: >-
-            {{ groups['cloudstack_hosts'] | map('extract', hostvars, 'ansible_host')
-               | map('regex_replace', '^(.*)$', 'CN=\1,OU=cloudstack,O=cloudstack,C=cloudstack')
-               | sort | to_json }}
+            {{ ['CN=' ~ ansible_host ~ ',OU=cloudstack,O=cloudstack,C=cloudstack'] | to_json }}
       notify: [restart libvirtd, restart cloudstack-agent]
 
     # Volume copies between hosts run qemu-nbd and qemu-img with QEMU's TLS
@@ -173,8 +174,8 @@
       when: libvirt_cert.stat.exists
 
     # Boards shipped without a programmed SMBIOS UUID all report the same
-    # placeholder, and libvirt refuses to migrate between hosts whose UUIDs
-    # match ("Attempt to migrate guest to the same host").
+    # placeholder; libvirt identifies the host by this UUID, so each host takes
+    # its machine id instead.
     - name: libvirt host UUID from the machine id
       ansible.builtin.lineinfile:
         path: /etc/libvirt/libvirtd.conf
@@ -251,8 +252,8 @@
           or initramfs_images.results | selectattr('stat.exists') | map(attribute='stat.mtime')
              | select('lt', vfio_files.results | map(attribute='stat.mtime') | max) | list | length > 0)
 
-    # The agent's certificate is issued to `hostname --fqdn`, and libvirt
-    # admits TLS peers (migration) only by the names in tls_allowed_dn_list.
+    # The agent's certificate is issued to `hostname --fqdn`, and libvirt admits
+    # a TLS peer only by the name in tls_allowed_dn_list, the host's own.
     - name: Host name resolves to its campus FQDN
       ansible.builtin.lineinfile:
         path: /etc/hosts
