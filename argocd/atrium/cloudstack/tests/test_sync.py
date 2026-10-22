@@ -1002,6 +1002,23 @@ class RoleCatalogTest(unittest.TestCase):
         for api in ("oidcLogin", "migrateSystemVm", "listVolumes", "startVirtualMachine"):
             self.assertEqual(permission(api), "allow", api)
 
+    def test_students_cannot_archive_or_delete_events(self):
+        user = {r["name"]: r for r in sync.load_roles(REPO_ROLES)}["SNUCSE User"]
+        for api in ("archiveEvents", "deleteEvents"):
+            self.assertEqual(decision(user, api), "deny", api)
+            self.assertNotIn((api, "allow"), user["rules"])
+        # the denies name the two commands only: reading events stays
+        self.assertEqual(decision(user, "listEvents"), "allow")
+        self.assertTrue(all("*" not in rule for rule, permission in user["rules"] if rule.lower().endswith("events")))
+
+    def test_members_do_not_read_the_directory_configuration(self):
+        member = {r["name"]: r for r in sync.load_roles(REPO_ROLES)}["Bacchus Member"]
+        self.assertEqual(decision(member, "listLdapConfigurations"), "deny")
+        self.assertIn(("listLdapConfigurations", "deny"), member["rules"])
+        # an exact name: the other lists keep their own rules
+        for api in ("listLdapUsers", "listUsers", "listAccounts", "listConfigurations"):
+            self.assertEqual(decision(member, api), "allow", api)
+
     def test_repository_catalog(self):
         roles = {r["name"]: r for r in sync.load_roles(REPO_ROLES)}
         member = roles["Bacchus Member"]
