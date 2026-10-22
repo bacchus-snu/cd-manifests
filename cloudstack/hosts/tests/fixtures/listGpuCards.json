@@ -1,0 +1,18 @@
+{
+  "gpucard": [
+    {
+      "name": "NVIDIA Corporation GP104 [GeForce GTX 1080]",
+      "vendorid": "10de",
+      "deviceid": "1b80",
+      "vendorname": "NVIDIA Corporation",
+      "devicename": "GP104 [GeForce GTX 1080]"
+    },
+    {
+      "name": "NVIDIA Corporation GA102GL [RTX A6000]",
+      "vendorid": "10de",
+      "deviceid": "2230",
+      "vendorname": "NVIDIA Corporation",
+      "devicename": "GA102GL [RTX A6000]"
+    }
+  ]
+}

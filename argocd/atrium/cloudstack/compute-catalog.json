@@ -1,0 +1,65 @@
+{
+  "gpu_types": [
+    {
+      "tag": "a6000",
+      "pci_ids": ["10de:2230", "10de:1aef"],
+      "card": {
+        "vendor_id": "10de",
+        "device_id": "2230",
+        "vendor_name": "NVIDIA Corporation",
+        "device_name": "GA102GL [RTX A6000]",
+        "name": "NVIDIA Corporation GA102GL [RTX A6000]"
+      },
+      "unit_vcpu": 12,
+      "unit_ram_gib": 24,
+      "classes": {"pcie": {"rule": "single"}}
+    },
+    {
+      "tag": "gtx1080",
+      "pci_ids": ["10de:1b80", "10de:10f0"],
+      "card": {
+        "vendor_id": "10de",
+        "device_id": "1b80",
+        "vendor_name": "NVIDIA Corporation",
+        "device_name": "GP104 [GeForce GTX 1080]",
+        "name": "NVIDIA Corporation GP104 [GeForce GTX 1080]"
+      },
+      "unit_vcpu": 6,
+      "unit_ram_gib": 12,
+      "classes": {"pcie": {"rule": "single"}}
+    },
+    {
+      "tag": "a100-40g",
+      "pci_ids": ["10de:20b0"],
+      "card": {
+        "vendor_id": "10de",
+        "device_id": "20b0",
+        "vendor_name": "NVIDIA Corporation",
+        "device_name": "GA100 [A100 SXM4 40GB]",
+        "name": "NVIDIA Corporation GA100 [A100 SXM4 40GB]"
+      },
+      "unit_vcpu": 12,
+      "unit_ram_gib": 96,
+      "classes": {
+        "nvswitch": {"rule": "partitions", "counts": [2, 4, 8]},
+        "nvlink": {"rule": "any", "counts": [2, 4]}
+      }
+    },
+    {
+      "tag": "a100-80g",
+      "pci_ids": ["10de:20b2"],
+      "card": {
+        "vendor_id": "10de",
+        "device_id": "20b2",
+        "vendor_name": "NVIDIA Corporation",
+        "device_name": "GA100 [A100 SXM4 80GB]",
+        "name": "NVIDIA Corporation GA100 [A100 SXM4 80GB]"
+      },
+      "unit_vcpu": 12,
+      "unit_ram_gib": 96,
+      "classes": {
+        "nvswitch": {"rule": "partitions", "counts": [2, 4, 8]}
+      }
+    }
+  ]
+}

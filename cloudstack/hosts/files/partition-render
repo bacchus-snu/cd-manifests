@@ -1,0 +1,81 @@
+#!/usr/bin/python3
+"""Render this host's partition from sysfs, its declared inventory and the GPU catalog.
+
+Prints one JSON object: "changed" (with --out), "partition" (without --out),
+"agent_values" and "kernel_args" when asked for. Exits 1 with the reason on
+stderr, and writes nothing, when the partition cannot be rendered.
+"""
+import argparse
+import json
+import os
+import re
+import sys
+import tempfile
+from pathlib import Path
+
+sys.path.insert(1, "/usr/local/lib/cloudstack-partition")
+from partition import PartitionError, table, topology  # noqa: E402
+
+
+def load_json(arg: str):
+    """JSON text, or the path of a JSON file."""
+    return json.loads(arg if arg.lstrip().startswith("{") else Path(arg).read_text())
+
+
+def format_json(value) -> str:
+    """Indented JSON with every array of numbers on one line."""
+    text = json.dumps(value, indent=2)
+    return re.sub(r"\[\s+([-\d,\s]+?)\s+\]", lambda m: "[" + " ".join(m.group(1).split()) + "]", text) + "\n"
+
+
+def write_if_changed(path: Path, text: str) -> bool:
+    try:
+        if path.read_text() == text:
+            return False
+    except FileNotFoundError:
+        pass
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.")
+    try:
+        with os.fdopen(fd, "w") as f:
+            f.write(text)
+            f.flush()
+            os.fsync(f.fileno())
+        os.chmod(tmp, 0o644)
+        os.replace(tmp, path)
+    except BaseException:
+        os.unlink(tmp)
+        raise
+    return True
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--sysfs", type=Path, default=Path("/sys"))
+    ap.add_argument("--proc", type=Path, default=Path("/proc"))
+    ap.add_argument("--declared", required=True, help="declared inventory of this host (JSON text or file)")
+    ap.add_argument("--catalog", required=True, help="GPU catalog (JSON text or file)")
+    ap.add_argument("--out", type=Path, help="partition file, rewritten only when its content changes")
+    ap.add_argument("--agent-values", action="store_true", help="print the agent's reserved CPU, memory and host tags")
+    ap.add_argument("--kernel-args", action="store_true", help="print the kernel command-line arguments")
+    args = ap.parse_args(argv)
+    try:
+        declared = load_json(args.declared)
+        partition = table.render(topology.read(args.sysfs, args.proc), declared, load_json(args.catalog))
+        result = {}
+        if args.out:
+            result["changed"] = write_if_changed(args.out, format_json(partition))
+        else:
+            result["partition"] = partition
+        if args.agent_values:
+            result["agent_values"] = table.agent_values(partition, declared)
+        if args.kernel_args:
+            result["kernel_args"] = table.kernel_args(partition)
+    except (PartitionError, OSError, ValueError) as e:
+        print(f"partition-render: {e}", file=sys.stderr)
+        return 1
+    print(format_json(result), end="")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
