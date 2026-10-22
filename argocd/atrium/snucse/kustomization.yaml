@@ -5,3 +5,4 @@ resources:
   - back
   - elasticsearch
   - elasticsearch-v9
+  - elasticsearch-service

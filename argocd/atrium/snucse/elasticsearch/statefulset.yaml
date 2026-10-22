@@ -5,6 +5,7 @@ metadata:
   name: snucse-elasticsearch
 spec:
   serviceName: snucse-elasticsearch
+  replicas: 0
   template:
     spec:
       securityContext:

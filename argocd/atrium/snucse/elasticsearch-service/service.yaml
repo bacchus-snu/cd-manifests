@@ -1,0 +1,22 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: snucse-elasticsearch
+  labels:
+    app.kubernetes.io/name: elasticsearch
+    app.kubernetes.io/instance: snucse-elasticsearch
+    app.kubernetes.io/part-of: snucse
+    app.kubernetes.io/component: search
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: elasticsearch-v9
+    app.kubernetes.io/instance: snucse-elasticsearch-v9
+  ports:
+    - name: http
+      port: 9200
+      targetPort: http
+    - name: transport
+      port: 9300
+      targetPort: transport
