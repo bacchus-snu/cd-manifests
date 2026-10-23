@@ -1181,6 +1181,9 @@ class ProvidersFromIdpsTomlTest(unittest.TestCase):
         self.assertEqual(bacchus["endsessionurl"], bacchus["issuer"] + "oidc/logout")
         self.assertTrue(snucse["endsessionlabel"] and bacchus["endsessionlabel"])
         self.assertEqual((snucse["cacertificate"], bacchus["cacertificate"]), ("", ""))
+        self.assertEqual((snucse["enabled"], bacchus["enabled"]), (True, False))
+        self.assertEqual(providers["snucse"]["membership_source"], {})
+        self.assertEqual(providers["bacchus"]["membership_source"], {})
         for p in (snucse, bacchus):
             self.assertEqual(p["scopes"], "openid profile email")
             self.assertTrue(p["issuer"].startswith("https://"))
@@ -1217,6 +1220,17 @@ class ProvidersFromIdpsTomlTest(unittest.TestCase):
 
     def test_missing_file_is_empty(self):
         self.assertEqual(sync.load_providers("/nonexistent/idps.toml"), [])
+
+
+class LoginPageTest(unittest.TestCase):
+    def test_sign_in_is_the_clients_own(self):
+        with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "ui", "config.json")) as f:
+            config = json.load(f)
+        # the page lists the providers and folds the password form itself
+        self.assertIs(config["foldPasswordLogin"], True)
+        self.assertNotIn("/gate/", config["loginFooter"])
+        self.assertNotIn("cs-password-login", config["loginFooter"])
+        self.assertNotIn("user-layout-login", config["loginFooter"])
 
 
 class SyncOidcProvidersTest(unittest.TestCase):
