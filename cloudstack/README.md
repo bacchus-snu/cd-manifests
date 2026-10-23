@@ -5,9 +5,10 @@ the overlay gateway live in the atrium cluster (`argocd/atrium/cloudstack`); the
 zone, offerings and global settings are configured through the CloudStack API
 and recorded in the Bacchus howto (`infra/cloudstack.md`).
 
-`auth0-setup.sh` registers the Auth0 applications of the sign-in gate's
-Bacchus door and of Warpgate and stores their credentials in Vault; it needs
-an Auth0 tenant administrator (usage in the script).
+`auth0-setup.sh` registers the Auth0 applications of the bacchus OpenID
+provider (`argocd/atrium/cloudstack/idps.toml`) and of Warpgate and stores
+their credentials in Vault; it needs an Auth0 tenant administrator (usage in
+the script).
 
 ```
 hosts/

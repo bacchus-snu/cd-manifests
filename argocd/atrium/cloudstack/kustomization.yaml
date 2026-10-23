@@ -6,7 +6,6 @@ resources:
   - console.yaml
   - sync.yaml
   - warpgate.yaml
-  - gate.yaml
   - backup.yaml
 
 labels:
@@ -35,19 +34,6 @@ configMapGenerator:
   - name: console-relay
     files:
       - console-relay.conf
-  # the doors (provider, admitting group, domain, role) are in gate.toml
-  - name: cloudstack-gate
-    files:
-      - gate.py
-      - gate.toml
-  - name: gate-config
-    literals:
-      - EXTERNAL_URL=https://cloud.snucse.org/gate
-      - DOCS_URL=https://docs.cloud.snucse.org/
-      # the bastion reaches instances through the overlay gateway, which
-      # masquerades to its guest overlay address (overlay-gw.yaml)
-      - SSH_SOURCE_CIDR=10.94.0.254/32
-      - CONTACT=Bacchus
   # overlay gateway (overlay-gw.yaml); generated so that a change rolls the
   # DaemonSet. peers: hypervisor campus addresses, their VTEPs (generated from
   # the host inventory by cloudstack/hosts/render.yaml); overlays: vni

@@ -95,20 +95,6 @@ spec:
               type: ReplaceFullPath
               replaceFullPath: /client/
             statusCode: 302
-    # sign-in gate (gate.yaml)
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /gate/
-      backendRefs:
-        - name: gate
-          port: 8080
-      filters:
-        - type: ResponseHeaderModifier
-          responseHeaderModifier:
-            set:
-              - name: Strict-Transport-Security
-                value: max-age=31536000
     - backendRefs:
         - name: cloudstack-management
           port: 8080

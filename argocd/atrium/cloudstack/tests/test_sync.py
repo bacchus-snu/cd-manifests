@@ -1026,7 +1026,7 @@ class RoleCatalogTest(unittest.TestCase):
         self.assertEqual(member["rules"][-1], ("*", "allow"))
         denied = {rule for rule, permission in member["rules"][:-1] if permission == "deny"}
         self.assertEqual(len(denied), len(member["rules"]) - 1)
-        for api in ("createRole", "updateRolePermission", "importRole", "updateConfiguration", "registerOauthProvider",
+        for api in ("createRole", "updateRolePermission", "importRole", "updateConfiguration", "ldapConfig",
                     "createAccount", "createUser", "updateAccount", "updateUser", "issueCertificate"):
             self.assertIn(api, denied)
         for api in ("createExtension", "registerExtension", "updateRegisteredExtension", "runCustomAction", "addCustomAction"):
@@ -1231,6 +1231,19 @@ class LoginPageTest(unittest.TestCase):
         self.assertNotIn("/gate/", config["loginFooter"])
         self.assertNotIn("cs-password-login", config["loginFooter"])
         self.assertNotIn("user-layout-login", config["loginFooter"])
+
+    def test_no_other_way_in(self):
+        here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(here, "kustomization.yaml")) as f:
+            kustomization = f.read()
+        with open(os.path.join(here, "resources.yaml")) as f:
+            routes = f.read()
+        self.assertNotIn("gate", re.findall(r"^  - (\S+)\.yaml$", kustomization, re.M))
+        self.assertNotIn("value: /gate/", routes)
+        self.assertFalse(os.path.exists(os.path.join(here, "gate.py")))
+        # the stock OAuth sign-in is gone from the server; no rule names it any more
+        rules = [rule for role in sync.load_roles(REPO_ROLES) for rule, _ in role["rules"]]
+        self.assertEqual([rule for rule in rules if "oauth" in rule.lower()], [])
 
 
 class SyncOidcProvidersTest(unittest.TestCase):

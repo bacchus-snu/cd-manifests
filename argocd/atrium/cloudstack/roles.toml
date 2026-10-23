@@ -4,13 +4,12 @@
 # matching rule decides; an API no rule matches falls back to what the role
 # type allows by default.
 
-# Bacchus members (gate door "bacchus"): runs the cloud, but cannot change
+# Bacchus members (OpenID provider "bacchus"): runs the cloud, but cannot change
 # who may do what. Admin type, so it sees and manages every account's
 # resources and the infrastructure. The setting
 # role.types.allowed.for.operations.on.accounts.of.same.role.type, which must
 # not list Admin, keeps it away from the users and keys of other Admin
-# accounts, including the default admin whose keys the sync job and the gate
-# use.
+# accounts, including the default admin whose keys the sync job uses.
 [[role]]
 name = "Bacchus Member"
 type = "Admin"
@@ -29,10 +28,7 @@ rules = [
   # settings include dynamic.apichecker.enabled, which switches role rules off
   ["updateConfiguration", "deny"],
   ["resetConfiguration", "deny"],
-  # sign-in goes through the gate only
-  ["registerOauthProvider", "deny"],
-  ["updateOauthProvider", "deny"],
-  ["deleteOauthProvider", "deny"],
+  # sign-in goes through the OpenID providers only
   ["addLdapConfiguration", "deny"],
   ["deleteLdapConfiguration", "deny"],
   ["ldapConfig", "deny"],
@@ -49,7 +45,7 @@ rules = [
   ["*OidcProvider*", "deny"],
   # accounts, their roles and their users come from sign-in; an Admin-type
   # caller may set its own password without the current one, which would be a
-  # way in around the gate
+  # way in around sign-in
   ["createAccount", "deny"],
   ["createUser", "deny"],
   ["updateAccount", "deny"],
@@ -71,11 +67,11 @@ rules = [
   ["*", "allow"],
 ]
 
-# SNUCSE ID students (gate door "snucse"): the built-in User role without
+# SNUCSE ID students (OpenID provider "snucse"): the built-in User role without
 # projects, templates and ISOs, security groups, SSH key pairs and networking.
 # Instances, volumes, volume snapshots, tags and API keys remain; listing stays allowed
-# so that the UI works. The user itself is the gate's: no password of one's own,
-# and the UI hides its password and edit actions.
+# so that the UI works. The user itself is its OpenID provider's: no password of
+# one's own, and the UI hides its password and edit actions.
 [[role]]
 name = "SNUCSE User"
 type = "User"

@@ -35,8 +35,7 @@ spec:
 ---
 # keys: client_id, client_secret (Auth0 application "cloudstack", redirect
 # https://cloud.snucse.org/client/oidc/callback/bacchus). Until the path exists
-# the provider is not created; the gate restarts when the secret appears or
-# changes.
+# the provider is not created.
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
 metadata:
@@ -50,9 +49,6 @@ spec:
   destination:
     create: true
     name: cloudstack-oauth-bacchus
-  rolloutRestartTargets:
-    - kind: Deployment
-      name: gate
 ---
 # key: membership_secret, the JSON key of the Google Workspace service account
 # that reads group membership for the bacchus provider's periodic check. Until
@@ -151,7 +147,7 @@ spec:
                   value: warpgate
                 - name: BASTION_TLS_NAME
                   value: login.cloud.snucse.org
-                # the gate's doors: domain -> Warpgate SSO provider
+                # the OpenID providers' domains (idps.toml) -> Warpgate SSO provider
                 - name: BASTION_SSO
                   value: ROOT=bacchus,ROOT/snucse=snucse
                 - name: BASTION_TOKEN

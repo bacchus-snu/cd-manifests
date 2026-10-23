@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-# Registers the Auth0 applications of CloudStack sign-in ("cloudstack": the
-# bacchus OpenID provider of idps.toml and, until it is retired, the sign-in
-# gate's Bacchus door) and of Warpgate ("cloudstack-warpgate"), puts their
-# client credentials into Vault, allows only the Google Workspace connection on
-# them, and prints what sign-in relies on: the groups claim of the post-login
-# Action and the subject prefix of the Workspace connection's users. Prints no
-# secret; safe to run again (existing applications are reused, their callback
-# URLs replaced).
+# Registers the Auth0 applications of CloudStack sign-in ("cloudstack", the
+# bacchus OpenID provider of idps.toml) and of Warpgate ("cloudstack-warpgate"),
+# puts their client credentials into Vault, allows only the Google Workspace
+# connection on them, and prints what sign-in relies on: the groups claim of the
+# post-login Action and the subject prefix of the Workspace connection's users.
+# Prints no secret; safe to run again (existing applications are reused, their
+# callback URLs replaced).
 #
 # Needs an Auth0 tenant administrator and a Vault login that may write
 # secret/cloudstack/*:
@@ -15,8 +14,8 @@
 #   VAULT_ADDR=https://vault.bacchus.io vault login -method=oidc
 #   bash cloudstack/auth0-setup.sh
 # The Vault Secrets Operator picks the credentials up within five minutes; the
-# sync job then creates the bacchus provider, and the gate and Warpgate restart
-# and open the Bacchus door.
+# sync job then writes them into the bacchus provider, and Warpgate restarts
+# and opens the Bacchus door.
 set -euo pipefail
 shopt -s inherit_errexit
 export VAULT_ADDR=${VAULT_ADDR:-https://vault.bacchus.io}
@@ -42,9 +41,9 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 umask 077
 
-gate_id=$(app cloudstack https://cloud.snucse.org/client/oidc/callback/bacchus,https://cloud.snucse.org/gate/bacchus/callback)
+signin_id=$(app cloudstack https://cloud.snucse.org/client/oidc/callback/bacchus)
 wg_id=$(app cloudstack-warpgate https://login.cloud.snucse.org/@warpgate/api/sso/return)
-echo "client ids: cloudstack=$gate_id cloudstack-warpgate=$wg_id"
+echo "client ids: cloudstack=$signin_id cloudstack-warpgate=$wg_id"
 
 # secrets go to Vault as JSON on stdin, never on a command line
 py "import json; d=json.load(open('$tmp/cloudstack.json')); print(json.dumps({'client_id': d['client_id'], 'client_secret': d['client_secret']}))" |
@@ -60,7 +59,7 @@ while read -r cid cname cstrategy; do
   status=false
   [ "$cname" = "$CONNECTION" ] && status=true
   auth0 api patch "connections/$cid/clients" \
-    --data "[{\"client_id\":\"$gate_id\",\"status\":$status},{\"client_id\":\"$wg_id\",\"status\":$status}]" < /dev/null > /dev/null
+    --data "[{\"client_id\":\"$signin_id\",\"status\":$status},{\"client_id\":\"$wg_id\",\"status\":$status}]" < /dev/null > /dev/null
   echo "connection $cname ($cstrategy): enabled=$status"
 done
 
@@ -77,4 +76,4 @@ else
   echo "action bacchus-access: not found"
 fi
 auth0 users search --query "identities.connection:\"$CONNECTION\"" --number 1 --json |
-  py "import json,sys; u=json.load(sys.stdin); print('user_id prefix of $CONNECTION users (gate.toml subject_prefix):', u[0]['user_id'].split('|')[0] + '|' if u else '(no user)')"
+  py "import json,sys; u=json.load(sys.stdin); print('user_id prefix of $CONNECTION users (idps.toml subject_prefix):', u[0]['user_id'].split('|')[0] + '|' if u else '(no user)')"
