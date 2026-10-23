@@ -2042,5 +2042,321 @@ class SyncSettingsTest(unittest.TestCase):
         self.assertEqual(ran, dict.fromkeys(ran, 1), "every other step ran once")
 
 
+REPO_COMPUTE_CATALOG = os.path.join(SETTINGS_REPO, "compute-catalog.json")
+A100_40G_CARD = {"vendor_id": "10de", "device_id": "20b0", "vendor_name": "NVIDIA Corporation",
+                 "device_name": "GA100 [A100 SXM4 40GB]", "name": "NVIDIA Corporation GA100 [A100 SXM4 40GB]"}
+A6000_CARD = {"vendor_id": "10de", "device_id": "2230", "vendor_name": "NVIDIA Corporation",
+              "device_name": "GA102GL [RTX A6000]", "name": "NVIDIA Corporation GA102GL [RTX A6000]"}
+FULL_GPU_SET = ["a6000-1", "gtx1080-1", "a100-40g-1", "a100-40g-nvswitch-2", "a100-40g-nvswitch-4", "a100-40g-nvswitch-8",
+                "a100-40g-nvlink-2", "a100-40g-nvlink-4", "a100-80g-1", "a100-80g-nvswitch-2", "a100-80g-nvswitch-4",
+                "a100-80g-nvswitch-8"]
+
+
+class SyncOfferingsTest(unittest.TestCase):
+    CPU_ONLY = {"name": "cpu", "tag": "cpu", "min_vcpu": 2, "max_vcpu": 4096, "min_memory_mib": 32,
+                "max_memory_mib": 67108864}
+
+    def catalog(self, **cpu_only):
+        return {"cpu_only": {**self.CPU_ONLY, **cpu_only}, "gpu_types": [
+            {"tag": "a6000", "card": A6000_CARD, "unit_vcpu": 12, "unit_ram_gib": 24,
+             "classes": {"pcie": {"rule": "single"}}, "lease_hours": 36},
+            {"tag": "a100-40g", "card": A100_40G_CARD, "unit_vcpu": 12, "unit_ram_gib": 96, "lease_hours": 36,
+             "classes": {"nvswitch": {"rule": "partitions", "counts": [2, 4, 8]},
+                         "nvlink": {"rule": "any", "counts": [2, 4]}}}]}
+
+    def setUp(self):
+        self.calls = []
+        self.hosts = [{"id": "h-1", "name": "derby", "cpuspeed": 3600}, {"id": "h-2", "name": "jimbeam", "cpuspeed": 2600},
+                      {"id": "h-3", "name": "jackdaniels", "cpuspeed": 2400}, {"id": "h-4", "name": "new"}]
+        self.cards = [{"id": "card-2230", "vendorid": "10de", "deviceid": "2230", "name": A6000_CARD["name"]},
+                      {"id": "card-1b80", "vendorid": "10de", "deviceid": "1b80",
+                       "name": "NVIDIA Corporation GP104 [GeForce GTX 1080]"},
+                      {"id": "card-20b0", "vendorid": "10de", "deviceid": "20b0", "name": A100_40G_CARD["name"]}]
+        self.profiles = [{"id": f"vp-{c['deviceid']}", "name": "passthrough", "gpucardid": c["id"]} for c in self.cards]
+        self.profiles.append({"id": "vp-2230-q", "name": "A6000-12Q", "gpucardid": "card-2230"})
+        self.offerings = []
+
+        def fake_cs(command, post=False, **params):
+            self.calls.append((command, params))
+            if command == "listHosts":
+                self.assertEqual(params.get("type"), "Routing")
+                return {"host": [dict(h) for h in self.hosts]}
+            if command == "listGpuCards":
+                return {"gpucard": [dict(c) for c in self.cards]}
+            if command == "createGpuCard":
+                card = {"id": f"card-{params['deviceid']}", "vendorid": params["vendorid"], "deviceid": params["deviceid"],
+                        "name": params["name"]}
+                self.cards.append(card)
+                self.profiles.append({"id": f"vp-{params['deviceid']}", "name": "passthrough", "gpucardid": card["id"]})
+                return {"gpucard": card}
+            if command == "listVgpuProfiles":
+                return {"vgpuprofile": [dict(p) for p in self.profiles if p["gpucardid"] == params["gpucardid"]]}
+            if command == "listServiceOfferings":
+                self.assertEqual(params.get("state"), "all", "inactive offerings hold names too")
+                return {"serviceoffering": [json.loads(json.dumps(o)) for o in self.offerings]}
+            if command == "createServiceOffering":
+                self.offerings.append(self.listed(f"o-{len(self.offerings)}", params))
+                return {"serviceoffering": self.offerings[-1]}
+            if command == "updateServiceOffering":
+                o = next(o for o in self.offerings if o["id"] == params["id"])
+                o.update({k: params[k] for k in ("name", "state", "leaseexpiryaction") if k in params})
+                if "leasehours" in params:
+                    if str(params["leasehours"]) == "0":
+                        o.pop("leasehours", None)
+                        o.pop("leaseexpiryaction", None)
+                    else:
+                        o["leasehours"] = int(params["leasehours"])
+                        o.setdefault("leaseexpiryaction", "STOP")
+                return {"serviceoffering": o}
+            raise AssertionError(f"{command} {params}")
+
+        patcher = mock.patch.object(sync, "cloudstack", fake_cs)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    @staticmethod
+    def listed(oid, p):
+        """An offering as listServiceOfferings shows the one createServiceOffering made."""
+        o = {"id": oid, "name": p["name"], "state": "Active", "iscustomized": str(p.get("customized")) == "true",
+             "cpuspeed": int(p["cpuspeed"]), "storagetype": p.get("storagetype", "shared"),
+             "offerha": str(p.get("offerha")) == "true", "dynamicscalingenabled": str(p.get("dynamicscalingenabled")) != "false",
+             "diskofferingstrictness": str(p.get("diskofferingstrictness")) == "true",
+             "rootdisksize": int(p.get("rootdisksize", 0)), "hosttags": p.get("hosttags")}
+        if "cpunumber" in p:
+            o.update(cpunumber=int(p["cpunumber"]), memory=int(p["memory"]))
+        if "mincpunumber" in p:
+            o["serviceofferingdetails"] = {k: str(p[k]) for k in ("mincpunumber", "maxcpunumber", "minmemory", "maxmemory")}
+        if "vgpuprofileid" in p:
+            o.update(vgpuprofileid=p["vgpuprofileid"], gpucount=int(p["gpucount"]))
+        if "leasehours" in p:
+            o.update(leasehours=int(p["leasehours"]), leaseexpiryaction=p.get("leaseexpiryaction", "STOP"))
+        return o
+
+    def run_sync(self, catalog):
+        with mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+            failed = sync.sync_gpu_cards(catalog) + sync.sync_offerings(catalog)
+        return failed, out.getvalue()
+
+    def created(self):
+        return {p["name"]: p for c, p in self.calls if c == "createServiceOffering"}
+
+    def writes(self):
+        return [(c, p) for c, p in self.calls if not c.startswith("list")]
+
+    def test_sync_offerings_creates_cpu_and_gpu_offerings(self):
+        failed, out = self.run_sync(self.catalog())
+        self.assertEqual(failed, [])
+        created = self.created()
+        self.assertEqual(list(created), ["cpu", "a6000-1", "a100-40g-1", "a100-40g-nvswitch-2", "a100-40g-nvswitch-4",
+                                         "a100-40g-nvswitch-8", "a100-40g-nvlink-2", "a100-40g-nvlink-4"])
+        nvlink2 = created["a100-40g-nvlink-2"]
+        self.assertEqual((nvlink2["cpunumber"], nvlink2["memory"], nvlink2["gpucount"], nvlink2["vgpuprofileid"]),
+                         (24, 2 * 96 * 1024, 2, "vp-20b0"), "n units of the type, its card's passthrough profile")
+        self.assertEqual(created["a6000-1"]["vgpuprofileid"], "vp-2230")
+        for p in created.values():
+            self.assertEqual((p["storagetype"], p["offerha"], p["diskofferingstrictness"]), ("local", "false", "true"))
+            self.assertFalse({"diskofferingid", "rootdisksize"} & set(p), "a compute-only root whose size the user picks")
+        self.assertIn("offering a100-40g-nvlink-4 created", out)
+        self.calls.clear()
+        failed, out = self.run_sync(self.catalog())
+        self.assertEqual((failed, self.writes()), ([], []), "a second run changes nothing")
+
+    def test_sync_offerings_versions_changed_offering(self):
+        self.run_sync(self.catalog())
+        catalog = self.catalog()
+        catalog["gpu_types"][0]["unit_vcpu"] = 16
+        self.calls.clear()
+        failed, out = self.run_sync(catalog)
+        self.assertEqual(failed, [])
+        self.assertEqual([(c, p.get("name"), p.get("state")) for c, p in self.writes()],
+                         [("updateServiceOffering", "a6000-1-v1", "Inactive"), ("createServiceOffering", "a6000-1", None)])
+        self.assertEqual(self.created()["a6000-1"]["cpunumber"], 16)
+        self.assertIn("offering a6000-1: cpunumber changed", out)
+        catalog["gpu_types"][0]["unit_ram_gib"] = 32
+        self.calls.clear()
+        self.run_sync(catalog)
+        self.assertEqual([p.get("name") for c, p in self.writes()], ["a6000-1-v2", "a6000-1"])
+        self.assertEqual(sorted(o["name"] for o in self.offerings if o["name"].startswith("a6000-1")),
+                         ["a6000-1", "a6000-1-v1", "a6000-1-v2"])
+        self.assertEqual([o["state"] for o in self.offerings if o["name"].startswith("a6000-1-v")], ["Inactive", "Inactive"])
+
+    def test_sync_offerings_never_deletes(self):
+        for name in ("small", "small-gpu", "a6000"):
+            self.offerings.append({"id": f"old-{name}", "name": name, "state": "Active", "cpunumber": 2, "cpuspeed": 2000,
+                                   "memory": 4096, "storagetype": "local"})
+        failed, _ = self.run_sync(self.catalog())
+        self.assertEqual(failed, [])
+        self.assertFalse([p for c, p in self.writes() if p.get("id", "").startswith("old-")])
+        catalog = self.catalog()
+        del catalog["gpu_types"][1]
+        self.calls.clear()
+        self.run_sync(catalog)
+        self.assertEqual(self.writes(), [], "a type gone from the catalog keeps its offerings")
+        self.assertEqual(len(self.offerings), 11)
+
+    def test_sync_offerings_one_gpu_per_card_multi_per_class(self):
+        self.run_sync(self.catalog())
+        created = self.created()
+        self.assertEqual(created["a100-40g-1"]["hosttags"], "a100-40g")
+        self.assertEqual(created["a100-40g-nvlink-2"]["hosttags"], "a100-40g,a100-40g-nvlink")
+        self.assertEqual(created["a100-40g-nvswitch-8"]["hosttags"], "a100-40g,a100-40g-nvswitch")
+        self.assertEqual(created["a6000-1"]["hosttags"], "a6000")
+        self.assertEqual([n for n in created if n.startswith("a6000")], ["a6000-1"], "no multi-GPU offering over PCIe")
+
+    def test_sync_offerings_full_gpu_set(self):
+        with open(REPO_COMPUTE_CATALOG) as f:
+            catalog = json.load(f)
+        failed, _ = self.run_sync(catalog)
+        self.assertEqual(failed, [])
+        self.assertEqual(sorted(self.created()), sorted(FULL_GPU_SET + ["cpu"]))
+        units = {"a100-40g": (12, 96), "a100-80g": (12, 96), "a6000": (12, 24), "gtx1080": (6, 12)}
+        for name, p in self.created().items():
+            if name != "cpu":
+                tag, n = name.rsplit("-", 1)[0].rsplit("-nv", 1)[0], int(name.rsplit("-", 1)[1])
+                self.assertEqual((p["cpunumber"], p["memory"]), (n * units[tag][0], n * units[tag][1] * 1024), name)
+
+    def test_cpu_offering_is_constrained_with_fixed_speed(self):
+        self.run_sync(self.catalog())
+        cpu = self.created()["cpu"]
+        self.assertEqual({k: cpu[k] for k in ("customized", "cpuspeed", "mincpunumber", "maxcpunumber", "minmemory",
+                                              "maxmemory", "hosttags")},
+                         {"customized": "true", "cpuspeed": 2400, "mincpunumber": 2, "maxcpunumber": 4096, "minmemory": 32,
+                          "maxmemory": 67108864, "hosttags": "cpu"},
+                         "the lowest speed of the KVM hosts that report one")
+        self.assertFalse({"cpunumber", "memory", "vgpuprofileid", "gpucount"} & set(cpu))
+        self.hosts = [h for h in self.hosts if h.get("cpuspeed") != 2400]
+        self.calls.clear()
+        self.run_sync(self.catalog())
+        self.assertEqual(self.writes(), [], "the slowest host leaving keeps the offering: every host still passes")
+        self.hosts.append({"id": "h-5", "name": "slow", "cpuspeed": 2100})
+        self.calls.clear()
+        self.run_sync(self.catalog())
+        self.assertEqual([(c, p.get("name")) for c, p in self.writes()],
+                         [("updateServiceOffering", "cpu-v1"), ("createServiceOffering", "cpu")],
+                         "a slower host makes a new CPU-only offering; GPU offerings do not depend on the speed")
+        self.assertEqual(self.created()["cpu"]["cpuspeed"], 2100)
+
+    def test_cpu_offering_comes_from_the_catalog_section(self):
+        self.run_sync(self.catalog())
+        self.calls.clear()
+        failed, out = self.run_sync(self.catalog(min_vcpu=4))
+        self.assertEqual(failed, [])
+        self.assertEqual([(c, p.get("name")) for c, p in self.writes()],
+                         [("updateServiceOffering", "cpu-v1"), ("createServiceOffering", "cpu")])
+        self.assertEqual(self.created()["cpu"]["mincpunumber"], 4)
+        self.assertIn("offering cpu: mincpunumber changed", out)
+        catalog = self.catalog()
+        del catalog["cpu_only"]
+        self.offerings.clear()
+        self.calls.clear()
+        failed, out = self.run_sync(catalog)
+        self.assertEqual(failed, ["cpu"])
+        self.assertIn("error: offering cpu:", out)
+        self.assertNotIn("cpu", self.created())
+        self.assertEqual(len(self.created()), 7, "the GPU offerings still sync")
+
+    def test_every_offering_is_not_dynamically_scalable(self):
+        with open(REPO_COMPUTE_CATALOG) as f:
+            self.run_sync(json.load(f))
+        self.assertEqual(len(self.created()), 13)
+        for name, p in self.created().items():
+            self.assertEqual(p["dynamicscalingenabled"], "false", name)
+
+    def test_sync_offerings_keyed_min_count(self):
+        catalog = self.catalog()
+        del catalog["gpu_types"][0]
+        classes = catalog["gpu_types"][0]["classes"]
+        classes["nvlink"]["keyed_min_count"] = 3
+        self.run_sync(catalog)
+        created = self.created()
+        self.assertEqual(created["a100-40g-2"]["hosttags"], "a100-40g", "below its keyed_min_count the card alone keys it")
+        self.assertEqual(created["a100-40g-nvlink-4"]["hosttags"], "a100-40g,a100-40g-nvlink")
+        self.assertNotIn("a100-40g-nvlink-2", created)
+        self.assertEqual(created["a100-40g-nvswitch-2"]["hosttags"], "a100-40g,a100-40g-nvswitch", "the default is 2")
+
+    def test_sync_gpu_cards_creates_missing_card_once(self):
+        with open(REPO_COMPUTE_CATALOG) as f:
+            catalog = json.load(f)
+        self.cards = [c for c in self.cards if c["deviceid"] != "20b0"]
+        with mock.patch("sys.stdout", new_callable=io.StringIO):
+            self.assertEqual(sync.sync_gpu_cards(catalog), [])
+        created = [p for c, p in self.calls if c == "createGpuCard"]
+        self.assertEqual([p["deviceid"] for p in created], ["20b0", "20b2"], "never for a discovered card")
+        self.assertEqual(created[1], {"vendorid": "10de", "deviceid": "20b2", "vendorname": "NVIDIA Corporation",
+                                      "devicename": "GA100 [A100 SXM4 80GB]",
+                                      "name": "NVIDIA Corporation GA100 [A100 SXM4 80GB]"})
+        self.calls.clear()
+        with mock.patch("sys.stdout", new_callable=io.StringIO):
+            sync.sync_gpu_cards(catalog)
+        self.assertEqual(self.writes(), [])
+
+    def test_sync_offerings_skips_type_without_units(self):
+        catalog = self.catalog()
+        catalog["gpu_types"][1]["unit_vcpu"] = None
+        failed, out = self.run_sync(catalog)
+        self.assertEqual(failed, [])
+        self.assertEqual(list(self.created()), ["cpu", "a6000-1"])
+        self.assertIn("GPU type a100-40g: no unit size yet, no offerings", out)
+
+    def test_sync_offerings_sets_gpu_lease_hours(self):
+        with open(REPO_COMPUTE_CATALOG) as f:
+            self.run_sync(json.load(f))
+        for name, p in self.created().items():
+            if name == "cpu":
+                self.assertFalse({"leasehours", "leaseexpiryaction"} & set(p), "CPU-only instances have no lease")
+            else:
+                self.assertEqual((p["leasehours"], p["leaseexpiryaction"]), ("36", "STOP"), name)
+
+    def test_sync_offerings_lease_hours_change_is_in_place(self):
+        self.run_sync(self.catalog())
+        catalog = self.catalog()
+        catalog["gpu_types"][1]["lease_hours"] = 48
+        del catalog["gpu_types"][0]["lease_hours"]
+        self.calls.clear()
+        failed, out = self.run_sync(catalog)
+        self.assertEqual(failed, [])
+        updates = {next(o["name"] for o in self.offerings if o["id"] == p["id"]): p for c, p in self.writes()}
+        self.assertEqual([c for c, _ in self.writes()], ["updateServiceOffering"] * 7, "no -v<k> rename, no new offering")
+        self.assertEqual(updates["a6000-1"], {"id": updates["a6000-1"]["id"], "leasehours": "0"})
+        self.assertEqual(updates["a100-40g-nvswitch-8"]["leasehours"], "48")
+        self.assertNotIn("leasehours", next(o for o in self.offerings if o["name"] == "a6000-1"))
+        catalog["gpu_types"][1]["lease_expiry_action"] = "DESTROY"
+        catalog["gpu_types"][0]["lease_hours"] = 36
+        catalog["gpu_types"][0]["lease_expiry_action"] = "DESTROY"
+        self.calls.clear()
+        self.run_sync(catalog)
+        self.assertEqual({p["leaseexpiryaction"] for c, p in self.writes()}, {"DESTROY"})
+        self.assertEqual(len(self.writes()), 7)
+
+    def test_shipped_catalog(self):
+        with open(REPO_COMPUTE_CATALOG) as f:
+            catalog = json.load(f)
+        self.assertEqual(catalog["cpu_only"], self.CPU_ONLY)
+        for t in catalog["gpu_types"]:
+            self.assertEqual((t["lease_hours"], t.get("lease_expiry_action", "STOP")), (36, "STOP"), t["tag"])
+            for c in t["classes"].values():
+                self.assertEqual(c.get("keyed_min_count", 2), 2)
+
+    def test_a_failing_offering_fails_the_run_after_every_other_step(self):
+        ran, error = run_main_with(sync_compute_catalog=["a6000-1"])
+        self.assertRegex(str(error), "compute catalog not reconciled: a6000-1")
+        self.assertIn("sync_settings", ran)
+        self.assertEqual(ran, dict.fromkeys(ran, 1), "every other step ran once")
+
+    def test_sync_compute_catalog_cards_before_offerings(self):
+        tmp = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False)
+        self.addCleanup(os.unlink, tmp.name)
+        json.dump(self.catalog(), tmp)
+        tmp.close()
+        self.cards = [c for c in self.cards if c["deviceid"] != "20b0"]
+        self.profiles = [p for p in self.profiles if p["gpucardid"] != "card-20b0"]
+        with mock.patch("sys.stdout", new_callable=io.StringIO):
+            self.assertEqual(sync.sync_compute_catalog(tmp.name), [])
+            self.assertEqual(sync.sync_compute_catalog("/nonexistent/compute-catalog.json"), [])
+        writes = [c for c, _ in self.writes()]
+        self.assertEqual(writes[0], "createGpuCard")
+        self.assertEqual(self.created()["a100-40g-1"]["vgpuprofileid"], "vp-20b0")
+
+
 if __name__ == "__main__":
     unittest.main()

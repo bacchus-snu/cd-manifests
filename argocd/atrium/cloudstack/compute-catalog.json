@@ -1,4 +1,12 @@
 {
+  "cpu_only": {
+    "name": "cpu",
+    "tag": "cpu",
+    "min_vcpu": 2,
+    "max_vcpu": 4096,
+    "min_memory_mib": 32,
+    "max_memory_mib": 67108864
+  },
   "gpu_types": [
     {
       "tag": "a6000",
@@ -12,6 +20,8 @@
       },
       "unit_vcpu": 12,
       "unit_ram_gib": 24,
+      "lease_hours": 36,
+      "lease_expiry_action": "STOP",
       "classes": {"pcie": {"rule": "single"}}
     },
     {
@@ -26,6 +36,8 @@
       },
       "unit_vcpu": 6,
       "unit_ram_gib": 12,
+      "lease_hours": 36,
+      "lease_expiry_action": "STOP",
       "classes": {"pcie": {"rule": "single"}}
     },
     {
@@ -40,6 +52,8 @@
       },
       "unit_vcpu": 12,
       "unit_ram_gib": 96,
+      "lease_hours": 36,
+      "lease_expiry_action": "STOP",
       "classes": {
         "nvswitch": {"rule": "partitions", "counts": [2, 4, 8]},
         "nvlink": {"rule": "any", "counts": [2, 4]}
@@ -57,6 +71,8 @@
       },
       "unit_vcpu": 12,
       "unit_ram_gib": 96,
+      "lease_hours": 36,
+      "lease_expiry_action": "STOP",
       "classes": {
         "nvswitch": {"rule": "partitions", "counts": [2, 4, 8]}
       }

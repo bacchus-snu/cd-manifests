@@ -178,6 +178,24 @@ class CatalogTest(unittest.TestCase):
         self.assertEqual(types["a100-80g"]["classes"],
                          {"nvswitch": {"rule": "partitions", "counts": [2, 4, 8]}})
 
+    def test_catalog_extra_fields_ignored(self):
+        catalog = load_catalog()
+        self.assertIn("cpu_only", catalog)
+        bare = {"gpu_types": [{k: v for k, v in t.items() if k not in ("lease_hours", "lease_expiry_action")}
+                              for t in catalog["gpu_types"]]}
+        extra = copy.deepcopy(catalog)
+        for t in extra["gpu_types"]:
+            for c in t["classes"].values():
+                c["keyed_min_count"] = 3
+        for host, decl in (("jimbeam", JIMBEAM), ("i7", I7), ("ford", FORD), ("ferrari", FERRARI)):
+            self.assertEqual(render(host, decl, catalog=extra), render(host, decl, catalog=bare), host)
+
+    def test_hosts_carry_the_cpu_only_offerings_tag(self):
+        # the CPU-only offering, and the resource limits, are keyed by the catalog's cpu_only tag
+        tag = load_catalog()["cpu_only"]["tag"]
+        for host, decl in (("jimbeam", JIMBEAM), ("jackdaniels", JACKDANIELS)):
+            self.assertEqual(table.agent_values(render(host, decl), decl)["host.tags"].split(",")[0], tag, host)
+
 
 class RenderTest(unittest.TestCase):
     def test_jimbeam_unit_takes_node0(self):

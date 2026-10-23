@@ -1,9 +1,11 @@
 # cloudstack
 
 Host-side configuration for the CloudStack KVM hosts. The management server and
-the overlay gateway live in the atrium cluster (`argocd/atrium/cloudstack`); the
-zone, offerings and global settings are configured through the CloudStack API
-and recorded in the Bacchus howto (`infra/cloudstack.md`).
+the overlay gateway live in the atrium cluster (`argocd/atrium/cloudstack`),
+whose sync job also keeps the zone's settings (`settings.toml`) and its GPU
+cards and compute offerings (`compute-catalog.json`); the rest of the zone is
+configured through the CloudStack API and recorded in the Bacchus howto
+(`infra/cloudstack.md`).
 
 `auth0-setup.sh` registers the Auth0 applications of the bacchus OpenID
 provider (`argocd/atrium/cloudstack/idps.toml`) and of Warpgate and stores

@@ -1160,6 +1160,179 @@ def sync_settings(settings=None, catalog=None, env=os.environ):
     return failed
 
 
+OFFERING_INVARIANTS = {"storagetype": "local", "offerha": "false", "dynamicscalingenabled": "false",
+                       "diskofferingstrictness": "true"}
+
+
+def sync_gpu_cards(catalog):
+    """Create the GPU card of each catalogued type that discovery has not created yet, so that its offerings can
+    exist before a host of the type joins; createGpuCard also creates the card's passthrough profile, and
+    discovery later takes both over by the card's vendor and device id. Returns the types whose card could not
+    be created."""
+    failed = []
+    try:
+        cards = {(c.get("vendorid", "").lower(), c.get("deviceid", "").lower())
+                 for c in cloudstack_list("listGpuCards", "gpucard")}
+    except OSError as e:
+        print(f"error: GPU cards: {api_failure(e)}")
+        return ["gpu cards"]
+    for t in catalog.get("gpu_types", []):
+        try:
+            card = t["card"]
+            if (card["vendor_id"].lower(), card["device_id"].lower()) in cards:
+                continue
+            cloudstack("createGpuCard", vendorid=card["vendor_id"], deviceid=card["device_id"],
+                       vendorname=card["vendor_name"], devicename=card["device_name"], name=card["name"])
+            print(f"GPU card {card['name']} created")
+        except (OSError, KeyError, AttributeError) as e:
+            print(f"error: GPU card of {t.get('tag')}: {api_failure(e)}")
+            failed.append(str(t.get("tag")))
+    return failed
+
+
+def gpu_offerings(gpu_type):
+    """(name, GPU count, host tags) of a GPU type's offerings: <tag>-1, keyed by the card alone, and for each
+    class every count from the class's keyed_min_count (2 by default) up, keyed by the class as well; a smaller
+    count is keyed by the card alone."""
+    tag = gpu_type["tag"]
+    offerings = [(f"{tag}-1", 1, tag)]
+    for name, cls in gpu_type.get("classes", {}).items():
+        keyed = cls.get("keyed_min_count", 2)
+        if isinstance(keyed, bool) or not isinstance(keyed, int) or keyed < 1:
+            raise ValueError(f"class {name}: keyed_min_count must be a whole number of 1 or more, not {keyed!r}")
+        for n in cls.get("counts", []):
+            offering = (f"{tag}-{name}-{n}", n, f"{tag},{tag}-{name}") if n >= keyed else (f"{tag}-{n}", n, tag)
+            if offering not in offerings:
+                offerings.append(offering)
+    return offerings
+
+
+def offering_properties(params):
+    """What makes an offering, as strings: the createServiceOffering parameters but its name, display text and
+    lease. A GPU offering's speed is left out: no host check of an instance with a vGPU profile reads it."""
+    props = {k: str(v) for k, v in params.items() if k not in ("name", "displaytext", "leasehours", "leaseexpiryaction")}
+    if props["customized"] == "false":
+        props.pop("cpuspeed")
+    props["hosttags"] = ",".join(sorted(props["hosttags"].split(",")))
+    props.setdefault("vgpuprofileid", "")
+    props.setdefault("gpucount", "")
+    props["rootdisksize"] = "0"
+    return props
+
+
+def listed_offering_properties(live, keys):
+    def flag(name):
+        return "true" if live.get(name) else "false"
+    details = live.get("serviceofferingdetails") or {}
+    have = {"customized": flag("iscustomized"), "offerha": flag("offerha"),
+            "dynamicscalingenabled": flag("dynamicscalingenabled"), "diskofferingstrictness": flag("diskofferingstrictness"),
+            "storagetype": live.get("storagetype"), "hosttags": ",".join(sorted((live.get("hosttags") or "").split(","))),
+            "rootdisksize": str(live.get("rootdisksize") or 0), "vgpuprofileid": live.get("vgpuprofileid") or "",
+            "gpucount": str(live["gpucount"]) if live.get("gpucount") else "",
+            **{k: str(live.get(k)) for k in ("cpuspeed", "cpunumber", "memory")},
+            **{k: details.get(k) for k in ("mincpunumber", "maxcpunumber", "minmemory", "maxmemory")}}
+    return {k: have.get(k) for k in keys}
+
+
+def sync_offerings(catalog):
+    """Create the catalogued compute offerings that are missing: the CPU-only offering of the cpu_only section
+    and, for each GPU type with a unit size, the offerings of gpu_offerings(), each n units of the type with its
+    card's passthrough profile. Every offering has a compute-only root whose size the user gives, local storage,
+    no HA and no dynamic scaling; the CPU-only one is customized within fixed bounds at a speed the user never
+    sets, the lowest of the KVM hosts, so that every host passes the speed check: a speed at or below the lowest
+    is in step. CloudStack changes no offering's CPU, memory or tags in place, so a live
+    offering whose properties differ is renamed <name>-v<k> and deactivated, its instances keeping it, and a new
+    one is created; only the lease (the catalog's lease_hours and lease_expiry_action) is reconciled in place.
+    Nothing is deleted and offerings outside the catalog are left alone. Returns what could not be reconciled."""
+    failed = []
+    try:
+        speeds = [int(h["cpuspeed"]) for h in cloudstack_list("listHosts", "host", type="Routing") if h.get("cpuspeed")]
+        if not speeds:
+            raise RuntimeError("no KVM host reports its CPU speed")
+        speed = min(speeds)
+        live = cloudstack_list("listServiceOfferings", "serviceoffering", state="all", listall="true", isrecursive="true")
+        cards = {(c.get("vendorid", "").lower(), c.get("deviceid", "").lower()): c["id"]
+                 for c in cloudstack_list("listGpuCards", "gpucard")}
+    except (OSError, RuntimeError, ValueError, KeyError) as e:
+        print(f"error: offerings: {api_failure(e)}")
+        return ["offerings"]
+    wanted = []
+    section = catalog.get("cpu_only")
+    if section is None:
+        print("error: offering cpu: the compute catalog has no cpu_only section, so there is no CPU-only offering")
+        failed.append("cpu")
+    else:
+        try:
+            wanted.append(({"name": section["name"], "displaytext": section["name"], "customized": "true",
+                            "cpuspeed": speed, "mincpunumber": section["min_vcpu"], "maxcpunumber": section["max_vcpu"],
+                            "minmemory": section["min_memory_mib"], "maxmemory": section["max_memory_mib"],
+                            "hosttags": section["tag"], **OFFERING_INVARIANTS}, section))
+        except KeyError as e:
+            print(f"error: offering cpu: the cpu_only section has no {e}")
+            failed.append("cpu")
+    for t in catalog.get("gpu_types", []):
+        tag = t["tag"]
+        if t.get("unit_vcpu") is None or t.get("unit_ram_gib") is None:
+            print(f"GPU type {tag}: no unit size yet, no offerings")
+            continue
+        try:
+            card = cards.get((t["card"]["vendor_id"].lower(), t["card"]["device_id"].lower()))
+            if card is None:
+                raise RuntimeError("its GPU card does not exist")
+            profiles = [p["id"] for p in cloudstack("listVgpuProfiles", gpucardid=card).get("vgpuprofile", [])
+                        if p.get("name") == "passthrough"]
+            if len(profiles) != 1:
+                raise RuntimeError(f"its card has {len(profiles)} passthrough profiles")
+            for name, n, hosttags in gpu_offerings(t):
+                wanted.append(({"name": name, "displaytext": name, "customized": "false", "cpunumber": n * t["unit_vcpu"],
+                                "cpuspeed": speed, "memory": n * t["unit_ram_gib"] * 1024, "hosttags": hosttags,
+                                "vgpuprofileid": profiles[0], "gpucount": n, **OFFERING_INVARIANTS}, {**t, "name": tag}))
+        except (OSError, RuntimeError, ValueError, KeyError) as e:
+            print(f"error: GPU type {tag}: {api_failure(e)}")
+            failed.append(tag)
+    names = {o["name"] for o in live}
+    # an active offering wins over an inactive one of the same name
+    by_name = {o["name"]: o for o in sorted(live, key=lambda o: o.get("state") == "Active")}
+    for params, lease_spec in wanted:
+        name = params["name"]
+        try:
+            lease = offering_lease(lease_spec)
+            current = by_name.get(name)
+            if current is not None:
+                props = offering_properties(params)
+                drift = sorted(k for k, v in listed_offering_properties(current, props).items() if v != props[k]
+                               and not (k == "cpuspeed" and int(current.get("cpuspeed") or 0) <= speed))
+                if not drift:
+                    update = offering_lease_update(current, lease_spec)
+                    if update:
+                        cloudstack("updateServiceOffering", id=current["id"], **update)
+                        print(f"offering {name}: lease {', '.join(f'{k} {v}' for k, v in update.items())}")
+                    continue
+                versions = [int(m.group(1)) for n in names if (m := re.fullmatch(re.escape(name) + r"-v(\d+)", n))]
+                old = f"{name}-v{max(versions, default=0) + 1}"
+                cloudstack("updateServiceOffering", id=current["id"], name=old, state="Inactive")
+                names.add(old)
+                print(f"offering {name}: {', '.join(drift)} changed; the previous one is {old}, inactive")
+            cloudstack("createServiceOffering", **params, **lease)
+            print(f"offering {name} created")
+        except (OSError, RuntimeError, ValueError, KeyError) as e:
+            print(f"error: offering {name}: {api_failure(e)}")
+            failed.append(name)
+    return failed
+
+
+def sync_compute_catalog(path=COMPUTE_CATALOG_PATH):
+    """The GPU cards, then the compute offerings, of the compute catalog; returns what could not be reconciled."""
+    try:
+        catalog = load_compute_catalog(path)
+    except (OSError, ValueError) as e:
+        print(f"error: compute catalog: {e}")
+        return ["compute catalog"]
+    if catalog is None:
+        return []
+    return sync_gpu_cards(catalog) + sync_offerings(catalog)
+
+
 def plan_targets(vms, members, user_by_template=None, guest_user=GUEST_USER, root_by_vm=None):
     """Warpgate targets a set of VMs should have, and the roles that reach each.
     One target per VM for its co-owners (the account, or every member account
@@ -1423,6 +1596,7 @@ def main():
     sync_roles(load_roles())
     unreconciled = sync_oidc_providers()
     unapplied = sync_settings()
+    unsynced = sync_compute_catalog()
     if WARPGATE_HOST and WARPGATE_TLS_NAME and WARPGATE_TOKEN:
         sync_warpgate()
         sync_template_userdata()
@@ -1433,6 +1607,8 @@ def main():
         raise RuntimeError(f"OpenID providers not reconciled: {', '.join(unreconciled)}")
     if unapplied:
         raise RuntimeError(f"settings not applied: {', '.join(unapplied)}")
+    if unsynced:
+        raise RuntimeError(f"compute catalog not reconciled: {', '.join(unsynced)}")
 
 
 if __name__ == "__main__":
