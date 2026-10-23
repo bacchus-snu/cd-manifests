@@ -194,7 +194,185 @@ value = "SNUCSE Cloud"
 
 # Placement and capacity
 
+# CPU-only instances fill the most loaded host first, CPU and memory load
+# weighed alike; GPU instances take the host and GPU group that fit best
+[[setting]]
+key = "vm.allocation.algorithm"
+value = "firstfitmostconsumed"
+
+[[setting]]
+key = "host.capacityType.to.order.clusters"
+value = "COMBINED"
+
+[[setting]]
+key = "host.capacityType.to.order.clusters.cputomemoryweight"
+value = 0.5
+
+[[setting]]
+key = "gpu.allocation.algorithm"
+value = "bestfit"
+
+# a CPU-only instance runs on whole cores: its vCPU count is a multiple of 2
+[[setting]]
+key = "vm.pool.vcpu.step"
+value = 2
+
+# a stopped instance releases its CPU, memory and GPUs at once (read at start)
+[[setting]]
+key = "capacity.skipcounting.hours"
+value = 0
+
+[[setting]]
+key = "gpu.detach.on.stop"
+value = true
+
+[[setting]]
+key = "gpu.detach.on.stop"
+scope = "domain"
+target = "*"
+value = true
+
+# no CPU or memory overcommit; each host's own admission decides, never a
+# cluster's load
+[[setting]]
+key = "cpu.overprovisioning.factor"
+scope = "cluster"
+target = "*"
+value = 1.0
+
+[[setting]]
+key = "mem.overprovisioning.factor"
+scope = "cluster"
+target = "*"
+value = 1.0
+
+[[setting]]
+key = "cluster.cpu.allocated.capacity.disablethreshold"
+scope = "cluster"
+target = "*"
+value = 1.0
+
+[[setting]]
+key = "cluster.memory.allocated.capacity.disablethreshold"
+scope = "cluster"
+target = "*"
+value = 1.0
+
+[[setting]]
+key = "drs.automatic.enable"
+scope = "cluster"
+target = "*"
+value = false
+
+# no live scaling or migration: an instance keeps the cores it started on,
+# and a host's maintenance stops the instances on its local storage
+[[setting]]
+key = "enable.dynamic.scale.vm"
+value = false
+
+[[setting]]
+key = "enable.dynamic.scale.vm"
+scope = "zone"
+target = "*"
+value = false
+
+[[setting]]
+key = "host.maintenance.local.storage.strategy"
+value = "ForceStop"
+
+# quota counts stopped instances too and checks every host tag with limits
+[[setting]]
+key = "resource.count.running.vms.only"
+value = false
+
+[[setting]]
+key = "vm.strict.resource.limit.host.tag.check"
+value = true
+
+# no hypervisor configuration of the user's own
+[[setting]]
+key = "enable.additional.vm.configuration"
+value = false
+
 # Volumes, snapshots and moves
+
+# the root disk: 20 GiB unless the user gives a size, at least 10 GiB
+[[setting]]
+key = "vm.root.disk.size.default"
+value = 20
+
+[[setting]]
+key = "vm.root.disk.size.min"
+value = 10
+
+# only the storage quota bounds a volume, and volumes and snapshots share it
+[[setting]]
+key = "custom.diskoffering.size.min"
+value = 1
+
+[[setting]]
+key = "custom.diskoffering.size.max"
+value = 65536
+
+[[setting]]
+key = "storage.max.volume.size"
+value = 65536
+
+[[setting]]
+key = "resource.limit.storage.combined"
+value = true
+
+# no overprovisioning of the local storage
+[[setting]]
+key = "storage.overprovisioning.factor"
+scope = "storagepool"
+target = "*"
+value = 1.0
+
+# destroying an instance keeps its root volume unless the caller says otherwise
+[[setting]]
+key = "destroy.root.volume.on.vm.destruction"
+value = false
+
+# snapshots are kept on secondary storage (read at start), each one whole
+[[setting]]
+key = "snapshot.backup.to.secondary"
+value = true
+
+[[setting]]
+key = "kvm.incremental.snapshot"
+scope = "cluster"
+target = "*"
+value = false
+
+# a move copies the volume and keeps the previous copy; a host without a rate
+# of its own (cloudstack/tools/cs_partition.py set-move-rate) is estimated at
+# this one
+[[setting]]
+key = "volume.move.keep.source"
+value = true
+
+[[setting]]
+key = "volume.move.estimate.mbps"
+value = 800
+
+[[setting]]
+key = "placement.token.expiry.seconds"
+value = 900
+
+# at most this many copies per host at once, as source or destination; <=0: unbounded
+[[setting]]
+key = "volume.move.concurrency.per.host"
+value = 2
+
+# a move of 1 TiB and the start after it take hours
+[[setting]]
+key = "job.cancel.threshold.minutes"
+value = 720
+
+[[setting]]
+key = "copy.volume.wait"
+value = 21600
 
 # GPU lease
 
