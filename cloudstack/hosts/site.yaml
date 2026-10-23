@@ -638,7 +638,7 @@
         path: /etc/cloudstack/agent/agent.properties
         regexp: '^#?{{ item.key }}='
         line: '{{ item.key }}={{ item.value }}'
-      loop: '{{ agent_settings + (partition_agent_settings if partition_agent_values | bool else []) }}'
+      loop: '{{ agent_settings + partition_agent_settings }}'
       vars:
         agent_settings:
           # once connected, the agent rewrites this line as "<servers>@<lb algorithm>"
@@ -656,14 +656,6 @@
         # host.reserved.cpu.count, host.reserved.mem.mb and host.tags of the partition
         partition_agent_settings: "{{ [] if partition_values is skipped else partition_rendered.agent_values | dict2items }}"
       # the file also holds the keystore passphrase, which a diff would print
-      diff: false
-      notify: restart cloudstack-agent
-
-    - name: Agent names no guest CPU model
-      ansible.builtin.lineinfile:
-        path: /etc/cloudstack/agent/agent.properties
-        regexp: '^guest\.cpu\.model='
-        state: absent
       diff: false
       notify: restart cloudstack-agent
 

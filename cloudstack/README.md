@@ -125,10 +125,6 @@ In check mode the partition is rendered (and printed) only if the renderer
 installed on the host is already the one being applied; otherwise every task
 derived from it is skipped.
 
-`partition_agent_values` is a rollout switch: only where it is true does the
-agent report the partition's reserved CPUs and memory and its GPU host tags.
-It is removed once every host reports them.
-
 `render.yaml` renders each host's `partition.json`, kernel arguments and agent
 values into `hosts/out/<host>/` from the host's captured topology in
 `hosts/tests/fixtures/` for review. A change to a host's `partition.json` on

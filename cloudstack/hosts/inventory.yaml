@@ -30,11 +30,6 @@ all:
       {{ dict(partition_inventory_keys | select('in', hostvars[inventory_hostname])
               | zip(partition_inventory_keys | select('in', hostvars[inventory_hostname])
                     | map('extract', hostvars[inventory_hostname]))) }}
-    # The agent reports the reserved CPUs and memory and the GPU host tags of
-    # the partition only where this is true. Until then a host keeps reporting
-    # its full capacity, which a management server that does not count GPU
-    # units apart from the CPU pool needs.
-    partition_agent_values: false
 
     # VXLAN endpoint of the atrium overlay gateway: the campus address of the
     # node carrying the cloudstack.snucse.org/overlay-gateway label
@@ -97,7 +92,6 @@ all:
           housekeeping_cores: {0: 1}
           host_reserve_gib: 2
           qemu_overhead_gib: 1
-          partition_agent_values: true
         eggnog:
           ansible_host: eggnog.snucse.org
           campus_ip: 147.46.240.145
@@ -112,7 +106,6 @@ all:
           housekeeping_cores: {0: 1}
           host_reserve_gib: 2
           qemu_overhead_gib: 1
-          partition_agent_values: true
         faust:
           ansible_host: faust.snucse.org
           campus_ip: 147.46.241.137
@@ -127,7 +120,6 @@ all:
           housekeeping_cores: {0: 1}
           host_reserve_gib: 2
           qemu_overhead_gib: 1
-          partition_agent_values: true
         cojito:
           ansible_host: cojito.snucse.org
           campus_ip: 147.46.240.221
@@ -142,7 +134,6 @@ all:
           housekeeping_cores: {0: 1}
           host_reserve_gib: 2
           qemu_overhead_gib: 1
-          partition_agent_values: true
         jackdaniels:
           ansible_host: jackdaniels.snucse.org
           campus_ip: 147.46.242.203
@@ -154,7 +145,6 @@ all:
           vrrp_priority: 110
           housekeeping_cores: {0: 1}
           host_reserve_gib: 4
-          partition_agent_values: true
         jimbeam:
           ansible_host: jimbeam.snucse.org
           campus_ip: 147.46.241.143
@@ -170,7 +160,6 @@ all:
           housekeeping_cores: {1: 1}
           host_reserve_gib: 4
           qemu_overhead_gib: 2
-          partition_agent_values: true
     # hosts that hold the guest overlay gateway VIP and NAT guest traffic to the campus
     cloudstack_gateway:
       hosts:
