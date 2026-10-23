@@ -138,6 +138,19 @@ value = 3600
 key = "oidc.reconcile.interval"
 value = 3600
 
+# Sign-in through the OpenID providers (idps.toml). While it is set, the
+# password sign-in of an account that awaits adoption is refused before it
+# counts, so the lockout below cannot disable one. To empty it, set the
+# lockout to 0 first and restart the management server, which reads the
+# lockout at start.
+[[setting]]
+key = "oidc.client.url"
+value = "https://cloud.snucse.org/client"
+
+[[setting]]
+key = "incorrect.login.attempts.allowed"
+value = 5
+
 # What users are offered
 
 # Product name
