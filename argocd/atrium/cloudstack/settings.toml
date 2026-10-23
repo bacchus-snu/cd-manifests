@@ -90,9 +90,53 @@ value = 0
 key = "max.account.object.storage"
 value = 0
 
+# every new default security group: SSH from the bastion, which reaches
+# instances from the overlay gateway's guest address, and all traffic within
+# the account's own group
+[[setting]]
+key = "network.securitygroups.default.ingress.rules"
+value = '[{"protocol":"tcp","startport":22,"endport":22,"cidrlist":["10.94.0.254/32"]},{"protocol":"all","owngroup":true}]'
+
 # Quota requests and grants
 
+# A start or a lease renewal is refused while the account is over its quota.
+# Every grant has an end date, which ends at 23:59:59 in this time zone;
+# warnings 7 and 1 days before it; the expiry sweep runs hourly. 0 days: the
+# request form proposes no date, and no date is too late.
+[[setting]]
+key = "resource.request.enforce.quota"
+value = true
+
+[[setting]]
+key = "resource.request.expiry.required"
+value = true
+
+[[setting]]
+key = "resource.request.expiry.default.days"
+value = 0
+
+[[setting]]
+key = "resource.request.expiry.max.days"
+value = 0
+
+[[setting]]
+key = "resource.request.expiry.timezone"
+value = "Asia/Seoul"
+
+[[setting]]
+key = "resource.request.expiry.warning.days"
+value = "7,1"
+
+[[setting]]
+key = "resource.request.expiry.check.interval"
+value = 3600
+
 # Sign-in
+
+# the providers' membership check, hourly
+[[setting]]
+key = "oidc.reconcile.interval"
+value = 3600
 
 # What users are offered
 
