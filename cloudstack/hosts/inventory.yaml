@@ -150,6 +150,7 @@ all:
           vrrp_priority: 110
           housekeeping_cores: {0: 1}
           host_reserve_gib: 4
+          partition_agent_values: true
         jimbeam:
           ansible_host: jimbeam.snucse.org
           campus_ip: 147.46.241.143
