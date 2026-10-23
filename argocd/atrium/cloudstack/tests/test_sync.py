@@ -958,6 +958,34 @@ def decision(role, api):
     return None
 
 
+# Every command the student UI calls, by page; the SNUCSE User role allows these and nothing else.
+STUDENT_UI_COMMANDS = (
+    # sign-in and every page: the API list, capabilities, the user, the zones, the GUI theme, icons, job results
+    "listApis", "listCapabilities", "listUsers", "listZones", "listGuiThemes", "listResourceIcon", "queryAsyncJobResult",
+    # dashboard: limits and remaining storage quota, counts, events, GPU slots, leases, the latest quota request
+    "listAccounts", "listVirtualMachines", "listVolumes", "listSnapshots", "listEvents", "listServiceOfferings",
+    # instances: list, details, metrics tab, console, the actions offered
+    "listVirtualMachinesMetrics", "listVirtualMachinesUsageHistory", "createConsoleEndpoint", "startVirtualMachine",
+    "stopVirtualMachine", "rebootVirtualMachine", "restoreVirtualMachine", "updateVirtualMachine", "scaleVirtualMachine",
+    "resetPasswordForVirtualMachine", "destroyVirtualMachine", "renewVirtualMachineLease",
+    # deploy wizard and reinstall: images, offerings, the placement check and the capacity it shows
+    "deployVirtualMachine", "listTemplates", "listOsCategories", "listDiskOfferings", "checkPlacement",
+    "listPlacementCapacity", "listResourceLimits",
+    # volumes: list, metrics tab, create, attach, detach, resize, download, delete
+    "listVolumesMetrics", "listVolumesUsageHistory", "createVolume", "attachVolume", "detachVolume", "resizeVolume",
+    "extractVolume", "deleteVolume", "destroyVolume", "recoverVolume",
+    # snapshots and recurring snapshots of a volume
+    "createSnapshot", "deleteSnapshot", "revertSnapshot", "listSnapshotPolicies", "createSnapshotPolicy",
+    "deleteSnapshotPolicies",
+    # tags of instances, volumes and snapshots
+    "listTags", "createTags", "deleteTags",
+    # API keys on the user's profile page
+    "listUserKeys", "getUserKeys", "registerUserKeys", "deleteUserKeys", "listUserKeyRules",
+    # quota requests
+    "listResourceLimitRequests", "createResourceLimitRequest", "cancelResourceLimitRequest",
+)
+
+
 class RoleCatalogTest(unittest.TestCase):
     def load(self, text):
         with tempfile.NamedTemporaryFile("w", suffix=".toml", delete=False) as f:
@@ -1019,6 +1047,39 @@ class RoleCatalogTest(unittest.TestCase):
         for api in ("listLdapUsers", "listUsers", "listAccounts", "listConfigurations"):
             self.assertEqual(decision(member, api), "allow", api)
 
+    def test_default_deny_keeps_the_ui_needed_allows_and_the_new_user_apis(self):
+        user = {r["name"]: r for r in sync.load_roles(REPO_ROLES)}["SNUCSE User"]
+        self.assertEqual(user["rules"][-1], ("*", "deny"))
+        self.assertEqual([rule for rule, permission in user["rules"][:-1] if permission != "allow"], [])
+        allows = [rule for rule, permission in user["rules"] if permission == "allow"]
+        # one command per allow: a wildcard is a case-insensitive substring and would open every command containing it
+        self.assertEqual([rule for rule in allows if not re.fullmatch(r"[A-Za-z]+", rule)], [])
+        self.assertEqual(len(set(STUDENT_UI_COMMANDS)), len(STUDENT_UI_COMMANDS))
+        self.assertEqual(sorted(allows), sorted(STUDENT_UI_COMMANDS))
+        for api in STUDENT_UI_COMMANDS:
+            self.assertEqual(decision(user, api), "allow", api)
+            self.assertEqual(decision(user, api.lower()), "allow", api)
+        # the placement, quota request and lease commands: their annotation no longer reaches a default-deny role
+        for api in ("checkPlacement", "listPlacementCapacity", "createResourceLimitRequest", "listResourceLimitRequests",
+                    "cancelResourceLimitRequest", "renewVirtualMachineLease"):
+            self.assertIn((api, "allow"), user["rules"])
+
+    def test_default_deny_closes_what_the_student_ui_does_not_offer(self):
+        user = {r["name"]: r for r in sync.load_roles(REPO_ROLES)}["SNUCSE User"]
+        # no allow reaches a command that merely resembles an allowed one, or one an old wildcard deny matched by
+        # accident (*Iso* in listHypervisorCapabilities, *Nic* in listCniConfiguration)
+        for api in ("createSnapshotFromVMSnapshot", "listVolumesForImport", "listZonesMetrics", "listHypervisorCapabilities",
+                    "listCniConfiguration", "listSystemVmsUsageHistory", "listEventTypes", "listVMSnapshot"):
+            self.assertEqual(decision(user, api), "deny", api)
+        # what the student UI no longer offers, so the role no longer allows
+        for api in ("archiveEvents", "deleteEvents", "listGpuDevices", "listNetworks", "listSecurityGroups", "listIsos",
+                    "createTemplate", "attachIso", "createSSHKeyPair", "listAffinityGroups", "updateVMAffinityGroup",
+                    "listInstanceGroups", "listUserData", "resetUserDataForVirtualMachine", "listAnnotations",
+                    "listDetailOptions", "uploadVolume", "getUploadParamsForVolume", "changeOfferingForVolume",
+                    "changeServiceForVirtualMachine", "expungeVirtualMachine", "recoverVirtualMachine",
+                    "setVirtualMachineLease", "listLdapConfigurations", "listHypervisors", "listHosts", "updateUser"):
+            self.assertEqual(decision(user, api), "deny", api)
+
     def test_repository_catalog(self):
         roles = {r["name"]: r for r in sync.load_roles(REPO_ROLES)}
         member = roles["Bacchus Member"]
@@ -1036,9 +1097,9 @@ class RoleCatalogTest(unittest.TestCase):
             self.assertEqual(decision(member, api), "allow", api)
         user = roles["SNUCSE User"]
         self.assertEqual(user["type"], "User")
-        self.assertEqual(len(user["rules"]), 166)
-        self.assertIn(("*Template*", "deny"), user["rules"])
-        self.assertIn(("updateUser", "deny"), user["rules"])
+        self.assertEqual(len(user["rules"]), len(STUDENT_UI_COMMANDS) + 1)
+        self.assertEqual(user["rules"][-1], ("*", "deny"))
+        self.assertEqual(decision(user, "updateUser"), "deny")
         self.assertNotIn(("updateUser", "allow"), user["rules"])
 
         for api in ("createWebhook", "createBucket", "createKubernetesCluster", "createSharedFileSystem",
@@ -1048,10 +1109,10 @@ class RoleCatalogTest(unittest.TestCase):
                     "createVMSnapshot", "revertToVMSnapshot", "deleteVMSnapshot", "listVMSnapshot",
                     "createSnapshotFromVMSnapshot"):
             self.assertEqual(decision(user, api), "deny", api)
-        # implicitly allowed commands the UI needs stay unmatched
+        # the commands the UI calls that no role type annotation would reach once the role is default-deny
         for api in ("listGuiThemes", "createConsoleEndpoint", "listVirtualMachinesMetrics", "listResourceIcon",
-                    "listDetailOptions", "getUserKeys", "recoverVolume"):
-            self.assertIsNone(decision(user, api), api)
+                    "getUserKeys", "recoverVolume"):
+            self.assertIn((api, "allow"), user["rules"])
         for api in ("createSnapshotPolicy", "listSnapshotPolicies", "deployVirtualMachine", "listVolumes",
                     "createSnapshot", "listSnapshots", "revertSnapshot", "deleteSnapshot"):
             self.assertEqual(decision(user, api), "allow", api)
@@ -1060,14 +1121,14 @@ class RoleCatalogTest(unittest.TestCase):
         for api in ("checkPlacement", "listPlacementCapacity"):
             self.assertIn((api, "allow"), user["rules"])
             self.assertEqual(decision(user, api), "allow", api)
-        self.assertIsNone(decision(user, "updateHostMoveRate"))
+        self.assertEqual(decision(user, "updateHostMoveRate"), "deny")
         # resource limit requests: users ask, cancel and list their own; the role must not rely on the annotation fallback,
         # and the decisions stay with the roles that reach them through other rules
         for api in ("createResourceLimitRequest", "listResourceLimitRequests", "cancelResourceLimitRequest"):
             self.assertIn((api, "allow"), user["rules"])
             self.assertEqual(decision(user, api), "allow", api)
         for api in ("approveResourceLimitRequest", "rejectResourceLimitRequest", "revokeResourceLimitRequest"):
-            self.assertIsNone(decision(user, api), api)
+            self.assertEqual(decision(user, api), "deny", api)
             self.assertEqual(decision(member, api), "allow", api)
         # users renew the lease of their running instances; setting a lease stays with the roles that reach the admin API
         self.assertIn(("renewVirtualMachineLease", "allow"), user["rules"])
@@ -1244,6 +1305,59 @@ class LoginPageTest(unittest.TestCase):
         # the stock OAuth sign-in is gone from the server; no rule names it any more
         rules = [rule for role in sync.load_roles(REPO_ROLES) for rule, _ in role["rules"]]
         self.assertEqual([rule for rule in rules if "oauth" in rule.lower()], [])
+
+
+# the locales of the UI's language menu, in its order
+UI_LANGUAGES = ("en", "hi", "te", "ja_JP", "ko_KR", "zh_CN", "ar", "ca", "de_DE", "es", "fr_FR", "it_IT", "hu", "nl_NL",
+                "nb_NO", "pl", "pt_BR", "ru_RU", "el_GR")
+
+
+class UiConfigTest(unittest.TestCase):
+    def setUp(self):
+        with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "ui", "config.json")) as f:
+            self.config = json.load(f)
+
+    def test_the_ui_hides_for_users_only_what_their_role_cannot_express(self):
+        hidden = self.config["hidden"]
+        self.assertEqual(sorted(hidden), ["User"], "Bacchus members and root keep the full UI")
+        user = hidden["User"]
+        # pages whose list command the student UI still needs elsewhere: the menu entry goes, the route stays
+        self.assertEqual(sorted(user["sidebar"]), sorted(["template", "snapshotpolicy", "event", "account", "zones",
+                                                           "computeoffering", "diskoffering", "apidocs"]))
+        self.assertEqual(user["header"], [])
+        for row in ("project", "template", "network", "bucket"):
+            self.assertIn(row, user["dashboard"])
+        for kept in ("vm", "cpu", "memory", "gpu", "volume", "storage", "gpuslots", "leases", "requests", "help", "events"):
+            self.assertNotIn(kept, user["dashboard"])
+        self.assertEqual(user["deploy"], ["imagetype.snapshotid", "dynamicscalingenabled", "keyboard"])
+        self.assertEqual(user["actions"], ["vm.createSnapshot"])
+        for field in ("vm.name", "vm.state", "vm.serviceofferingname", "vm.gpucardname", "vm.gpucount", "vm.leaseexpirydate"):
+            self.assertNotIn(field, user["details"])
+        # one zone, and the instance's state is on the instance list
+        self.assertEqual(user["columns"], ["volume.vmstate", "volume.zonename"])
+        # what a role cannot call is never listed here: the API list hides it
+        for entry in user["sidebar"]:
+            self.assertNotIn(entry, ("guestnetwork", "vpc", "securitygroups", "vmsnapshot", "kubernetes", "iso"))
+
+    def test_the_header_offers_the_manual_and_two_languages(self):
+        # students get en and ko_KR; Bacchus members and root keep every language
+        self.assertNotIn("languages", self.config)
+        hidden_languages = self.config["hidden"]["User"]["languages"]
+        self.assertLessEqual(set(hidden_languages), set(UI_LANGUAGES))
+        self.assertEqual([key for key in UI_LANGUAGES if key not in hidden_languages], ["en", "ko_KR"])
+        self.assertEqual(self.config["docBase"], "https://docs.cloud.snucse.org")
+        self.assertIs(self.config["allowSettingTheme"], False)
+        self.assertIs(self.config["showGpuSlots"], True)
+        self.assertIs(self.config["showCpuSpeed"], False)
+        for link in self.config["userCard"]["links"]:
+            self.assertNotIn("apache.org", link["link"])
+        # the pages users work in open the manual; any other help opens the upstream guides of this release
+        mappings = self.config["docHelpMappings"]
+        self.assertEqual(mappings["adminguide/virtual_machines.html"], "instance.html")
+        self.assertEqual(mappings["adminguide/storage.html"], "instance.html")
+        for prefix in ("adminguide/", "installguide/", "conceptsandterminology/", "plugins/"):
+            self.assertEqual(mappings[prefix], "https://docs.cloudstack.apache.org/en/4.23.0.0/" + prefix)
+        self.assertLess(list(mappings).index("adminguide/storage.html"), list(mappings).index("adminguide/"))
 
 
 class SyncOidcProvidersTest(unittest.TestCase):
