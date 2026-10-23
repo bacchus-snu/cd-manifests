@@ -97,6 +97,7 @@ all:
           housekeeping_cores: {0: 1}
           host_reserve_gib: 2
           qemu_overhead_gib: 1
+          partition_agent_values: true
         eggnog:
           ansible_host: eggnog.snucse.org
           campus_ip: 147.46.240.145
@@ -111,6 +112,7 @@ all:
           housekeeping_cores: {0: 1}
           host_reserve_gib: 2
           qemu_overhead_gib: 1
+          partition_agent_values: true
         faust:
           ansible_host: faust.snucse.org
           campus_ip: 147.46.241.137
@@ -125,6 +127,7 @@ all:
           housekeeping_cores: {0: 1}
           host_reserve_gib: 2
           qemu_overhead_gib: 1
+          partition_agent_values: true
         cojito:
           ansible_host: cojito.snucse.org
           campus_ip: 147.46.240.221
@@ -139,6 +142,7 @@ all:
           housekeeping_cores: {0: 1}
           host_reserve_gib: 2
           qemu_overhead_gib: 1
+          partition_agent_values: true
         jackdaniels:
           ansible_host: jackdaniels.snucse.org
           campus_ip: 147.46.242.203
