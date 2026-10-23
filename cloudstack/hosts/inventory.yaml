@@ -165,6 +165,7 @@ all:
           housekeeping_cores: {1: 1}
           host_reserve_gib: 4
           qemu_overhead_gib: 2
+          partition_agent_values: true
     # hosts that hold the guest overlay gateway VIP and NAT guest traffic to the campus
     cloudstack_gateway:
       hosts:
