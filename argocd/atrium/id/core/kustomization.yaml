@@ -15,4 +15,4 @@ labels:
 images:
   - name: id-core
     newName: ghcr.io/bacchus-snu/bacchus-id/core
-    newTag: 20261022-f20c3a4
+    newTag: 20261023-26ebd8a
