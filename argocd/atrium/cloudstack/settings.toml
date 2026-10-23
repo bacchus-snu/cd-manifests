@@ -376,6 +376,29 @@ value = 21600
 
 # GPU lease
 
+# GPU instances stop when their lease (the compute catalog's lease_hours)
+# ends unless renewed, with warnings 4 and 1 hours before; both schedulers
+# run every 5 minutes (read at start)
+[[setting]]
+key = "instance.lease.enabled"
+value = true
+
+[[setting]]
+key = "instance.lease.scheduler.interval"
+value = 300
+
+[[setting]]
+key = "instance.lease.eventscheduler.interval"
+value = 300
+
+[[setting]]
+key = "instance.lease.expiryevent.hoursbefore"
+value = "4,1"
+
+[[setting]]
+key = "instance.lease.renewal.enabled"
+value = true
+
 # Mail of the quota requests, once a relay exists: uncomment and fill in, and
 # give the job the password from Vault as RESOURCE_REQUEST_SMTP_PASSWORD
 # (sync.yaml).
