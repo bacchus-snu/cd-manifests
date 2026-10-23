@@ -1137,6 +1137,34 @@ class RoleCatalogTest(unittest.TestCase):
         self.assertEqual(decision(member, "setVirtualMachineLease"), "allow")
 
 
+class OfferingLeaseTest(unittest.TestCase):
+    def test_lease_comes_from_the_catalog_type(self):
+        self.assertEqual(sync.offering_lease({"name": "a100-40g", "lease_hours": 36}),
+                         {"leasehours": "36", "leaseexpiryaction": "STOP"})
+        self.assertEqual(sync.offering_lease({"name": "a6000", "lease_hours": 48, "lease_expiry_action": "DESTROY"}),
+                         {"leasehours": "48", "leaseexpiryaction": "DESTROY"})
+        self.assertEqual(sync.offering_lease({"name": "cpu"}), {}, "a type without lease_hours has no lease")
+        for bad in ({"lease_hours": 0}, {"lease_hours": -1}, {"lease_hours": "36"}, {"lease_hours": True},
+                    {"lease_hours": 36, "lease_expiry_action": "PAUSE"}):
+            with self.assertRaises(ValueError, msg=str(bad)):
+                sync.offering_lease({"name": "t", **bad})
+
+    def test_lease_change_is_in_place(self):
+        type_36 = {"name": "a100-40g", "lease_hours": 36}
+        live = {"id": "o-1", "name": "a100-40g-1", "leasehours": 36, "leaseexpiryaction": "STOP"}
+        self.assertEqual(sync.offering_lease_update(live, type_36), {}, "in step")
+        self.assertEqual(sync.offering_lease_update(live, {**type_36, "lease_hours": 48}),
+                         {"leasehours": "48", "leaseexpiryaction": "STOP"})
+        self.assertEqual(sync.offering_lease_update(live, {**type_36, "lease_expiry_action": "DESTROY"}),
+                         {"leasehours": "36", "leaseexpiryaction": "DESTROY"})
+        self.assertEqual(sync.offering_lease_update({"id": "o-2"}, type_36), {"leasehours": "36", "leaseexpiryaction": "STOP"},
+                         "an offering without a lease gets the type's")
+        self.assertEqual(sync.offering_lease_update(live, {"name": "a100-40g"}), {"leasehours": "0"},
+                         "a type that no longer has lease_hours removes the lease")
+        self.assertEqual(sync.offering_lease_update({"id": "o-3", "leaseexpiryaction": "STOP"}, {"name": "cpu"}), {},
+                         "an offering without leasehours has no lease to remove")
+
+
 class SyncRolesTest(unittest.TestCase):
     def setUp(self):
         self.calls = []

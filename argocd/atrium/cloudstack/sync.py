@@ -590,6 +590,37 @@ def load_catalog(path=CATALOG_PATH):
     return catalog
 
 
+LEASE_EXPIRY_ACTIONS = ("STOP", "DESTROY")
+
+
+def offering_lease(spec):
+    """The lease a compute offering gives each session of its instances, from a
+    catalog GPU type or the cpu_only section: createServiceOffering /
+    updateServiceOffering parameters, or {} for a spec without lease_hours."""
+    hours = spec.get("lease_hours")
+    if hours is None:
+        return {}
+    if isinstance(hours, bool) or not isinstance(hours, int) or hours < 1:
+        raise ValueError(f"{spec.get('name', '?')}: lease_hours must be a whole number of hours of 1 or more, not {hours!r}")
+    action = spec.get("lease_expiry_action", "STOP")
+    if action not in LEASE_EXPIRY_ACTIONS:
+        raise ValueError(f"{spec.get('name', '?')}: lease_expiry_action must be one of {LEASE_EXPIRY_ACTIONS}, not {action!r}")
+    return {"leasehours": str(hours), "leaseexpiryaction": action}
+
+
+def offering_lease_update(live, spec):
+    """The updateServiceOffering parameters that bring a live offering's lease to
+    the spec's, in place (running instances keep theirs until their next start or
+    renewal); {} when it is in step, leasehours 0 when the spec no longer has one."""
+    wanted = offering_lease(spec)
+    if not wanted:
+        return {"leasehours": "0"} if live.get("leasehours") is not None else {}
+    if live.get("leasehours") is not None and str(live["leasehours"]) == wanted["leasehours"] \
+            and live.get("leaseexpiryaction", "STOP") == wanted["leaseexpiryaction"]:
+        return {}
+    return wanted
+
+
 def sync_templates(catalog):
     """Register catalogued templates that are missing, keep their public and
     featured flags, and hide user templates that are not in the catalog.
