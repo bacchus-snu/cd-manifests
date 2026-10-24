@@ -1352,6 +1352,16 @@ class UiConfigTest(unittest.TestCase):
         with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "ui", "config.json")) as f:
             self.config = json.load(f)
 
+    def test_the_instance_page_names_the_bastion_and_the_account_it_logs_in_as(self):
+        here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        access = self.config["instanceAccess"]
+        with open(os.path.join(here, "warpgate-config.yaml")) as f:
+            ssh_port = int(re.search(r"^ssh:\n(?:  .*\n)*?  listen: \"[^\"]*:(\d+)\"", f.read(), re.M).group(1))
+        self.assertEqual((access["sshHost"], access["sshPort"]), ("cloud.snucse.org", ssh_port))
+        # the page looks the account up by template family, the bastion by template: they must agree
+        for entry in sync.load_catalog(os.path.join(here, "templates.toml")):
+            self.assertEqual(access["loginAccounts"].get(entry["name"].split("-")[0].lower()), entry["user"], entry["name"])
+
     def test_the_ui_hides_for_users_only_what_their_role_cannot_express(self):
         hidden = self.config["hidden"]
         self.assertEqual(sorted(hidden), ["User"], "Bacchus members and root keep the full UI")

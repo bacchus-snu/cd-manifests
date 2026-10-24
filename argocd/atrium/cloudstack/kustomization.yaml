@@ -69,4 +69,4 @@ images:
     newTag: 1.31-alpine
   - name: cloudstack-management
     newName: ghcr.io/bacchus-snu/cloud/management
-    newTag: 4.23.0.100-snucse.6
+    newTag: 4.23.0.100-snucse.7

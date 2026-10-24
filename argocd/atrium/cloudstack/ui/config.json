@@ -98,6 +98,20 @@
   "displayProjectFieldOnLogin": false,
   "foldPasswordLogin": true,
   "foldedLoginProviders": ["bacchus"],
+  "instanceAccess": {
+    "sshHost": "cloud.snucse.org",
+    "sshPort": 2222,
+    "loginAccounts": {
+      "ubuntu": "ubuntu",
+      "debian": "debian",
+      "fedora": "fedora",
+      "rocky": "rocky",
+      "almalinux": "almalinux",
+      "opensuse": "opensuse",
+      "arch": "arch",
+      "alpine": "alpine"
+    }
+  },
   "imageSelectionInterface": "modern",
   "showUserCategoryForModernImageSelection": true,
   "showAllCategoryForModernImageSelection": false,
