@@ -2,7 +2,7 @@
 all:
   vars:
     ansible_user: root
-    cloudstack_version: 4.23.0.100+snucse.5
+    cloudstack_version: 4.23.0.100+snucse.6
     apt_repo: https://repo.snucse.org/debian
     apt_keyring_url: https://repo.snucse.org/debian/bacchus-archive-keyring.gpg
     campus_dns: [147.46.80.1, 8.8.8.8]
