@@ -56,9 +56,6 @@ role = "Bacchus Member"
 jit = true
 end_session_url = "https://dev-1p1l3bz6kxwkga5k.us.auth0.com/oidc/logout"
 end_session_label = "Bacchus 로그아웃"
-# off until the Auth0 application "cloudstack" lists the redirect URI
-# https://cloud.snucse.org/client/oidc/callback/bacchus
-enabled = false
 refusal = """<p>Bacchus 로그인은 <b>Bacchus 정회원</b>(regular-members@bacchus.snucse.org)만 쓸 수 있습니다.</p>
 <p>학생으로 쓰려면 <a href="/client/api?command=oidcLogin&amp;provider=snucse">SNUCSE ID로 로그인</a>하세요. 정회원인데 이 화면이 나오면 Bacchus에 문의하세요.</p>
 <p>자세한 내용은 <a href="https://docs.cloud.snucse.org/">사용 안내</a>를 보세요.</p>"""

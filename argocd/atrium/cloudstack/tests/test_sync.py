@@ -1270,7 +1270,7 @@ class ProvidersFromIdpsTomlTest(unittest.TestCase):
         self.assertEqual(bacchus["endsessionurl"], bacchus["issuer"] + "oidc/logout")
         self.assertTrue(snucse["endsessionlabel"] and bacchus["endsessionlabel"])
         self.assertEqual((snucse["cacertificate"], bacchus["cacertificate"]), ("", ""))
-        self.assertEqual((snucse["enabled"], bacchus["enabled"]), (True, False))
+        self.assertEqual((snucse["enabled"], bacchus["enabled"]), (True, True))
         self.assertEqual(providers["snucse"]["membership_source"], {})
         self.assertEqual(providers["bacchus"]["membership_source"], {})
         for p in (snucse, bacchus):
@@ -1320,6 +1320,13 @@ class LoginPageTest(unittest.TestCase):
         self.assertNotIn("/gate/", config["loginFooter"])
         self.assertNotIn("cs-password-login", config["loginFooter"])
         self.assertNotIn("user-layout-login", config["loginFooter"])
+
+    def test_only_the_student_sign_in_is_listed(self):
+        with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "ui", "config.json")) as f:
+            config = json.load(f)
+        names = [p["name"] for p in sync.load_providers(REPO_PROVIDERS)]
+        # every other provider sits in the folded section with the password form
+        self.assertEqual(sorted(config["foldedLoginProviders"]), sorted(name for name in names if name != "snucse"))
 
     def test_no_other_way_in(self):
         here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

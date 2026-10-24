@@ -97,6 +97,7 @@
   "allowSettingTheme": false,
   "displayProjectFieldOnLogin": false,
   "foldPasswordLogin": true,
+  "foldedLoginProviders": ["bacchus"],
   "imageSelectionInterface": "modern",
   "showUserCategoryForModernImageSelection": true,
   "showAllCategoryForModernImageSelection": false,
