@@ -27,6 +27,31 @@ spec:
     - kind: StatefulSet
       name: warpgate
 ---
+# keys: client-ed25519, client-rsa (what Warpgate signs in to guests with, as
+# OpenSSH private keys; guests trust only the keys they were created with),
+# host-ed25519, host-rsa (the gateway's host keys, pinned by every SSH client;
+# the exact text the database holds). No passphrases. Warpgate keeps its keys
+# in its database: the setup container creates every database from these and
+# refuses to start one whose host keys differ, and the sync job holds the
+# client keys to them. Warpgate restarts when they change, so that a changed
+# host key meets that check at once rather than at some later restart.
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: warpgate-ssh-keys
+spec:
+  vaultAuthRef: default
+  type: kv-v2
+  mount: secret
+  path: cloudstack/warpgate-ssh-keys
+  refreshAfter: 5m
+  destination:
+    create: true
+    name: warpgate-ssh-keys
+  rolloutRestartTargets:
+    - kind: StatefulSet
+      name: warpgate
+---
 # Warpgate refuses to serve HTTP without a certificate, and the sync job and the
 # sidecar verify it by this name
 apiVersion: cert-manager.io/v1
@@ -79,19 +104,46 @@ spec:
         fsGroup: 1000
         runAsNonRoot: true
       initContainers:
-        # first boot: host keys, database and the admin user; every boot: our
-        # configuration with the secret filled in
+        # Warpgate generates random keys for any it finds missing, so: without a
+        # database, one is built aside from all four declared keys and moved in
+        # only when it passes the check; every boot, the database must hold the
+        # declared host keys (as plain text) and some client key, or Warpgate
+        # does not start; then our configuration with the secret filled in
         - name: setup
           image: warpgate # replaced by kustomize
           command:
             - sh
             - -ec
             - |
-              if [ ! -f /data/warpgate.yaml ]; then
+              keys=/ssh-keys db=/data/db/db.sqlite3
+              text() { tr -d '\r' | sed '/^[[:space:]]*$/d'; }
+              check() {
+                for k in ed25519 rsa; do
+                  held=$(sqlite3 -readonly "$1" "select ssh_host_key_$k from parameters" | text || true)
+                  [ -n "$held" ] || { echo "the database holds no $k host key" >&2; return 1; }
+                  if [ -s $keys/host-$k ] && [ "$held" != "$(text < $keys/host-$k)" ]; then
+                    echo "the database holds another $k host key than the declared one" >&2
+                    return 1
+                  fi
+                done
+                [ "$(sqlite3 -readonly "$1" 'select count(*) from ssh_client_keys' || true)" -gt 0 ] 2>/dev/null ||
+                  { echo "the database holds no client key" >&2; return 1; }
+              }
+              if [ ! -f $db ]; then
+                for k in client-ed25519 client-rsa host-ed25519 host-rsa; do
+                  [ -s $keys/$k ] || { echo "no database and no declared $k: not creating one" >&2; exit 1; }
+                done
+                rm -rf /data/db /data/db.new /data/warpgate.yaml
                 warpgate --config /data/warpgate.yaml unattended-setup \
-                  --data-path /data --http-port 8888 --ssh-port 2222 \
-                  --external-host login.cloud.snucse.org --host-key-verification auto-accept
+                  --data-path /data --database-url sqlite:/data/db.new --http-port 8888 --ssh-port 2222 \
+                  --external-host login.cloud.snucse.org --host-key-verification auto-accept \
+                  --import-ssh-host-keys $keys --import-ssh-client-keys $keys
+                check /data/db.new/db.sqlite3
+                rm -rf /data/db
+                mv /data/db.new /data/db
+                chmod 700 /data/db
               fi
+              check $db
               sed -e "s|\${OIDC_CLIENT_SECRET}|$OIDC_CLIENT_SECRET|" \
                 -e "s|\${BACCHUS_CLIENT_ID}|$BACCHUS_CLIENT_ID|" \
                 -e "s|\${BACCHUS_CLIENT_SECRET}|$BACCHUS_CLIENT_SECRET|" \
@@ -125,6 +177,9 @@ spec:
               mountPath: /data
             - name: config
               mountPath: /config
+            - name: ssh-keys
+              mountPath: /ssh-keys
+              readOnly: true
       containers:
         - name: warpgate
           image: warpgate # replaced by kustomize
@@ -189,6 +244,21 @@ spec:
         - name: config
           configMap:
             name: warpgate-config
+        # optional: a database that exists does not need them to serve
+        - name: ssh-keys
+          secret:
+            secretName: warpgate-ssh-keys
+            optional: true
+            defaultMode: 0440
+            items:
+              - key: client-ed25519
+                path: client-ed25519
+              - key: client-rsa
+                path: client-rsa
+              - key: host-ed25519
+                path: host-ed25519
+              - key: host-rsa
+                path: host-rsa
         - name: tls
           secret:
             secretName: warpgate-tls

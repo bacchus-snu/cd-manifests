@@ -1,14 +1,16 @@
 # Warpgate configuration. Rendered over /data/warpgate.yaml by the init
 # container, which substitutes the ${...} values from the Secret.
 # Recording, host-key verification mode and the admin user live in the database
-# after first boot and are managed through the admin API, not here.
+# after first boot and are managed through the admin API, not here. So do the
+# SSH host and client keys: `ssh.keys`, a directory whose key files Warpgate
+# imports into the database at every start (deprecated), is left out, and its
+# default, data/keys beside the rendered file, holds none.
 external_host: login.cloud.snucse.org
 database_url: sqlite:/data/db
 
 ssh:
   enable: true
   listen: "0.0.0.0:2222"
-  keys: /data/ssh-keys
   host_key_verification: auto_accept
 
 http:

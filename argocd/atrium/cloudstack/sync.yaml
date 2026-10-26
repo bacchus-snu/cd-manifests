@@ -193,6 +193,9 @@ spec:
                 - name: console-tls
                   mountPath: /etc/console-tls
                   readOnly: true
+                - name: warpgate-client-keys
+                  mountPath: /etc/warpgate-client-keys
+                  readOnly: true
               resources:
                 requests:
                   cpu: 20m
@@ -215,3 +218,15 @@ spec:
                     path: tls.crt
                   - key: tls.key
                     path: tls.key
+            # the client keys Warpgate must hold (warpgate.yaml), not its host
+            # keys; optional so that, without them, the run fails having done
+            # everything but the client keys and the user data that trusts them
+            - name: warpgate-client-keys
+              secret:
+                secretName: warpgate-ssh-keys
+                optional: true
+                items:
+                  - key: client-ed25519
+                    path: client-ed25519
+                  - key: client-rsa
+                    path: client-rsa

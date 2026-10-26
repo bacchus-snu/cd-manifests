@@ -2,8 +2,9 @@
 Kubernetes and the certificate the console proxies serve, the users, roles
 and targets of the Warpgate bastion, and the user data that brings guests
 from the templates onto the network and makes them trust the bastion. It also
-drops the records of management servers that are gone. Runs once per
-invocation; the CronJob provides the cadence."""
+keeps the bastion's client keys to the declared ones and drops the records of
+management servers that are gone. Runs once per invocation; the CronJob
+provides the cadence."""
 
 import base64
 import hashlib
@@ -37,6 +38,11 @@ WARPGATE_TOKEN = (os.environ.get("BASTION_TOKEN") or "").strip()
 # CloudStack domain path -> Warpgate SSO provider its users sign in with, e.g.
 # "ROOT=bacchus,ROOT/snucse=snucse"; users of other domains are not mirrored
 WARPGATE_SSO = os.environ.get("BASTION_SSO", "")
+# the client keys Warpgate signs in to guests with: one OpenSSH private key
+# file per key, named by its label (the names Warpgate's setup imports)
+WARPGATE_CLIENT_KEYS_DIR = os.environ.get("BASTION_CLIENT_KEYS_DIR", "/etc/warpgate-client-keys")
+WARPGATE_CLIENT_KEY_LABELS = ("client-ed25519", "client-rsa")
+OPENSSH_KEY_ARMOR = ("-----BEGIN OPENSSH PRIVATE KEY-----", "-----END OPENSSH PRIVATE KEY-----")
 # what Warpgate logs in as on the guests: the templates' default user
 GUEST_USER = os.environ.get("GUEST_USER", "ubuntu")
 # CloudStack's built-in accounts, never mirrored
@@ -1588,19 +1594,100 @@ def sync_warpgate():
             print(f"warpgate role {name} removed")
 
 
-def sync_template_userdata():
+def ssh_string(data, pos):
+    """The length-prefixed string at pos of the SSH wire format (RFC 4251), and
+    the position after it."""
+    end = pos + 4 + int.from_bytes(data[pos:pos + 4], "big")
+    if pos + 4 > len(data) or end > len(data):
+        raise ValueError("truncated key")
+    return data[pos + 4:end], end
+
+
+def openssh_public_key(text):
+    """The "<algorithm> <base64>" public key of an unencrypted OpenSSH private
+    key, which the key file carries in its clear header (PROTOCOL.key)."""
+    lines = text.strip().splitlines()
+    if len(lines) < 3 or (lines[0].strip(), lines[-1].strip()) != OPENSSH_KEY_ARMOR:
+        raise ValueError("not an OpenSSH private key")
+    blob = base64.b64decode("".join(line.strip() for line in lines[1:-1]), validate=True)
+    magic = b"openssh-key-v1\0"
+    if not blob.startswith(magic):
+        raise ValueError("not an OpenSSH private key")
+    cipher, pos = ssh_string(blob, len(magic))
+    kdf, pos = ssh_string(blob, pos)
+    _, pos = ssh_string(blob, pos)
+    if (cipher, kdf) != (b"none", b"none"):
+        raise ValueError("protected by a passphrase")
+    if blob[pos:pos + 4] != (1).to_bytes(4, "big"):
+        raise ValueError("not exactly one key")
+    public, _ = ssh_string(blob, pos + 4)
+    algorithm, _ = ssh_string(public, 0)
+    return f"{algorithm.decode()} {base64.b64encode(public).decode()}"
+
+
+def ssh_fingerprint(public_key):
+    """OpenSSH's SHA256 fingerprint of a "<algorithm> <base64>" public key."""
+    digest = hashlib.sha256(base64.b64decode(public_key.split()[1])).digest()
+    return "SHA256:" + base64.b64encode(digest).decode().rstrip("=")
+
+
+def declared_client_keys(directory=None):
+    """{label: (private key, public key)} of the client keys Warpgate must hold.
+    A label without its key fails rather than shrinking the declaration, which
+    would take that key from Warpgate."""
+    directory = directory or WARPGATE_CLIENT_KEYS_DIR
+    keys = {}
+    for label in WARPGATE_CLIENT_KEY_LABELS:
+        try:
+            with open(os.path.join(directory, label)) as f:
+                secret = f.read()
+            keys[label] = (secret, openssh_public_key(secret))
+        except (OSError, ValueError) as e:
+            raise RuntimeError(f"warpgate client key {label}: {e}") from None
+    if len({public for _, public in keys.values()}) < len(keys):
+        raise RuntimeError("warpgate client keys: the same key under two labels")
+    return keys
+
+
+def sync_client_keys(declared):
+    """Warpgate signs in to guests with exactly the declared keys, each a
+    default key (offered to every target). The declared ones go in before any
+    other key goes, as Warpgate always keeps one. Guests trust only the keys
+    they were created with, so retiring a key cuts Warpgate off from every
+    guest that trusts no other declared key; a declaration that keeps none of
+    the held keys would do that to every guest at once and is refused. Returns
+    the declared public keys."""
+    held = {k["public_key"]: k for k in warpgate("GET", "/ssh/own-keys")[1] or []}
+    wanted = {public for _, public in declared.values()}
+    if held and not wanted & held.keys():
+        raise RuntimeError("warpgate client keys: the declaration keeps none of the keys Warpgate holds, "
+                           "so no existing guest would accept Warpgate")
+    for label, (secret, public) in declared.items():
+        key = held.get(public)
+        if key is None:
+            status, made = warpgate("POST", "/ssh/own-keys", {"label": label, "secret_key": secret, "is_default": True})
+            # a conflict means Warpgate already holds this key under another public key text
+            if status == 409 or made["public_key"] != public:
+                raise RuntimeError(f"warpgate client key {label}: Warpgate reads it as a different key")
+            print(f"warpgate client key {label} imported ({ssh_fingerprint(public)})")
+        elif key["label"] != label or not key["is_default"]:
+            warpgate("PUT", f"/ssh/own-keys/{key['id']}", {"label": label, "is_default": True})
+            print(f"warpgate client key {label}: label and default flag set")
+    for public, key in held.items():
+        if public not in wanted:
+            warpgate("DELETE", f"/ssh/own-keys/{key['id']}")
+            print(f"warpgate client key {key['label']} removed ({ssh_fingerprint(public)})")
+    return sorted(wanted)
+
+
+def sync_template_userdata(public_keys):
     """Every user template gets the managed user data appended, so a VM from
-    any template reaches the network and accepts the bastion without anyone
-    copying keys. A template that links some other user data is someone's
-    deliberate choice and is left alone. Stale managed user data is removed
-    once unlinked."""
-    keys = warpgate("GET", "/ssh/own-keys")[1] or []
-    public = [k["public_key"] for k in keys if k.get("is_default")] or [k["public_key"] for k in keys]
-    if not public:
-        print("warning: warpgate has no client keys; template user data not managed")
-        return
+    any template reaches the network and accepts the bastion's client keys
+    without anyone copying keys. A template that links some other user data is
+    someone's deliberate choice and is left alone. Stale managed user data is
+    removed once unlinked."""
     networks = cloudstack_list("listNetworks", "network", listall="true")
-    script = render_userdata(public, network_mtus(networks))
+    script = render_userdata(public_keys, network_mtus(networks))
     name = userdata_name(script)
 
     existing = {u["name"]: u for u in cloudstack_list("listUserData", "userdata", listall="true")}
@@ -1640,12 +1727,22 @@ def main():
     unreconciled = sync_oidc_providers()
     unapplied = sync_settings()
     unsynced = sync_compute_catalog()
+    unkeyed = False
     if WARPGATE_HOST and WARPGATE_TLS_NAME and WARPGATE_TOKEN:
         sync_warpgate()
-        sync_template_userdata()
+        # the keys hold back only the user data that trusts them
+        try:
+            public_keys = sync_client_keys(declared_client_keys())
+        except Exception as e:
+            unkeyed = True
+            print(f"error: {e}")
+        else:
+            sync_template_userdata(public_keys)
     # last: a failed upload fails the run without holding back the rest
     restore_console_proxy_state()
     sync_console_certificate()
+    if unkeyed:
+        raise RuntimeError("warpgate client keys not reconciled")
     if unreconciled:
         raise RuntimeError(f"OpenID providers not reconciled: {', '.join(unreconciled)}")
     if unapplied:

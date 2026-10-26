@@ -4,6 +4,7 @@ import io
 import json
 import os
 import re
+import shutil
 import ssl
 import subprocess
 import sys
@@ -461,16 +462,16 @@ class TemplateUserDataTest(unittest.TestCase):
                 return {"network": [{"name": "guest", "cidr": "10.94.0.0/16", "privatemtu": 1450}]}
             return {}
 
-        def fake_wg(method, path, body=None):
-            return 200, [{"public_key": "ssh-ed25519 AAA warpgate", "is_default": True}]
+        def no_wg(method, path, body=None):
+            raise AssertionError("the user data follows the declared keys, not Warpgate")
         self._orig = (sync.cloudstack, sync.warpgate)
-        sync.cloudstack, sync.warpgate = fake_cs, fake_wg
+        sync.cloudstack, sync.warpgate = fake_cs, no_wg
 
     def tearDown(self):
         sync.cloudstack, sync.warpgate = self._orig
 
     def test_registers_links_and_cleans_up(self):
-        sync.sync_template_userdata()
+        sync.sync_template_userdata(["ssh-ed25519 AAA warpgate"])
         cmds = [c for c, _ in self.calls]
         self.assertIn("registerUserData", cmds)
         links = [p for c, p in self.calls if c == "linkUserDataToTemplate"]
@@ -486,6 +487,263 @@ class TemplateUserDataTest(unittest.TestCase):
         self.assertIn('mtus = {"10.94.0.0/16": 1450}', registered)
         self.assertIn("cloudstack/password/vm_password.txt", registered)
         self.assertNotIn("data-server", registered)
+        self.assertIn("ssh-ed25519 AAA warpgate\n", registered)
+
+
+def openssh_key(algorithm=b"ssh-ed25519", key=b"\x01" * 32, cipher=b"none", kdf=b"none", count=1):
+    """An OpenSSH private key file around a made-up public key, and that public
+    key; the private section is filler, as only the header is read."""
+    def s(data):
+        return len(data).to_bytes(4, "big") + data
+    public = s(algorithm) + s(key)
+    blob = (b"openssh-key-v1\0" + s(cipher) + s(kdf) + s(b"") + count.to_bytes(4, "big")
+            + s(public) + s(b"\0" * 64))
+    body = base64.b64encode(blob).decode()
+    text = "\n".join(["-----BEGIN OPENSSH PRIVATE KEY-----", *(body[i:i + 70] for i in range(0, len(body), 70)),
+                      "-----END OPENSSH PRIVATE KEY-----"]) + "\n"
+    return text, f"{algorithm.decode()} {base64.b64encode(public).decode()}"
+
+
+class OpensshPublicKeyTest(unittest.TestCase):
+    def test_reads_the_public_key_from_the_header(self):
+        text, public = openssh_key(b"ssh-rsa", b"\x00\x01\x02")
+        self.assertEqual(sync.openssh_public_key(text), public)
+
+    @unittest.skipUnless(shutil.which("ssh-keygen"), "needs ssh-keygen")
+    def test_agrees_with_ssh_keygen(self):
+        with tempfile.TemporaryDirectory() as d:
+            for kind in ("ed25519", "rsa"):
+                path = os.path.join(d, kind)
+                subprocess.run(["ssh-keygen", "-q", "-t", kind, "-N", "", "-C", "comment", "-f", path], check=True)
+                with open(path) as f:
+                    derived = sync.openssh_public_key(f.read())
+                with open(path + ".pub") as f:
+                    self.assertEqual(derived, " ".join(f.read().split()[:2]))
+                listed = subprocess.run(["ssh-keygen", "-l", "-E", "sha256", "-f", path + ".pub"], check=True,
+                                        capture_output=True, text=True).stdout.split()[1]
+                self.assertEqual(sync.ssh_fingerprint(derived), listed)
+
+    def test_refuses_what_warpgate_could_not_import_or_this_cannot_read(self):
+        whole = base64.b64encode(b"openssh-key-v1\0" + (4).to_bytes(4, "big") + b"no").decode()
+        cases = {
+            "passphrase": openssh_key(cipher=b"aes256-ctr", kdf=b"bcrypt")[0],
+            "pkcs8": "-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIA==\n-----END PRIVATE KEY-----\n",
+            "two keys": openssh_key(count=2)[0],
+            "truncated": f"-----BEGIN OPENSSH PRIVATE KEY-----\n{whole}\n-----END OPENSSH PRIVATE KEY-----\n",
+            "not base64": "-----BEGIN OPENSSH PRIVATE KEY-----\n%%%%\n-----END OPENSSH PRIVATE KEY-----\n",
+            "empty": "",
+        }
+        for name, text in cases.items():
+            with self.assertRaises(ValueError, msg=name):
+                sync.openssh_public_key(text)
+
+
+class DeclaredClientKeysTest(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.dir)
+
+    def write(self, name, text):
+        with open(os.path.join(self.dir, name), "w") as f:
+            f.write(text)
+
+    def test_one_file_per_label(self):
+        ed, ed_pub = openssh_key(b"ssh-ed25519", b"\x01" * 32)
+        rsa, rsa_pub = openssh_key(b"ssh-rsa", b"\x02" * 8)
+        self.write("client-ed25519", ed)
+        self.write("client-rsa", rsa)
+        self.write("client-other", openssh_key(b"ssh-ed25519", b"\x03" * 32)[0])  # not a declared label
+        self.assertEqual(sync.declared_client_keys(self.dir),
+                         {"client-ed25519": (ed, ed_pub), "client-rsa": (rsa, rsa_pub)})
+
+    def test_a_missing_key_fails_the_run_rather_than_shrinking_the_declaration(self):
+        self.write("client-ed25519", openssh_key()[0])
+        with self.assertRaisesRegex(RuntimeError, "warpgate client key client-rsa: .*No such file"):
+            sync.declared_client_keys(self.dir)
+        with self.assertRaisesRegex(RuntimeError, "warpgate client key client-ed25519"):
+            sync.declared_client_keys(os.path.join(self.dir, "missing"))
+
+    def test_a_key_in_another_format_fails_the_run(self):
+        self.write("client-ed25519", "-----BEGIN PRIVATE KEY-----\nMC4CAQAw\n-----END PRIVATE KEY-----\n")
+        self.write("client-rsa", openssh_key(b"ssh-rsa", b"\x02" * 8)[0])
+        with self.assertRaisesRegex(RuntimeError, "client-ed25519: not an OpenSSH private key"):
+            sync.declared_client_keys(self.dir)
+
+    def test_one_key_under_two_labels_fails_the_run(self):
+        text, _ = openssh_key()
+        self.write("client-ed25519", text)
+        self.write("client-rsa", text)
+        with self.assertRaisesRegex(RuntimeError, "same key"):
+            sync.declared_client_keys(self.dir)
+
+
+class SyncClientKeysTest(unittest.TestCase):
+    def setUp(self):
+        self.ed = openssh_key(b"ssh-ed25519", b"\x01" * 32)
+        self.rsa = openssh_key(b"ssh-rsa", b"\x02" * 8)
+        self.declared = {"client-ed25519": self.ed, "client-rsa": self.rsa}
+        self.keys, self.calls = [], []
+        self.reads_as = None  # what Warpgate computes for an imported key, if not its real public key
+
+        def fake_wg(method, path, body=None):
+            self.calls.append((method, path, body))
+            if method == "GET":
+                return 200, [dict(k) for k in self.keys]
+            if method == "POST":
+                public = self.reads_as or sync.openssh_public_key(body["secret_key"])
+                if any(k["public_key"] == public for k in self.keys):
+                    return 409, None
+                key = {"id": f"k{len(self.calls)}", "label": body["label"], "public_key": public,
+                       "is_default": body["is_default"]}
+                self.keys.append(key)
+                return 201, dict(key)
+            key_id = path.rsplit("/", 1)[1]
+            if method == "PUT":
+                key = next(k for k in self.keys if k["id"] == key_id)
+                key.update(label=body["label"], is_default=body["is_default"])
+                return 200, dict(key)
+            if method == "DELETE":
+                if len(self.keys) <= 1:
+                    raise RuntimeError("warpgate DELETE: 400 At least one SSH client key must remain")
+                self.keys = [k for k in self.keys if k["id"] != key_id]
+                return 204, None
+            raise AssertionError(method)
+        self._orig = sync.warpgate
+        sync.warpgate = fake_wg
+        self.addCleanup(setattr, sync, "warpgate", self._orig)
+
+    def held(self, label, key, is_default=True, key_id=None):
+        return {"id": key_id or label, "label": label, "public_key": key[1], "is_default": is_default}
+
+    def run_sync(self):
+        with mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+            public = sync.sync_client_keys(self.declared)
+        return public, out.getvalue()
+
+    def test_keys_already_held_change_nothing(self):
+        self.keys = [self.held("client-ed25519", self.ed), self.held("client-rsa", self.rsa)]
+        public, _ = self.run_sync()
+        self.assertEqual(public, sorted([self.ed[1], self.rsa[1]]))
+        self.assertEqual([c[0] for c in self.calls], ["GET"])
+
+    def test_a_missing_key_is_imported_as_a_default_key(self):
+        self.keys = [self.held("client-ed25519", self.ed)]
+        _, out = self.run_sync()
+        self.assertEqual(self.calls[1], ("POST", "/ssh/own-keys",
+                                         {"label": "client-rsa", "secret_key": self.rsa[0], "is_default": True}))
+        self.assertEqual(len(self.calls), 2)
+        self.assertIn(f"warpgate client key client-rsa imported ({sync.ssh_fingerprint(self.rsa[1])})", out)
+
+    def test_other_keys_go_once_the_declared_ones_are_in(self):
+        stray = openssh_key(b"ssh-ed25519", b"\x09" * 32)
+        self.keys = [self.held("generated", stray), self.held("client-ed25519", self.ed)]
+        _, out = self.run_sync()
+        self.assertEqual([c[0] for c in self.calls], ["GET", "POST", "DELETE"])
+        self.assertEqual(self.calls[-1][1], "/ssh/own-keys/generated")
+        self.assertEqual(sorted(k["public_key"] for k in self.keys), sorted([self.ed[1], self.rsa[1]]))
+        self.assertIn(f"warpgate client key generated removed ({sync.ssh_fingerprint(stray[1])})", out)
+
+    def test_a_declared_key_gets_its_label_and_the_default_flag(self):
+        self.keys = [self.held("old name", self.ed, is_default=False, key_id="k-ed"), self.held("client-rsa", self.rsa)]
+        self.run_sync()
+        self.assertEqual(self.calls[1:], [("PUT", "/ssh/own-keys/k-ed", {"label": "client-ed25519", "is_default": True})])
+
+    def test_a_key_warpgate_reads_as_another_key_fails_the_run(self):
+        self.keys = [self.held("generated", openssh_key(b"ssh-ed25519", b"\x09" * 32)), self.held("client-ed25519", self.ed)]
+        self.reads_as = "ssh-rsa OTHER"
+        with self.assertRaisesRegex(RuntimeError, "client-rsa: Warpgate reads it as a different key"):
+            self.run_sync()
+        self.assertNotIn("DELETE", [c[0] for c in self.calls])
+
+    def test_a_conflicting_import_fails_the_run(self):
+        self.keys = [{"id": "x", "label": "x", "public_key": "ssh-rsa SAME", "is_default": True},
+                     self.held("client-ed25519", self.ed)]
+        self.reads_as = "ssh-rsa SAME"
+        with self.assertRaisesRegex(RuntimeError, "client-rsa: Warpgate reads it as a different key"):
+            self.run_sync()
+        self.assertNotIn("DELETE", [c[0] for c in self.calls])
+
+    def test_a_declaration_keeping_none_of_the_held_keys_is_refused(self):
+        self.keys = [self.held("client-ed25519", openssh_key(b"ssh-ed25519", b"\x09" * 32)),
+                     self.held("client-rsa", openssh_key(b"ssh-rsa", b"\x09" * 8))]
+        with self.assertRaisesRegex(RuntimeError, "keeps none of the keys Warpgate holds"):
+            self.run_sync()
+        self.assertEqual([c[0] for c in self.calls], ["GET"])
+
+    def test_a_warpgate_without_keys_takes_the_declared_ones(self):
+        _, out = self.run_sync()
+        self.assertEqual([c[0] for c in self.calls], ["GET", "POST", "POST"])
+
+
+class BastionStepsTest(unittest.TestCase):
+    STEPS = ("sync_console_endpoints", "prune_management_servers", "load_roles", "sync_roles", "sync_oidc_providers",
+             "sync_settings", "sync_compute_catalog", "declared_client_keys", "sync_client_keys", "sync_warpgate",
+             "sync_template_userdata", "restore_console_proxy_state", "sync_console_certificate")
+
+    def test_the_template_user_data_trusts_the_declared_keys(self):
+        with mock.patch.multiple(sync, **{step: mock.DEFAULT for step in self.STEPS}) as m, \
+                mock.patch.multiple(sync, WARPGATE_HOST="warpgate.example", WARPGATE_TLS_NAME="warpgate.example",
+                                    WARPGATE_TOKEN="token"):
+            for step in ("sync_oidc_providers", "sync_settings", "sync_compute_catalog"):
+                m[step].return_value = []
+            m["declared_client_keys"].return_value = {"client-ed25519": ("secret", "ssh-ed25519 AAA")}
+            m["sync_client_keys"].return_value = ["ssh-ed25519 AAA"]
+            sync.main()
+        m["sync_client_keys"].assert_called_once_with({"client-ed25519": ("secret", "ssh-ed25519 AAA")})
+        m["sync_template_userdata"].assert_called_once_with(["ssh-ed25519 AAA"])
+
+    def test_a_key_failure_holds_back_only_the_user_data(self):
+        with mock.patch.multiple(sync, **{step: mock.DEFAULT for step in self.STEPS}) as m, \
+                mock.patch.multiple(sync, WARPGATE_HOST="warpgate.example", WARPGATE_TLS_NAME="warpgate.example",
+                                    WARPGATE_TOKEN="token"), \
+                mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+            for step in ("sync_oidc_providers", "sync_settings", "sync_compute_catalog"):
+                m[step].return_value = []
+            m["declared_client_keys"].side_effect = RuntimeError("warpgate client key client-rsa: missing")
+            with self.assertRaisesRegex(RuntimeError, "warpgate client keys not reconciled"):
+                sync.main()
+        self.assertEqual({s: m[s].call_count for s in self.STEPS if s not in ("sync_client_keys", "sync_template_userdata")},
+                         {s: 1 for s in self.STEPS if s not in ("sync_client_keys", "sync_template_userdata")})
+        self.assertEqual((m["sync_client_keys"].call_count, m["sync_template_userdata"].call_count), (0, 0))
+        self.assertIn("error: warpgate client key client-rsa: missing", out.getvalue())
+
+
+class WarpgateKeysManifestTest(unittest.TestCase):
+    """Warpgate creates its database from the declared keys and the sync job
+    keeps the client keys; both read the same Secret."""
+
+    def read(self, name):
+        with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), name)) as f:
+            return f.read()
+
+    def test_the_job_and_the_bastion_read_one_declaration(self):
+        sync_manifest, bastion = self.read("sync.yaml"), self.read("warpgate.yaml")
+        (vault,) = [d + "\n" for d in bastion.split("\n---\n")
+                    if "kind: VaultStaticSecret\nmetadata:\n  name: warpgate-ssh-keys\n" in d]
+        self.assertIn("  path: cloudstack/warpgate-ssh-keys\n", vault)
+        self.assertIn("  destination:\n    create: true\n    name: warpgate-ssh-keys\n"
+                      "  rolloutRestartTargets:\n    - kind: StatefulSet\n      name: warpgate\n", vault)
+        volume = re.search(r"\n            - name: warpgate-client-keys\n              secret:\n((?:                .*\n)+)",
+                           sync_manifest).group(1)
+        self.assertIn("secretName: warpgate-ssh-keys\n", volume)
+        self.assertIn("optional: true\n", volume)
+        self.assertEqual(re.findall(r"- key: (\S+)\n\s+path: \1\n", volume), list(sync.WARPGATE_CLIENT_KEY_LABELS))
+        self.assertIn(f"- name: warpgate-client-keys\n                  mountPath: {sync.WARPGATE_CLIENT_KEYS_DIR}\n",
+                      sync_manifest)
+        volume = re.search(r"\n        - name: ssh-keys\n          secret:\n((?:            .*\n)+)", bastion).group(1)
+        self.assertIn("secretName: warpgate-ssh-keys\n", volume)
+        self.assertIn("optional: true\n", volume)
+        self.assertEqual(re.findall(r"- key: (\S+)\n\s+path: \1\n", volume),
+                         ["client-ed25519", "client-rsa", "host-ed25519", "host-rsa"])
+
+    def test_only_the_setup_container_sees_the_keys(self):
+        bastion = self.read("warpgate.yaml")
+        self.assertIn("keys=/ssh-keys db=/data/db/db.sqlite3\n", bastion)
+        self.assertIn("--import-ssh-host-keys $keys --import-ssh-client-keys $keys\n", bastion)
+        # a new database is checked before it takes the place of none
+        self.assertLess(bastion.index("check /data/db.new/db.sqlite3\n"), bastion.index("mv /data/db.new /data/db\n"))
+        self.assertEqual(bastion.count("mountPath: /ssh-keys\n"), 1)  # the setup container's
+        self.assertIsNone(re.search(r"^ssh:\n(?:  .*\n)*?  keys:", self.read("warpgate-config.yaml"), re.M))
 
 
 class CatalogTest(unittest.TestCase):
@@ -1656,8 +1914,9 @@ class SyncOidcProvidersTest(unittest.TestCase):
         self.assertIn("error: OpenID provider elsewhere: domain ROOT/missing", out)
 
     # every step of a run but the providers'
-    STEPS = ("sync_console_endpoints", "prune_management_servers", "load_roles", "sync_roles", "sync_warpgate",
-             "sync_template_userdata", "restore_console_proxy_state", "sync_console_certificate")
+    STEPS = ("sync_console_endpoints", "prune_management_servers", "load_roles", "sync_roles", "declared_client_keys",
+             "sync_client_keys", "sync_warpgate", "sync_template_userdata", "restore_console_proxy_state",
+             "sync_console_certificate")
 
     def test_an_unreadable_catalog_fails_the_run_after_every_other_step(self):
         tmp = tempfile.NamedTemporaryFile("w", suffix=".toml", delete=False)
