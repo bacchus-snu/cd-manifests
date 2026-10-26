@@ -334,6 +334,12 @@ value = 1.0
 key = "destroy.root.volume.on.vm.destruction"
 value = false
 
+# destroying an instance or a volume deletes it at once: there is no
+# recoverable Destroyed state to come back from
+[[setting]]
+key = "expunge.on.destroy"
+value = true
+
 # snapshots are kept on secondary storage (read at start), each one whole
 [[setting]]
 key = "snapshot.backup.to.secondary"

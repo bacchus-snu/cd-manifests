@@ -8,6 +8,7 @@ import ssl
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 import urllib.error
 from datetime import datetime, timedelta, timezone
@@ -80,6 +81,51 @@ class PlanTargetsTest(unittest.TestCase):
         self.assertIs(wanted["a"]["ticket_requests_disabled"], True)
         self.assertIs(wanted["a"]["ticket_require_approval"], True)
         self.assertIs(wanted["a"]["require_approval"], False)
+
+    def test_the_target_follows_the_ssh_name(self):
+        vms = [{"id": "vm-1", "name": "snucse-bob-test", "sshname": "snucse-bob-web", "account": "bob",
+                "nic": [{"ipaddress": "10.94.1.5"}], "tags": [{"key": "ssh.account.foo", "value": "carol"}]},
+               {"id": "vm-2", "name": "VM-3c34a293", "account": "bob", "nic": [{"ipaddress": "10.94.1.6"}]}]
+        wanted, reach = sync.plan_targets(vms, {})
+        self.assertEqual(set(wanted), {"snucse-bob-web", "snucse-bob-web:foo", "vm-3c34a293"})
+        self.assertEqual(reach["snucse-bob-web:foo"], {"account-carol"})
+
+    def test_a_shared_target_name_reaches_none_of_its_vms(self):
+        vms = [{"id": "vm-1", "name": "Web", "account": "alice", "nic": [{"ipaddress": "10.94.1.5"}]},
+               {"id": "vm-2", "name": "x", "sshname": "web", "account": "mallory", "nic": [{"ipaddress": "10.94.1.6"}],
+                "tags": [{"key": "ssh.account.root", "value": "mallory"}]},
+               {"id": "vm-3", "name": "other", "account": "bob", "nic": [{"ipaddress": "10.94.1.7"}]}]
+        with mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+            wanted, reach = sync.plan_targets(vms, {})
+        self.assertEqual(set(wanted), {"other"})
+        self.assertEqual(set(reach), {"other"})
+        self.assertIn("vm-1, vm-2 share the target name web", out.getvalue())
+
+
+class TargetRenamesTest(unittest.TestCase):
+    def target(self, tid, name, description):
+        return {"id": tid, "name": name, "description": description, "options": {"host": "10.94.1.5", "username": "ubuntu"}}
+
+    def test_a_renamed_vm_keeps_its_targets(self):
+        old = self.target("t1", "snucse-bob-old", "cloudstack:vm:vm-1:root:v1")
+        guest = self.target("t2", "snucse-bob-old:foo", "cloudstack:vm:vm-1:guest:foo")
+        wanted = {"snucse-bob-new": {"description": "cloudstack:vm:vm-1:root:v2"},
+                  "snucse-bob-new:foo": {"description": "cloudstack:vm:vm-1:guest:foo"}}
+        renames = sync.target_renames(wanted, {t["name"]: t for t in (old, guest)})
+        self.assertEqual({n: t["id"] for n, t in renames.items()}, {"snucse-bob-new": "t1", "snucse-bob-new:foo": "t2"})
+
+    def test_a_name_still_wanted_or_unmanaged_is_never_taken(self):
+        # vm-1 moved from x to y while vm-2 took x: x's target goes to vm-2 by name, and y is a new target
+        x = self.target("t1", "x", "cloudstack:vm:vm-1:root:v1")
+        other = self.target("t3", "z", "vm:vm-3:root:v3")
+        wanted = {"x": {"description": "cloudstack:vm:vm-2:root:v2"},
+                  "y": {"description": "cloudstack:vm:vm-1:root:v1"},
+                  "w": {"description": "cloudstack:vm:vm-3:root:v3"}}
+        self.assertEqual(sync.target_renames(wanted, {"x": x, "z": other}), {})
+
+    def test_a_target_already_named_right_is_left_to_the_update(self):
+        t = self.target("t1", "x", "cloudstack:vm:vm-1:root:v1")
+        self.assertEqual(sync.target_renames({"x": {"description": "cloudstack:vm:vm-1:root:v2"}}, {"x": t}), {})
 
 
 class CloseSessionsTest(unittest.TestCase):
@@ -971,12 +1017,12 @@ STUDENT_UI_COMMANDS = (
     # deploy wizard and reinstall: images, offerings, the placement check and the capacity it shows
     "deployVirtualMachine", "listTemplates", "listOsCategories", "listDiskOfferings", "checkPlacement",
     "listPlacementCapacity", "listResourceLimits",
-    # volumes: list, metrics tab, create, attach, detach, resize, download, delete
-    "listVolumesMetrics", "listVolumesUsageHistory", "createVolume", "attachVolume", "detachVolume", "resizeVolume",
-    "extractVolume", "deleteVolume", "destroyVolume", "recoverVolume",
-    # snapshots and recurring snapshots of a volume
-    "createSnapshot", "deleteSnapshot", "revertSnapshot", "listSnapshotPolicies", "createSnapshotPolicy",
-    "deleteSnapshotPolicies",
+    # volumes: list, metrics tab, create, rename, attach, detach, resize, download, delete
+    "listVolumesMetrics", "listVolumesUsageHistory", "createVolume", "updateVolume", "attachVolume", "detachVolume",
+    "resizeVolume", "extractVolume", "deleteVolume", "destroyVolume", "recoverVolume",
+    # snapshots (rename included) and recurring snapshots of a volume
+    "createSnapshot", "updateSnapshot", "deleteSnapshot", "revertSnapshot", "listSnapshotPolicies",
+    "createSnapshotPolicy", "deleteSnapshotPolicies",
     # tags of instances, volumes and snapshots
     "listTags", "createTags", "deleteTags",
     # API keys on the user's profile page
@@ -1362,6 +1408,13 @@ class UiConfigTest(unittest.TestCase):
         for entry in sync.load_catalog(os.path.join(here, "templates.toml")):
             self.assertEqual(access["loginAccounts"].get(entry["name"].split("-")[0].lower()), entry["user"], entry["name"])
 
+    def test_the_guest_list_checks_names_by_the_sign_in_rules(self):
+        # a guest is named by an account name, which each sign-in provider derives by its username pattern
+        with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "idps.toml"), "rb") as f:
+            providers = tomllib.load(f)["provider"]
+        self.assertEqual(self.config["instanceAccess"]["guestPatterns"],
+                         [p["username_pattern"] for p in providers if p.get("enabled", True)])
+
     def test_the_ui_hides_for_users_only_what_their_role_cannot_express(self):
         hidden = self.config["hidden"]
         self.assertEqual(sorted(hidden), ["User"], "Bacchus members and root keep the full UI")
@@ -1374,7 +1427,8 @@ class UiConfigTest(unittest.TestCase):
             self.assertIn(row, user["dashboard"])
         for kept in ("vm", "cpu", "memory", "gpu", "volume", "storage", "gpuslots", "leases", "requests", "help", "events"):
             self.assertNotIn(kept, user["dashboard"])
-        self.assertEqual(user["deploy"], ["imagetype.snapshotid", "dynamicscalingenabled", "keyboard"])
+        # a snapshot of a root disk boots a new instance, like a template or a detached root
+        self.assertEqual(user["deploy"], ["dynamicscalingenabled", "keyboard"])
         self.assertEqual(user["actions"], ["vm.createSnapshot"])
         for field in ("vm.name", "vm.state", "vm.serviceofferingname", "vm.gpucardname", "vm.gpucount", "vm.leaseexpirydate"):
             self.assertNotIn(field, user["details"])
@@ -1785,6 +1839,83 @@ class WarpgateSsoTest(unittest.TestCase):
         self.assertFalse([c for c in self.wg_calls if c[0] == "DELETE"])
 
 
+class TargetRenameRunTest(unittest.TestCase):
+    """A renamed VM keeps its bastion target, the target's roles and the host key pinned for it."""
+
+    setUp = WarpgateSsoTest.setUp
+
+    def test_the_target_is_renamed_in_place(self):
+        vm = {"id": "vm-1", "name": "snucse-bob-old", "sshname": "snucse-bob-new", "account": "bob",
+              "domainid": "d-snucse", "nic": [{"ipaddress": "10.94.1.5"}]}
+        targets = [{"id": "t1", "name": "snucse-bob-old", "description": "cloudstack:vm:vm-1:root:v1",
+                    "options": {"kind": "Ssh", "host": "10.94.1.5", "port": 22, "username": "ubuntu"}}]
+        known = [{"id": "k1", "host": "10.94.1.5", "port": 22}]
+        orig_cs, orig_wg = sync.cloudstack, sync.warpgate
+
+        def cs(command, **params):
+            if command == "listVirtualMachines":
+                return {"virtualmachine": paged([vm], params)}
+            if command == "listVolumes":
+                return {"volume": paged([{"id": "v1", "virtualmachineid": "vm-1"}], params)}
+            return orig_cs(command, **params)
+
+        def wg(method, path, body=None):
+            if method == "GET" and path in ("/targets", "/ssh/known-hosts"):
+                self.wg_calls.append((method, path, body))
+                return 200, targets if path == "/targets" else known
+            return orig_wg(method, path, body)
+        with mock.patch.object(sync, "cloudstack", cs), mock.patch.object(sync, "warpgate", wg):
+            sync.sync_warpgate()
+        writes = [(m, p, (b or {}).get("name")) for m, p, b in self.wg_calls
+                  if m in ("POST", "PUT", "DELETE") and p.startswith(("/targets", "/ssh"))]
+        self.assertIn(("PUT", "/targets/t1", "snucse-bob-new"), writes)
+        self.assertNotIn(("POST", "/targets", "snucse-bob-new"), writes)
+        self.assertNotIn(("DELETE", "/targets/t1", None), writes)
+        self.assertFalse([w for w in writes if w[1].startswith("/ssh/known-hosts")], "the host key stays pinned")
+
+    def run_with(self, vm, targets, target_roles):
+        orig_cs, orig_wg = sync.cloudstack, sync.warpgate
+
+        def cs(command, **params):
+            if command == "listVirtualMachines":
+                return {"virtualmachine": paged([vm], params)}
+            if command == "listVolumes":
+                return {"volume": paged([{"id": "v1", "virtualmachineid": vm["id"]}], params)}
+            return orig_cs(command, **params)
+
+        def wg(method, path, body=None):
+            if method == "GET" and path in ("/targets", "/ssh/known-hosts"):
+                self.wg_calls.append((method, path, body))
+                return 200, targets if path == "/targets" else []
+            m = re.fullmatch(r"/targets/([^/]+)/roles", path)
+            if method == "GET" and m:
+                return 200, target_roles.get(m.group(1), [])
+            return orig_wg(method, path, body)
+        demoted_calls = []
+        with mock.patch.object(sync, "cloudstack", cs), mock.patch.object(sync, "warpgate", wg), \
+                mock.patch.object(sync, "close_demoted_sessions", lambda d, t, r: demoted_calls.append((d, dict(t), r))):
+            sync.sync_warpgate()
+        return demoted_calls
+
+    def test_a_target_taken_over_by_another_account_loses_the_old_roles_first(self):
+        vm = {"id": "vm-2", "name": "web", "account": "bob", "domainid": "d-snucse", "nic": [{"ipaddress": "10.94.1.9"}]}
+        targets = [{"id": "t1", "name": "web", "description": "cloudstack:vm:vm-1:root:v0",
+                    "options": {"kind": "Ssh", "host": "10.94.1.5", "port": 22, "username": "ubuntu"}}]
+        self.run_with(vm, targets, {"t1": [{"id": "r-alice", "name": "account-alice", "description": "cloudstack:account:a-alice"}]})
+        calls = [(m, p) for m, p, b in self.wg_calls]
+        self.assertLess(calls.index(("DELETE", "/targets/t1/roles/r-alice")), calls.index(("PUT", "/targets/t1")),
+                        "the previous owner cannot reach the new VM, not even for a moment")
+
+    def test_sessions_of_the_demoted_are_closed_on_a_renamed_target_in_the_same_run(self):
+        vm = {"id": "vm-1", "name": "snucse-bob-old", "sshname": "snucse-bob-new", "account": "bob",
+              "domainid": "d-snucse", "nic": [{"ipaddress": "10.94.1.5"}]}
+        targets = [{"id": "t1", "name": "snucse-bob-old", "description": "cloudstack:vm:vm-1:root:v1",
+                    "options": {"kind": "Ssh", "host": "10.94.1.5", "port": 22, "username": "ubuntu"}}]
+        (demoted, seen, reach), = self.run_with(vm, targets, {})
+        self.assertEqual(seen["snucse-bob-new"]["id"], "t1")
+        self.assertIn("snucse-bob-new", reach)
+
+
 SETTINGS_REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -2042,6 +2173,11 @@ class SyncSettingsTest(unittest.TestCase):
         self.assertEqual(len(keys), len(set(keys)), "every setting is declared once")
         self.assertFalse([k for k in keys if k[2] not in (None, "*") and (k[0], k[1], "*") in keys])
         self.assertEqual(sync.load_settings("/nonexistent/settings.toml"), [])
+
+    def test_a_destroy_deletes_at_once(self):
+        # there is no recoverable Destroyed state for instances or volumes
+        entries = {e["key"]: e for e in sync.load_settings(os.path.join(SETTINGS_REPO, "settings.toml"))}
+        self.assertIs(entries["expunge.on.destroy"]["value"], True)
 
     def test_the_catalog_reaches_the_job(self):
         self.assertEqual(sync.COMPUTE_CATALOG_PATH, "/opt/sync/compute-catalog.json")

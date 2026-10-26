@@ -373,8 +373,8 @@ def close_demoted_sessions(demoted, targets, reach):
 
 
 def guest_accounts(vm):
-    """Linux username -> SNUCSE IDs allowed to log in as it, from the VM's tags.
-    A tag value holds at most 255 characters, so a long list continues in
+    """Linux username -> account names allowed to log in as it, from the VM's tags.
+    A tag value holds at most 8192 characters, so a long list continues in
     tags whose key carries a numeric suffix (name, name.1, name.2, ...); the
     username itself cannot contain a dot, so the split is unambiguous. Only
     the shape is checked: which accounts a co-owner opens is their call."""
@@ -1337,19 +1337,28 @@ def plan_targets(vms, members, user_by_template=None, guest_user=GUEST_USER, roo
     """Warpgate targets a set of VMs should have, and the roles that reach each.
     One target per VM for its co-owners (the account, or every member account
     of the owning project), logging in as the template's default user, plus
-    one per tagged guest account, reachable only by the tagged names. VM names
-    are unique across the zone, so the VM name is the target name; the colon
-    form selects the guest account. The VM's root volume id rides in the
+    one per tagged guest account, reachable only by the tagged names. The
+    target name is the VM's SSH name (its account's prefix and its visible
+    name, unique across the service), or the VM name for VMs from before SSH
+    names; the colon form selects the guest account. The VM's root volume id rides in the
     owner target's description: a reinstall replaces the volume, and with it
     the guest's SSH host key."""
     wanted, reach = {}, {}
     user_by_template = user_by_template or {}
     root_by_vm = root_by_vm or {}
+    vms = [vm for vm in vms if any(n.get("ipaddress") for n in vm.get("nic", []))]
+    holders = {}
     for vm in vms:
-        ip = next((n["ipaddress"] for n in vm.get("nic", []) if n.get("ipaddress")), None)
-        if not ip:
+        holders.setdefault((vm.get("sshname") or vm["name"]).lower(), []).append(vm["id"])
+    # a name two VMs claim would let one tenant's target point at the other's VM
+    shared = {name: ids for name, ids in holders.items() if len(ids) > 1}
+    for name, ids in sorted(shared.items()):
+        print(f"warning: vms {', '.join(sorted(ids))} share the target name {name}; none of them is reachable by it")
+    for vm in vms:
+        ip = next(n["ipaddress"] for n in vm.get("nic", []) if n.get("ipaddress"))
+        name = (vm.get("sshname") or vm["name"]).lower()
+        if name in shared:
             continue
-        name = vm["name"].lower()
         if vm.get("projectid"):
             owners = {f"account-{a}" for a in members.get(vm["projectid"], set())}
         else:
@@ -1377,6 +1386,22 @@ def plan_targets(vms, members, user_by_template=None, guest_user=GUEST_USER, roo
             wanted[target] = spec(target, username, f"{MANAGED}vm:{vm['id']}:guest:{username}")
             reach[target] = {f"account-{i}" for i in ids}
     return wanted, reach
+
+
+def target_identity(description):
+    """The VM, and guest account, a managed target stands for: its description without the root volume."""
+    return re.sub(r":root:[^:]*$", "", description or "")
+
+
+def target_renames(wanted, targets):
+    """Wanted target name -> the existing managed target to rename to it: the
+    same VM (and guest account) under its new name. A target whose current
+    name is still wanted keeps that name, and only names no target holds are
+    given, so a rename never collides."""
+    by_identity = {target_identity(t.get("description")): t for name, t in targets.items()
+                   if name not in wanted and (t.get("description") or "").startswith(MANAGED)}
+    return {name: by_identity[key] for name, spec in wanted.items()
+            if name not in targets and (key := target_identity(spec["description"])) in by_identity}
 
 
 def stale_known_hosts(known, targets, refreshed):
@@ -1493,34 +1518,52 @@ def sync_warpgate():
             demoted[u["username"]] = f"account-{u['account']}"
 
     wg_targets = {t["name"]: t for t in warpgate("GET", "/targets")[1]}
-    close_demoted_sessions(demoted, wg_targets, reach)
+    renames = target_renames(wanted, wg_targets)
+    close_demoted_sessions(demoted, {**wg_targets, **renames}, reach)
     refreshed = set()  # (host, port) of instances created or reinstalled: their host keys are new
     for name, spec in wanted.items():
         t = wg_targets.get(name)
+        renamed = renames.get(name) if t is None else None
+        current = t or renamed
         owner = ":guest:" not in spec["description"]
-        if t is None:
+        changed = current is not None and (current["options"].get("host") != spec["options"]["host"]
+                                           or current["options"].get("username") != spec["options"]["username"]
+                                           or (current.get("description") or "") != spec["description"])
+        wanted_roles = {r for r in reach[name] if r in roles} | {ADMINS_ROLE}
+        kept = None
+        if current is not None:
+            # memberships that ended go before the target points anywhere new: a name taken over by another
+            # VM must never be reachable by its previous owner
+            have = {r["name"]: r for r in warpgate("GET", f"/targets/{current['id']}/roles")[1]}
+            for rname, r in have.items():
+                if rname not in wanted_roles and (r.get("description") or "").startswith(MANAGED):
+                    warpgate("DELETE", f"/targets/{current['id']}/roles/{r['id']}")
+                    print(f"warpgate target {name}: role {rname} removed")
+                    close_sessions(current["id"], users_of_role.get(rname, set()))
+            kept = have.keys() & wanted_roles
+        if renamed is not None:
+            warpgate("PUT", f"/targets/{renamed['id']}", spec)
+            print(f"warpgate target {renamed['name']} renamed {name}")
+            if owner and changed:
+                refreshed.add((spec["options"]["host"], 22))
+            del wg_targets[renamed["name"]]
+            t = wg_targets[name] = {**renamed, **spec}
+        elif t is None:
             status, t = warpgate("POST", "/targets", spec)
             print(f"warpgate target {name} -> {spec['options']['host']} created")
             if owner:
                 refreshed.add((spec["options"]["host"], 22))
-        elif (t["options"].get("host") != spec["options"]["host"]
-              or t["options"].get("username") != spec["options"]["username"]
-              or (t.get("description") or "") != spec["description"]):
+        elif changed:
             warpgate("PUT", f"/targets/{t['id']}", spec)
             print(f"warpgate target {name} -> {spec['options']['host']} updated")
             if owner:
                 refreshed.add((spec["options"]["host"], 22))
         if t is not None:
-            wanted_roles = {r for r in reach[name] if r in roles} | {ADMINS_ROLE}
-            have = {r["name"]: r for r in warpgate("GET", f"/targets/{t['id']}/roles")[1]}
-            for rname in wanted_roles - have.keys():
+            if kept is None:
+                kept = {r["name"] for r in warpgate("GET", f"/targets/{t['id']}/roles")[1]}
+            for rname in wanted_roles - kept:
                 warpgate("POST", f"/targets/{t['id']}/roles/{roles[rname]['id']}", {})
                 print(f"warpgate target {name}: role {rname}")
-            for rname, r in have.items():  # membership that ended, e.g. someone left the project
-                if rname not in wanted_roles and (r.get("description") or "").startswith(MANAGED):
-                    warpgate("DELETE", f"/targets/{t['id']}/roles/{r['id']}")
-                    print(f"warpgate target {name}: role {rname} removed")
-                    close_sessions(t["id"], users_of_role.get(rname, set()))
     for name, t in wg_targets.items():
         if (t.get("description") or "").startswith(MANAGED) and name not in wanted:
             close_sessions(t["id"])

@@ -110,7 +110,8 @@
       "opensuse": "opensuse",
       "arch": "arch",
       "alpine": "alpine"
-    }
+    },
+    "guestPatterns": ["[a-z][a-z0-9]{1,19}", "[a-z0-9._-]+@bacchus\\.snucse\\.org"]
   },
   "imageSelectionInterface": "modern",
   "showUserCategoryForModernImageSelection": true,
@@ -163,7 +164,6 @@
         "vpc"
       ],
       "deploy": [
-        "imagetype.snapshotid",
         "dynamicscalingenabled",
         "keyboard"
       ],
