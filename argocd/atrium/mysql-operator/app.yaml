@@ -22,7 +22,7 @@ spec:
       - ServerSideApply=true
   sources:
     - repoURL: https://mysql.github.io/mysql-operator/
-      targetRevision: 2.3.0
+      targetRevision: 2.3.1
       chart: mysql-operator
       helm:
         valuesObject:
