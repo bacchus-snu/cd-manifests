@@ -22,7 +22,7 @@ spec:
       targetRevision: main
       path: argocd/atrium/id
     - repoURL: https://valkey.io/valkey-helm/
-      targetRevision: 0.12.0
+      targetRevision: 0.12.1
       chart: valkey
       helm:
         valueFiles:
