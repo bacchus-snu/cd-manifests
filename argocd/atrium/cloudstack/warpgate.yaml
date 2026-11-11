@@ -7,7 +7,7 @@
 # (admin API token for the sync job), oidc_client_secret (client "warpgate" at
 # id.snucse.org), bacchus_client_id and bacchus_client_secret (Auth0
 # application "cloudstack-warpgate"; until they exist the provider cannot sign
-# anyone in). Warpgate restarts when the secret changes, so that the init
+# anyone in). Warpgate restarts when the secret changes, so that the config
 # container renders the configuration again.
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
@@ -31,8 +31,8 @@ spec:
 # OpenSSH private keys; guests trust only the keys they were created with),
 # host-ed25519, host-rsa (the gateway's host keys, pinned by every SSH client;
 # the exact text the database holds). No passphrases. Warpgate keeps its keys
-# in its database: the setup container creates every database from these and
-# refuses to start one whose host keys differ, and the sync job holds the
+# in its database: the init containers create every database from these and
+# refuse to start one whose host keys differ, and the sync job holds the
 # client keys to them. Warpgate restarts when they change, so that a changed
 # host key meets that check at once rather than at some later restart.
 apiVersion: secrets.hashicorp.com/v1beta1
@@ -105,56 +105,31 @@ spec:
         runAsNonRoot: true
       initContainers:
         # Warpgate generates random keys for any it finds missing, so: without a
-        # database, one is built aside from all four declared keys and moved in
-        # only when it passes the check; every boot, the database must hold the
-        # declared host keys (as plain text) and some client key, or Warpgate
-        # does not start; then our configuration with the secret filled in
-        - name: setup
-          image: warpgate # replaced by kustomize
+        # database, one is created only when all four declared keys are there;
+        # every boot, the database must hold the declared host keys (as plain
+        # text) and some client key, or Warpgate does not start. The Warpgate
+        # image holds no shell, so the scripts run in the Python image.
+        # config: our configuration with the secret filled in
+        - name: config
+          image: python # replaced by kustomize
           command:
             - sh
             - -ec
             - |
               keys=/ssh-keys db=/data/db/db.sqlite3
-              text() { tr -d '\r' | sed '/^[[:space:]]*$/d'; }
-              check() {
-                for k in ed25519 rsa; do
-                  held=$(sqlite3 -readonly "$1" "select ssh_host_key_$k from parameters" | text || true)
-                  [ -n "$held" ] || { echo "the database holds no $k host key" >&2; return 1; }
-                  if [ -s $keys/host-$k ] && [ "$held" != "$(text < $keys/host-$k)" ]; then
-                    echo "the database holds another $k host key than the declared one" >&2
-                    return 1
-                  fi
-                done
-                [ "$(sqlite3 -readonly "$1" 'select count(*) from ssh_client_keys' || true)" -gt 0 ] 2>/dev/null ||
-                  { echo "the database holds no client key" >&2; return 1; }
-              }
               if [ ! -f $db ]; then
                 for k in client-ed25519 client-rsa host-ed25519 host-rsa; do
                   [ -s $keys/$k ] || { echo "no database and no declared $k: not creating one" >&2; exit 1; }
                 done
-                rm -rf /data/db /data/db.new /data/warpgate.yaml
-                warpgate --config /data/warpgate.yaml unattended-setup \
-                  --data-path /data --database-url sqlite:/data/db.new --http-port 8888 --ssh-port 2222 \
-                  --external-host login.cloud.snucse.org --host-key-verification auto-accept \
-                  --import-ssh-host-keys $keys --import-ssh-client-keys $keys
-                check /data/db.new/db.sqlite3
-                rm -rf /data/db
-                mv /data/db.new /data/db
-                chmod 700 /data/db
+                rm -rf /data/db /data/db.new
+                mkdir -m 700 /data/db
               fi
-              check $db
               sed -e "s|\${OIDC_CLIENT_SECRET}|$OIDC_CLIENT_SECRET|" \
                 -e "s|\${BACCHUS_CLIENT_ID}|$BACCHUS_CLIENT_ID|" \
                 -e "s|\${BACCHUS_CLIENT_SECRET}|$BACCHUS_CLIENT_SECRET|" \
                 /config/warpgate-config.yaml > /data/warpgate.yaml
               chmod 600 /data/warpgate.yaml
           env:
-            - name: WARPGATE_ADMIN_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: warpgate
-                  key: admin_password
             - name: OIDC_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
@@ -177,6 +152,62 @@ spec:
               mountPath: /data
             - name: config
               mountPath: /config
+            - name: ssh-keys
+              mountPath: /ssh-keys
+              readOnly: true
+        # setup: migrates the database and, while it has no user, creates the
+        # admin user and imports the declared keys
+        - name: setup
+          image: warpgate # replaced by kustomize
+          args:
+            - --config
+            - /data/warpgate.yaml
+            - unattended-setup
+            - --if-config-exists=bootstrap
+            - --data-path=/data
+            - --http-port=8888
+            - --import-ssh-host-keys=/ssh-keys
+            - --import-ssh-client-keys=/ssh-keys
+          env:
+            - name: WARPGATE_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: warpgate
+                  key: admin_password
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: ssh-keys
+              mountPath: /ssh-keys
+              readOnly: true
+        - name: check
+          image: python # replaced by kustomize
+          command:
+            - python
+            - -c
+            - |
+              import pathlib
+              import sqlite3
+              import sys
+
+
+              def text(value):
+                  return "\n".join(line for line in value.replace("\r", "").splitlines() if line.strip())
+
+
+              db = sqlite3.connect("file:/data/db/db.sqlite3?mode=ro", uri=True)
+              for kind in ("ed25519", "rsa"):
+                  held = text(db.execute(f"select ssh_host_key_{kind} from parameters").fetchone()[0] or "")
+                  if not held:
+                      sys.exit(f"the database holds no {kind} host key")
+                  declared = pathlib.Path(f"/ssh-keys/host-{kind}")
+                  if declared.is_file() and declared.stat().st_size and held != text(declared.read_text()):
+                      sys.exit(f"the database holds another {kind} host key than the declared one")
+              if not db.execute("select count(*) from ssh_client_keys").fetchone()[0]:
+                  sys.exit("the database holds no client key")
+          volumeMounts:
+            - name: data
+              mountPath: /data
             - name: ssh-keys
               mountPath: /ssh-keys
               readOnly: true

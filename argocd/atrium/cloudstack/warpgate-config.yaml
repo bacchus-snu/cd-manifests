@@ -1,4 +1,4 @@
-# Warpgate configuration. Rendered over /data/warpgate.yaml by the init
+# Warpgate configuration. Rendered over /data/warpgate.yaml by the config
 # container, which substitutes the ${...} values from the Secret.
 # Recording, host-key verification mode and the admin user live in the database
 # after first boot and are managed through the admin API, not here. So do the
