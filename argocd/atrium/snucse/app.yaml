@@ -27,7 +27,7 @@ spec:
       targetRevision: main
       path: argocd/atrium/snucse
     - repoURL: https://valkey.io/valkey-helm/
-      targetRevision: 0.12.1
+      targetRevision: 1.0.0
       chart: valkey
       helm:
         valueFiles:
