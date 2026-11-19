@@ -81,9 +81,6 @@
           # which the agent package does not depend on
           - pciutils
           - xmlstarlet
-          # security upgrades otherwise never reach these hosts: without this,
-          # apt-daily-upgrade downloads indexes and installs nothing
-          - unattended-upgrades
           - cloudstack-common={{ cloudstack_version }}
           - cloudstack-agent={{ cloudstack_version }}
 
@@ -95,31 +92,44 @@
         - cloudstack-common
         - cloudstack-agent
 
-    # apt-daily-upgrade installs nothing unless APT::Periodic::Unattended-Upgrade
-    # is set; the origins allow Debian security plus Adoptium (Temurin 17,
-    # which the agent runs on). CloudStack packages are held above, so
-    # unattended-upgrades never moves them.
-    - name: Automatic upgrades enabled
-      ansible.builtin.copy:
-        dest: /etc/apt/apt.conf.d/20auto-upgrades
-        content: |
-          APT::Periodic::Update-Package-Lists "1";
-          APT::Periodic::Unattended-Upgrade "1";
-        mode: '0644'
+    - name: Configure automatic upgrades
+      tags: unattended_upgrades
+      block:
+        - name: Install unattended-upgrades
+          ansible.builtin.apt:
+            name: unattended-upgrades
+            state: present
 
-    - name: Automatic upgrade origins
-      ansible.builtin.copy:
-        dest: /etc/apt/apt.conf.d/51snucse-upgrades
-        content: |
-          // Automatic upgrades on CloudStack KVM hosts. CloudStack packages
-          // are held at the inventory pin; unattended-upgrades skips held packages.
-          Unattended-Upgrade::Origins-Pattern {
-                  "origin=Debian,codename=${distro_codename},label=Debian";
-                  "origin=Debian,codename=${distro_codename},label=Debian-Security";
-                  "origin=Debian,codename=${distro_codename}-security,label=Debian-Security";
-                  "origin=Artifactory,codename=${distro_codename},label=Artifactory";
-          };
-        mode: '0644'
+        - name: Enable daily automatic upgrades
+          ansible.builtin.copy:
+            dest: /etc/apt/apt.conf.d/20auto-upgrades
+            content: |
+              APT::Periodic::Update-Package-Lists "1";
+              APT::Periodic::Unattended-Upgrade "1";
+            mode: '0644'
+
+        - name: Configure automatic upgrade origins
+          ansible.builtin.copy:
+            dest: /etc/apt/apt.conf.d/51snucse-upgrades
+            content: |
+              #clear Unattended-Upgrade::Origins-Pattern;
+              Unattended-Upgrade::Origins-Pattern {
+                      "origin=Debian,codename=${distro_codename},label=Debian";
+                      "origin=Debian,codename=${distro_codename},label=Debian-Security";
+                      "origin=Debian,codename=${distro_codename}-security,label=Debian-Security";
+                      "site=packages.adoptium.net,codename=${distro_codename},origin=Artifactory,label=Artifactory";
+              };
+              Unattended-Upgrade::Automatic-Reboot "false";
+            mode: '0644'
+
+        - name: Enable automatic upgrade timers
+          ansible.builtin.systemd_service:
+            name: '{{ item }}'
+            enabled: true
+            state: started
+          loop:
+            - apt-daily.timer
+            - apt-daily-upgrade.timer
 
     # The agent's GPU discovery script only reports PCI classes "3D controller",
     # "Processing accelerators" and "Display controller"; GPUs with a display
