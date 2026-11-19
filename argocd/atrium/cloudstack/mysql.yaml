@@ -11,7 +11,7 @@ metadata:
   namespace: cloudstack
   name: cloudstack-mysql
 spec:
-  version: 8.4.12
+  version: 8.4.13
   instances: 1
   baseServerId: 1000
   secretName: cloudstack-db
@@ -19,7 +19,7 @@ spec:
   tlsUseSelfSigned: true
   router:
     instances: 1
-    version: 8.4.10
+    version: 8.4.13
   mycnf: |
     [mysqld]
     innodb-rollback-on-timeout=1
