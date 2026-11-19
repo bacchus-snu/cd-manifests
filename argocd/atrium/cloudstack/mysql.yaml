@@ -19,7 +19,7 @@ spec:
   tlsUseSelfSigned: true
   router:
     instances: 1
-    version: 8.4.13
+    version: 8.4.10
   mycnf: |
     [mysqld]
     innodb-rollback-on-timeout=1
