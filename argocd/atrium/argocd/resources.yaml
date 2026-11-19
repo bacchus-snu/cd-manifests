@@ -50,6 +50,14 @@ spec:
   hostnames:
     - argocd.bacchus.io
   rules:
+    - matches:
+        - headers:
+            - name: Content-Type
+              type: RegularExpression
+              value: '^application/grpc.*'
+      backendRefs:
+        - name: argocd-server
+          port: 81
     - backendRefs:
         - name: argocd-server
           port: 80

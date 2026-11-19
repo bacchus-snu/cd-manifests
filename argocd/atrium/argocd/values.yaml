@@ -32,6 +32,11 @@ configs:
   secret:
     createSecret: false
 
+server:
+  service:
+    servicePortHttp2: 81
+    servicePortHttp2AppProtocol: kubernetes.io/h2c
+
 controller:
   resources:
     requests:
