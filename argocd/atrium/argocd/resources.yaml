@@ -78,22 +78,6 @@ apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultStaticSecret
 metadata:
   namespace: argocd
-  name: oidc-auth
-spec:
-  vaultAuthRef: default
-  type: kv-v2
-  mount: secret
-  path: argocd/oidc-auth
-  destination:
-    create: true
-    name: oidc-auth
-    labels:
-      app.kubernetes.io/part-of: argocd
----
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultStaticSecret
-metadata:
-  namespace: argocd
   name: repo-cd-manifests
 spec:
   vaultAuthRef: default
