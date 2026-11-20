@@ -65,6 +65,8 @@
       check_mode: false
 
     - name: Packages
+      tags: cloudstack_packages
+      notify: restart cloudstack-agent
       ansible.builtin.apt:
         update_cache: true
         # the hold below keeps apt from moving them; a new cloudstack_version moves them here
@@ -85,6 +87,7 @@
           - cloudstack-agent={{ cloudstack_version }}
 
     - name: Hold CloudStack packages at the pinned version
+      tags: cloudstack_packages
       ansible.builtin.dpkg_selections:
         name: '{{ item }}'
         selection: hold
@@ -142,6 +145,7 @@
     # this is re-applied after every version change; the pattern also matches
     # the line as the plain class-list edit left it.
     - name: GPU discovery also reports VGA-class GPUs reserved for passthrough
+      tags: cloudstack_packages
       ansible.builtin.replace:
         path: /usr/share/cloudstack-common/scripts/vm/hypervisor/kvm/gpudiscovery.sh
         regexp: '\((?:VGA\\ compatible\\ controller\|)?3D\\ controller\|Processing\\ accelerators\|Display\\ controller\) \]\]; then$'
