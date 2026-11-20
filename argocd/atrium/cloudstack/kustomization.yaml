@@ -59,14 +59,14 @@ configMapGenerator:
 
 images:
   - name: alpine
-    newTag: '3.24'
+    newTag: '3.24.4'
   - name: python
-    newTag: 3.15-alpine
+    newTag: 3.15.2-alpine3.24
   - name: warpgate
     newName: ghcr.io/warp-tech/warpgate
-    newTag: 0.30.4
+    newTag: 0.30.6
   - name: nginx
-    newTag: 1.31-alpine
+    newTag: 1.31.9-alpine
   - name: cloudstack-management
     newName: ghcr.io/bacchus-snu/cloud/management
     newTag: 4.23.0.100-snucse.9
