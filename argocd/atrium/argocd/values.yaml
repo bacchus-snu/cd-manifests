@@ -7,7 +7,7 @@ configs:
       name: Bacchus
       issuer: https://dev-1p1l3bz6kxwkga5k.us.auth0.com/
       clientID: CEqYFMXA6A5SIQvxNdX8CgqBVHKhuxit
-      clientSecret: $oidc-auth:clientSecret
+      enablePKCEAuthentication: true
       requestedScopes: [openid, profile, email]
     url: https://argocd.bacchus.io
     resource.customizations.health.argoproj.io_Application: |
