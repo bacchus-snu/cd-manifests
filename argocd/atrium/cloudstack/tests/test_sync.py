@@ -400,6 +400,143 @@ exec %s -c 'import sys; sys.path.insert(0, sys.argv[1]); exec(compile(sys.stdin.
         self.assertEqual(out.returncode, 0, out.stderr)
 
 
+class MirrorHookTest(unittest.TestCase):
+    # stock files: Debian's and Alpine's from the template images, the others
+    # as their distributions document them
+    FEDORA = ("[fedora]\nname=Fedora $releasever - $basearch\n"
+              "#baseurl=http://download.example/pub/fedora/linux/releases/$releasever/Everything/$basearch/os/\n"
+              "metalink=https://mirrors.fedoraproject.org/metalink?repo=fedora-$releasever&arch=$basearch\nenabled=1\n\n"
+              "[fedora-debuginfo]\n"
+              "#baseurl=http://download.example/pub/fedora/linux/releases/$releasever/Everything/$basearch/debug/tree/\n"
+              "metalink=https://mirrors.fedoraproject.org/metalink?repo=fedora-debug-$releasever&arch=$basearch\nenabled=0\n")
+    FEDORA_UPDATES = ("[updates]\n"
+                      "#baseurl=http://download.example/pub/fedora/linux/updates/$releasever/Everything/$basearch/\n"
+                      "metalink=https://mirrors.fedoraproject.org/metalink?repo=updates-released-f$releasever&arch=$basearch\n")
+    OPENH264 = ("[fedora-cisco-openh264]\n"
+                "metalink=https://mirrors.fedoraproject.org/metalink?repo=fedora-cisco-openh264-$releasever&arch=$basearch\n")
+    LEAP_OSS = ("[repo-oss]\nname=Main Repository\nenabled=1\n"
+                "baseurl=http://download.opensuse.org/distribution/leap/$releasever/repo/oss/\ntype=rpm-md\n")
+    LEAP_UPDATE = "[repo-update]\nbaseurl=https://download.opensuse.org/update/leap/$releasever/oss\n"
+    PACKMAN = "[packman]\nbaseurl=https://ftp.gwdg.de/pub/linux/misc/packman/suse/openSUSE_Leap_$releasever/\n"
+    ARCH = "Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch\n"
+    ALPINE = ("https://dl-cdn.alpinelinux.org/alpine/v3.22/main\nhttps://dl-cdn.alpinelinux.org/alpine/v3.22/community\n"
+              "#https://dl-cdn.alpinelinux.org/alpine/v3.22/testing\n")
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.root)
+        os.makedirs(f"{self.root}/etc/cloud/cloud.cfg.d")
+        with open(f"{self.root}/hook.sh", "w") as f:
+            f.write("#!/bin/sh\n" + sync.render_mirror_hook().replace("/etc/", f"{self.root}/etc/")
+                    .replace("/var/lib/cloud/", f"{self.root}/var/lib/cloud/"))
+
+    def put(self, path, text):
+        os.makedirs(os.path.dirname(f"{self.root}{path}"), exist_ok=True)
+        with open(f"{self.root}{path}", "w") as f:
+            f.write(text)
+
+    def get(self, path):
+        with open(f"{self.root}{path}") as f:
+            return f.read()
+
+    def run_hook(self, distro_id, instance="i-1"):
+        if distro_id is not None:
+            self.put("/etc/os-release", f"NAME=x\nID={distro_id}\nVERSION_ID=1\n")
+        env = {k: v for k, v in os.environ.items() if k != "INSTANCE_ID"}
+        if instance:
+            env["INSTANCE_ID"] = instance
+        out = subprocess.run(["sh", f"{self.root}/hook.sh"], env=env, capture_output=True, text=True)
+        self.assertEqual(out.returncode, 0, out.stderr)
+
+    def apt(self):
+        with open(f"{self.root}{sync.APT_MIRROR_CFG}") as f:
+            return json.load(f)["apt"]
+
+    def test_ubuntu_gets_the_mirror_for_archive_and_security(self):
+        self.run_hook("ubuntu")
+        mirror = [{"arches": ["amd64"], "uri": sync.GUEST_MIRRORS["ubuntu"]}]
+        self.assertEqual(self.apt(), {"primary": mirror, "security": mirror})
+
+    def test_quoted_id(self):
+        self.run_hook('"ubuntu"')
+        self.assertIn("primary", self.apt())
+
+    def test_debian_gets_the_mirror_for_the_archive_only(self):
+        self.run_hook("debian")
+        self.assertEqual(self.apt(), {"primary": [{"arches": ["amd64"], "uri": sync.GUEST_MIRRORS["debian"]}]})
+
+    def test_fedora_trades_the_metalink_for_the_mirror(self):
+        self.put("/etc/yum.repos.d/fedora.repo", self.FEDORA)
+        self.put("/etc/yum.repos.d/fedora-updates.repo", self.FEDORA_UPDATES)
+        self.put("/etc/yum.repos.d/fedora-cisco-openh264.repo", self.OPENH264)
+        self.run_hook("fedora")
+        m = sync.GUEST_MIRRORS["fedora"]
+        repo = self.get("/etc/yum.repos.d/fedora.repo")
+        self.assertIn(f"\nbaseurl={m}/releases/$releasever/Everything/$basearch/os/\n", repo)
+        self.assertIn(f"\nbaseurl={m}/releases/$releasever/Everything/$basearch/debug/tree/\n", repo)
+        self.assertNotIn("\nmetalink=", repo)
+        self.assertIn(f"\nbaseurl={m}/updates/$releasever/Everything/$basearch/\n", self.get("/etc/yum.repos.d/fedora-updates.repo"))
+        self.assertEqual(self.get("/etc/yum.repos.d/fedora-cisco-openh264.repo"), self.OPENH264)
+
+    def test_fedora_file_without_the_stock_baseurl_keeps_its_metalink(self):
+        edited = self.FEDORA.replace("#baseurl=http://download.example", "#baseurl=http://elsewhere.example")
+        self.put("/etc/yum.repos.d/fedora.repo", edited)
+        self.run_hook("fedora")
+        self.assertEqual(self.get("/etc/yum.repos.d/fedora.repo"), edited)
+
+    def test_opensuse_moves_off_download_opensuse_org(self):
+        for name, text in (("repo-oss", self.LEAP_OSS), ("repo-update", self.LEAP_UPDATE), ("packman", self.PACKMAN)):
+            self.put(f"/etc/zypp/repos.d/{name}.repo", text)
+        self.run_hook("opensuse-leap")
+        m = sync.GUEST_MIRRORS["opensuse-leap"]
+        self.assertIn(f"\nbaseurl={m}/distribution/leap/$releasever/repo/oss/\n", self.get("/etc/zypp/repos.d/repo-oss.repo"))
+        self.assertIn(f"\nbaseurl={m}/update/leap/$releasever/oss\n", self.get("/etc/zypp/repos.d/repo-update.repo"))
+        self.assertEqual(self.get("/etc/zypp/repos.d/packman.repo"), self.PACKMAN)
+
+    def test_arch_puts_the_mirror_first_and_keeps_the_stock_servers(self):
+        self.put("/etc/pacman.d/mirrorlist", self.ARCH)
+        self.run_hook("arch")
+        first = f"Server = {sync.GUEST_MIRRORS['arch']}/$repo/os/$arch\n"
+        self.assertEqual(self.get("/etc/pacman.d/mirrorlist"), first + self.ARCH)
+        self.run_hook("arch", instance="i-2")  # a copied disk: a new instance, no second line
+        self.assertEqual(self.get("/etc/pacman.d/mirrorlist"), first + self.ARCH)
+
+    def test_alpine_moves_off_dl_cdn(self):
+        self.put("/etc/apk/repositories", self.ALPINE)
+        self.run_hook("alpine")
+        m = sync.GUEST_MIRRORS["alpine"]
+        self.assertEqual(self.get("/etc/apk/repositories"), f"{m}/v3.22/main\n{m}/v3.22/community\n#{m}/v3.22/testing\n")
+
+    def test_once_per_instance(self):
+        self.put("/etc/apk/repositories", self.ALPINE)
+        self.run_hook("alpine")
+        self.put("/etc/apk/repositories", self.ALPINE)  # the user goes back to dl-cdn
+        self.run_hook("alpine")
+        self.assertEqual(self.get("/etc/apk/repositories"), self.ALPINE)
+        self.run_hook("alpine", instance="i-2")
+        self.assertNotEqual(self.get("/etc/apk/repositories"), self.ALPINE)
+
+    def test_nothing_without_an_instance_id(self):
+        self.put("/etc/apk/repositories", self.ALPINE)
+        self.run_hook("alpine", instance=None)
+        self.assertEqual(self.get("/etc/apk/repositories"), self.ALPINE)
+
+    def test_other_distributions_are_left_alone(self):
+        for distro_id in ("rocky", "almalinux", "linuxmint", None):
+            self.run_hook(distro_id, instance=f"i-{distro_id}")
+            self.assertFalse(os.path.exists(f"{self.root}{sync.APT_MIRROR_CFG}"), distro_id)
+
+    def test_every_mirror_is_a_url_the_shell_keeps_intact(self):
+        for distro, url in sync.GUEST_MIRRORS.items():
+            self.assertRegex(url, r"^https?://[a-z0-9.-]+(/[a-z0-9._-]+)+$", distro)
+
+    def test_runs_after_the_network_hook(self):
+        hook = sync.render_boot_hook({"10.94.0.0/16": 1450})
+        self.assertTrue(hook.startswith(sync.render_network_hook({"10.94.0.0/16": 1450})))
+        self.assertTrue(hook.endswith(sync.render_mirror_hook()))
+        self.assertEqual([line for line in hook.splitlines() if line.startswith("#!")], ["#!/bin/sh"])
+
+
 class UserDataTest(unittest.TestCase):
     KEYS = ["ssh-ed25519 AAA warpgate"]
     MTUS = {"10.94.0.0/16": 1450}
@@ -408,7 +545,7 @@ class UserDataTest(unittest.TestCase):
         import email
         msg = email.message_from_string(sync.render_userdata(self.KEYS, self.MTUS))
         parts = [(p.get_content_type(), p.get_payload()) for p in msg.get_payload()]
-        self.assertEqual(parts, [("text/cloud-boothook", sync.render_network_hook(self.MTUS)),
+        self.assertEqual(parts, [("text/cloud-boothook", sync.render_boot_hook(self.MTUS)),
                                  ("text/x-shellscript", sync.render_trust_script(self.KEYS))])
 
     def test_detected_as_mime_and_stable(self):

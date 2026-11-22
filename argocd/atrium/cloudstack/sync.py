@@ -1,7 +1,8 @@
 """Reconcile state that follows CloudStack: the console proxy endpoints in
 Kubernetes and the certificate the console proxies serve, the users, roles
 and targets of the Warpgate bastion, and the user data that brings guests
-from the templates onto the network and makes them trust the bastion. It also
+from the templates onto the network, points their package managers at near
+mirrors and makes them trust the bastion. It also
 keeps the bastion's client keys to the declared ones and drops the records of
 management servers that are gone. Runs once per invocation; the CronJob
 provides the cadence."""
@@ -60,6 +61,22 @@ USERNAME_RE = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
 USERDATA_PREFIX = "warpgate-ssh"  # user data objects with this name prefix are managed here
 PASSWORD_SCRIPT = "/var/lib/cloud/scripts/per-boot/cloudstack-password"
 NETWORK_FALLBACK_CFG = "/etc/cloud/cloud.cfg.d/90-network-fallback.cfg"
+APT_MIRROR_CFG = "/etc/cloud/cloud.cfg.d/90-apt-mirror.cfg"
+# os-release ID -> where the guest's package manager is pointed on its first
+# boot: the department's caching proxy (the deb-mirror app) where it carries the
+# distribution, else a Korean mirror, checked in step with upstream. Debian's
+# security archive stays on deb.debian.org, a CDN that is near already. Rocky
+# Linux and AlmaLinux are absent: their mirror lists already rank Korean
+# mirrors first.
+GUEST_MIRRORS = {
+    "ubuntu": "http://mirror.snucse.org/ubuntu",  # security updates included
+    "debian": "http://mirror.snucse.org/debian",
+    "fedora": "https://ftp.kaist.ac.kr/fedora/linux",  # the metalink lists no Korean mirror
+    "opensuse-leap": "https://ftp.kaist.ac.kr/opensuse",
+    "arch": "https://mirror.navercorp.com/archlinux",
+    "alpine": "https://mirror.navercorp.com/alpine",
+}
+MIRROR_SEM = "snucse-mirrors"  # cloud-init semaphore: the mirrors are set once per instance
 USERDATA_BOUNDARY = "==cloudstack-user-data=="
 CATALOG_PATH = os.environ.get("TEMPLATE_CATALOG", "/opt/sync/templates.toml")
 CATALOG_URL = os.environ.get("TEMPLATE_CATALOG_URL")
@@ -554,13 +571,92 @@ def render_network_hook(mtus):
     )
 
 
+def apt_mirror_cfg(distro):
+    """cloud-init's apt section for Ubuntu (archive and security) or Debian
+    (archive only), for amd64: on another architecture cloud-init keeps its
+    own default mirror (ports, for Ubuntu)."""
+    mirror = [{"arches": ["amd64"], "uri": GUEST_MIRRORS[distro]}]
+    apt = {"primary": mirror, "security": mirror} if distro == "ubuntu" else {"primary": mirror}
+    return json.dumps({"apt": apt}, sort_keys=True)
+
+
+def render_mirror_hook():
+    """Boot hook fragment that points the package manager at GUEST_MIRRORS,
+    once per instance (a cloud-init semaphore under the instance ID cloud-init
+    gives boot hooks), so that what a user changes later stays.
+
+    Ubuntu and Debian: cloud-init writes apt's sources (Debian's images: the
+    mirror lists their sources name, generate_mirrorlists) from its mirror
+    settings in apt_configure, after the boot hooks, so the hook leaves the
+    setting in cloud-init's system configuration rather than editing files;
+    an apt section of the user's cloud-config still overrides it. The other
+    distributions get the stock repository files edited: Fedora's commented
+    baseurl is enabled on the mirror and the metalink commented out (only in
+    a file whose baseurl was found, so that no repository is left without
+    either); openSUSE's download.opensuse.org becomes the mirror; Arch gets
+    the mirror put first, so the stock servers stay as fallbacks; Alpine's
+    dl-cdn becomes the mirror. A file that is not the stock one is left alone.
+    Instances that are already up keep their sources.
+
+    Not yet checked on a first boot, except Ubuntu 26.04's apt settings:
+    before launch, deploy each template once and see that its package
+    manager uses the mirror (apt-get update, dnf makecache, zypper refresh,
+    pacman -Sy, apk update). The edits follow each distribution's documented
+    stock files; openSUSE in particular may manage its repositories through
+    a zypp service (openSUSE-repos), whose refresh would undo the edit.
+
+    A fragment without a shebang, as it runs after the network hook in the
+    same boot hook."""
+    m = GUEST_MIRRORS
+    return (
+        "(\n"
+        "[ -n \"${INSTANCE_ID:-}\" ] || exit 0\n"
+        f"sem=/var/lib/cloud/instances/$INSTANCE_ID/sem/{MIRROR_SEM}\n"
+        "[ ! -e \"$sem\" ] || exit 0\n"
+        "id=$(sed -n 's/^ID=//p' /etc/os-release 2>/dev/null | tr -d '\"')\n"
+        "case \"$id\" in\n"
+        "ubuntu|debian)\n"
+        f"  if [ \"$id\" = ubuntu ]; then cfg='{apt_mirror_cfg('ubuntu')}'; else cfg='{apt_mirror_cfg('debian')}'; fi\n"
+        f"  printf '%s\\n' \"$cfg\" > {APT_MIRROR_CFG}\n"
+        "  ;;\n"
+        "fedora)\n"
+        "  for f in /etc/yum.repos.d/fedora.repo /etc/yum.repos.d/fedora-updates.repo /etc/yum.repos.d/fedora-updates-testing.repo; do\n"
+        "    grep -qs '^#baseurl=http://download.example/pub/fedora/linux/' \"$f\" || continue\n"
+        f"    sed -i -e 's|^#baseurl=http://download.example/pub/fedora/linux/|baseurl={m['fedora']}/|' -e 's|^metalink=|#metalink=|' \"$f\"\n"
+        "  done\n"
+        "  ;;\n"
+        "opensuse-leap)\n"
+        "  for f in /etc/zypp/repos.d/*.repo; do\n"
+        f"    [ -f \"$f\" ] && sed -i -E 's#^baseurl=https?://download\\.opensuse\\.org/#baseurl={m['opensuse-leap']}/#' \"$f\"\n"
+        "  done\n"
+        "  ;;\n"
+        "arch)\n"
+        "  f=/etc/pacman.d/mirrorlist\n"
+        f"  if [ -f \"$f\" ] && ! grep -qF 'Server = {m['arch']}/' \"$f\"; then\n"
+        f"    {{ printf 'Server = %s/$repo/os/$arch\\n' '{m['arch']}'; cat \"$f\"; }} > \"$f.new\" && mv \"$f.new\" \"$f\"\n"
+        "  fi\n"
+        "  ;;\n"
+        "alpine)\n"
+        f"  [ -f /etc/apk/repositories ] && sed -i -E 's|^(#?)https?://dl-cdn\\.alpinelinux\\.org/alpine/|\\1{m['alpine']}/|' /etc/apk/repositories\n"
+        "  ;;\n"
+        "esac\n"
+        "mkdir -p \"${sem%/*}\" && : > \"$sem\"\n"
+        ")\n"
+    )
+
+
+def render_boot_hook(mtus):
+    """The template's one boot hook: the network hook, then the mirrors."""
+    return render_network_hook(mtus) + render_mirror_hook()
+
+
 def render_userdata(public_keys, mtus):
-    """Template user data: the network hook as a boot hook, which cloud-init
-    runs before its configuration modules and any user script, so those find
-    the network up, and the trust script. The MIME boundary is fixed because
-    the user data is named after a hash of its text."""
+    """Template user data: the boot hook, which cloud-init runs before its
+    configuration modules and any user script, so those find the network up
+    and the package manager pointed at a near mirror, and the trust script. The MIME boundary is
+    fixed because the user data is named after a hash of its text."""
     msg = MIMEMultipart(boundary=USERDATA_BOUNDARY)
-    msg.attach(MIMEText(render_network_hook(mtus), "cloud-boothook"))
+    msg.attach(MIMEText(render_boot_hook(mtus), "cloud-boothook"))
     msg.attach(MIMEText(render_trust_script(public_keys), "x-shellscript"))
     return msg.as_string()
 
