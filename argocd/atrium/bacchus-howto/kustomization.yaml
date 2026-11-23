@@ -7,4 +7,4 @@ labels:
     includeSelectors: true
 images:
   - name: ghcr.io/bacchus-snu/howto
-    newTag: 20261106-ef39d23
+    newTag: 20261123-feeb057
