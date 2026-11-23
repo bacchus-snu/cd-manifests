@@ -62,6 +62,7 @@ PASSWORD_SCRIPT = "/var/lib/cloud/scripts/per-boot/cloudstack-password"
 NETWORK_FALLBACK_CFG = "/etc/cloud/cloud.cfg.d/90-network-fallback.cfg"
 USERDATA_BOUNDARY = "==cloudstack-user-data=="
 CATALOG_PATH = os.environ.get("TEMPLATE_CATALOG", "/opt/sync/templates.toml")
+CATALOG_URL = os.environ.get("TEMPLATE_CATALOG_URL")
 ROLES_PATH = os.environ.get("ROLE_CATALOG", "/opt/sync/roles.toml")
 ROLE_TYPES = ("Admin", "ResourceAdmin", "DomainAdmin", "User")
 PROVIDERS_PATH = os.environ.get("IDP_CATALOG", "/opt/sync/idps.toml")
@@ -581,12 +582,15 @@ def userdata_name(script):
 def load_catalog(path=CATALOG_PATH):
     """Operator-provided templates: name, display text, pinned image URL and
     checksum, guest OS type, the guest's default user (what the bastion logs
-    in as) and whether it is the featured pick. No file means nothing managed."""
+    in as) and whether it is the featured pick."""
     try:
         with open(path, "rb") as f:
             raw = tomllib.load(f).get("template", [])
     except FileNotFoundError:
-        return []
+        raw = []
+    if CATALOG_URL:
+        with urllib.request.urlopen(CATALOG_URL, timeout=10) as response:
+            raw.extend(tomllib.loads(response.read().decode("utf-8")).get("template", []))
     catalog = []
     for entry in raw:
         missing = [k for k in ("name", "display", "url", "checksum", "ostype", "user") if not entry.get(k)]

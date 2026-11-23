@@ -131,6 +131,8 @@ spec:
               image: python # replaced by kustomize
               command: [python3, /opt/sync/sync.py]
               env:
+                - name: TEMPLATE_CATALOG_URL
+                  value: https://images.cloud.snucse.org/templates.toml
                 - name: CLOUDSTACK_API_URL
                   value: http://cloudstack-management:8080/client/api
                 - name: CLOUDSTACK_API_KEY
