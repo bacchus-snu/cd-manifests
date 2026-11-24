@@ -66,7 +66,7 @@ images:
     newName: ghcr.io/warp-tech/warpgate
     newTag: 0.30.6
   - name: nginx
-    newTag: 1.31.9-alpine
+    newTag: 1.31.10-alpine
   - name: cloudstack-management
     newName: ghcr.io/bacchus-snu/cloud/management
     newTag: 4.23.0.100-snucse.11
