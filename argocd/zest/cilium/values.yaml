@@ -30,6 +30,9 @@ operator:
               - key: node-role.kubernetes.io/control-plane
                 operator: Exists
 
+envoy:
+  xdsMode: ads
+
 hubble:
   relay:
     enabled: true
