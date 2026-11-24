@@ -38,6 +38,7 @@ gatewayAPI:
         bacchus.io/web-gateway: 'true'
 
 envoy:
+  xdsMode: ads
   securityContext:
     capabilities:
       keepCapNetBindService: true
