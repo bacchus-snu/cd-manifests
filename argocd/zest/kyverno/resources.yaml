@@ -26,3 +26,33 @@ spec:
           spec:
             priorityClassName: lecture-priority
             priority: 1000
+
+---
+apiVersion: policies.kyverno.io/v1
+kind: MutatingPolicy
+metadata:
+  name: sgs-lecture-priority
+spec:
+  failurePolicy: Ignore
+  autogen:
+    podControllers:
+      controllers: []
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE"]
+        resources: ["pods"]
+    namespaceSelector:
+      matchLabels:
+        sgs.snucse.org/priority-class: lecture-priority
+  mutations:
+    - patchType: ApplyConfiguration
+      applyConfiguration:
+        expression: >-
+          Object{
+            spec: Object.spec{
+              priorityClassName: "lecture-priority",
+              priority: 1000
+            }
+          }
