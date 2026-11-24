@@ -1,7 +1,7 @@
-dataStorage:
+persistence:
   enabled: true
-  requestedSize: 8Gi
-  className: rbd
+  size: 8Gi
+  storageClass: rbd
 
 resources:
   requests:
