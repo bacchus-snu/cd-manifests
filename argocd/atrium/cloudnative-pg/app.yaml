@@ -23,3 +23,8 @@ spec:
     - repoURL: https://cloudnative-pg.github.io/charts
       targetRevision: 0.29.1
       chart: cloudnative-pg
+      helm:
+        valuesObject:
+          config:
+            data:
+              ENABLE_INSTANCE_MANAGER_INPLACE_UPDATES: "true"
