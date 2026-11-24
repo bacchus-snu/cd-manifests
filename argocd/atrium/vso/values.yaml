@@ -3,15 +3,6 @@ defaultVaultConnection:
   address: http://vault-active.vault.svc.cluster.local:8200
 
 controller:
-  kubeRbacProxy:
-    resources:
-      requests:
-        cpu: 100m
-        memory: 128Mi
-      limits:
-        cpu: 100m
-        memory: 128Mi
-
   manager:
     resources:
       requests:
