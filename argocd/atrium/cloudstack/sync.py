@@ -63,24 +63,17 @@ USERDATA_PREFIX = "warpgate-ssh"  # user data objects with this name prefix are 
 PASSWORD_SCRIPT = "/var/lib/cloud/scripts/per-boot/cloudstack-password"
 NETWORK_FALLBACK_CFG = "/etc/cloud/cloud.cfg.d/90-network-fallback.cfg"
 APT_MIRROR_CFG = "/etc/cloud/cloud.cfg.d/90-apt-mirror.cfg"
-# os-release ID -> where the guest's package manager is pointed on its first
-# boot: the department's caching proxy (the deb-mirror app) where it carries the
-# distribution, else a Korean mirror, checked in step with upstream. Debian's
-# security archive stays on deb.debian.org (DEBIAN_SECURITY), a CDN that is
-# near already and not behind a mirror's sync interval. Rocky
-# Linux and AlmaLinux are absent: their mirror lists already rank Korean
-# mirrors first.
 GUEST_MIRRORS = {
     "ubuntu": "http://mirror.snucse.org/ubuntu",  # security updates included
     "debian": "http://mirror.snucse.org/debian",
-    "fedora": "https://ftp.kaist.ac.kr/fedora/linux",  # the metalink lists no Korean mirror
-    "opensuse-leap": "https://ftp.kaist.ac.kr/opensuse",
-    "arch": "https://mirror.navercorp.com/archlinux",
-    "alpine": "https://mirror.navercorp.com/alpine",
+    "fedora": "http://mirror.snucse.org/fedora/linux",
+    "opensuse-leap": "http://mirror.snucse.org/opensuse",
+    "arch": "http://mirror.snucse.org/archlinux",
+    "alpine": "http://mirror.snucse.org/alpine",
 }
 # cloud-init puts security on the primary mirror when only primary is given,
 # and the archive mirror has no -security suites, so Debian names it
-DEBIAN_SECURITY = "https://deb.debian.org/debian-security"
+DEBIAN_SECURITY = "http://mirror.snucse.org/debian-security"
 MIRROR_SEM = "snucse-mirrors"  # cloud-init semaphore: the mirrors are set once per instance
 # Prometheus remote write URL for the vmagent baked into the GPU image (it ships
 # the guest's dcgm-exporter metrics); unset: guests get no vmagent settings

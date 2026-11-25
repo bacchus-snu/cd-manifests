@@ -10,12 +10,8 @@ labels:
 configMapGenerator:
   - name: deb-mirror-config
     files:
-      - Caddyfile
-    options:
-      disableNameSuffixHash: true
+      - nginx.conf.template
 
 images:
-  - name: varnish
-    newTag: 9.1.0
-  - name: caddy
-    newTag: 2.11.9
+  - name: nginx
+    newTag: 1.31.10-alpine
