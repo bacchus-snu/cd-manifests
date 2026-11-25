@@ -20,6 +20,8 @@ http {
         ~^/debian/pve/ download.proxmox.com;
         ~^/(debian|debian-security)/ deb.debian.org;
         ~^/ubuntu/ mirror.kakao.com;
+        ~^/(fedora|opensuse)/ ftp.kaist.ac.kr;
+        ~^/(archlinux|alpine)/ mirror.navercorp.com;
         ~^/node/ deb.nodesource.com;
         ~^/sbt/ scala.jfrog.io;
         ~^/vscode/ packages.microsoft.com;
@@ -69,7 +71,7 @@ http {
             return 200 "OK\n";
         }
 
-        location ~ ^/(ubuntu|debian|debian-security)/(.+[.](deb|udeb)|dists/.*/by-hash/(MD5Sum|SHA1|SHA256|SHA512)/[0-9a-fA-F]+)$ {
+        location ~ ^/(ubuntu|debian|debian-security|fedora|opensuse|archlinux|alpine)/(.+[.](deb|udeb|rpm|apk|pkg[.]tar[.](gz|xz|zst))|dists/.*/by-hash/(MD5Sum|SHA1|SHA256|SHA512)/[0-9a-fA-F]+)$ {
             proxy_cache_valid 200 7d;
             proxy_pass $repository_scheme://$repository_host$repository_uri;
         }
