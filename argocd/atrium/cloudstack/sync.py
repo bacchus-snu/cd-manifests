@@ -2,7 +2,8 @@
 Kubernetes and the certificate the console proxies serve, the users, roles
 and targets of the Warpgate bastion, and the user data that brings guests
 from the templates onto the network, points their package managers at near
-mirrors and makes them trust the bastion. It also
+mirrors, points the GPU image's vmagent at the metrics server and makes them
+trust the bastion. It also
 keeps the bastion's client keys to the declared ones and drops the records of
 management servers that are gone. Runs once per invocation; the CronJob
 provides the cadence."""
@@ -81,6 +82,13 @@ GUEST_MIRRORS = {
 # and the archive mirror has no -security suites, so Debian names it
 DEBIAN_SECURITY = "https://deb.debian.org/debian-security"
 MIRROR_SEM = "snucse-mirrors"  # cloud-init semaphore: the mirrors are set once per instance
+# Prometheus remote write URL for the vmagent baked into the GPU image (it ships
+# the guest's dcgm-exporter metrics); unset: guests get no vmagent settings
+GUEST_METRICS_URL = os.environ.get("GUEST_METRICS_URL") or None
+GUEST_METRICS_URL_RE = re.compile(r"^https?://[A-Za-z0-9.-]+(:[0-9]{1,5})?(/[A-Za-z0-9._~-]+)*/?$")
+VMAGENT_BIN = "/usr/local/bin/vmagent"
+VMAGENT_ENV = "/etc/default/vmagent"  # the image's vmagent unit starts only once this exists
+VMAGENT_SEM = "snucse-vmagent"  # cloud-init semaphore: vmagent is configured once per instance
 USERDATA_BOUNDARY = "==cloudstack-user-data=="
 CATALOG_PATH = os.environ.get("TEMPLATE_CATALOG", "/opt/sync/templates.toml")
 CATALOG_URL = os.environ.get("TEMPLATE_CATALOG_URL")
@@ -651,9 +659,54 @@ def render_mirror_hook():
     )
 
 
+def render_metrics_hook(url):
+    """Boot hook fragment that points the vmagent of an image that has one (the
+    GPU image) at the remote write URL, with the instance ID as the label
+    instance_id: the hostname label of the guest's exporter can repeat between
+    users. Once per instance, so a disk copied into a new instance gets its own
+    ID. The boot hook runs in cloud-init's network stage, before
+    network-online.target, which the vmagent unit waits for; the unit skips
+    itself while the file is absent, so the file must be there first. An
+    instance ID that would not survive the quoting gets nothing.
+
+    Not yet checked on a booted GPU instance: before launch, see that
+    vmagent.service is active and that the server receives the instance's
+    DCGM metrics with its instance_id."""
+    if not GUEST_METRICS_URL_RE.match(url):
+        raise ValueError(f"GUEST_METRICS_URL {url!r} is not a plain http(s) URL")
+    args = f"-remoteWrite.url={url} -remoteWrite.label=instance_id="
+    return (
+        "(\n"
+        "[ -n \"${INSTANCE_ID:-}\" ] || exit 0\n"
+        "case \"$INSTANCE_ID\" in *[!A-Za-z0-9._-]*) exit 0 ;; esac\n"
+        f"[ -x {VMAGENT_BIN} ] || exit 0\n"
+        f"sem=/var/lib/cloud/instances/$INSTANCE_ID/sem/{VMAGENT_SEM}\n"
+        "[ ! -e \"$sem\" ] || exit 0\n"
+        f"mkdir -p {os.path.dirname(VMAGENT_ENV)}\n"
+        f"printf 'VMAGENT_ARGS=\"{args}%s\"\\n' \"$INSTANCE_ID\" > {VMAGENT_ENV}\n"
+        "mkdir -p \"${sem%/*}\" && : > \"$sem\"\n"
+        ")\n"
+    )
+
+
+def guest_metrics_url():
+    """GUEST_METRICS_URL if it is set and render_metrics_hook takes it, else
+    None. main fails the run over a URL that is set but refused, after the
+    rest is reconciled."""
+    if GUEST_METRICS_URL and GUEST_METRICS_URL_RE.match(GUEST_METRICS_URL):
+        return GUEST_METRICS_URL
+    return None
+
+
 def render_boot_hook(mtus):
-    """The template's one boot hook: the network hook, then the mirrors."""
-    return render_network_hook(mtus) + render_mirror_hook()
+    """The template's one boot hook: the network hook, the mirrors, then
+    vmagent's settings when GUEST_METRICS_URL holds a URL it takes; without
+    one, guests get no vmagent settings and the rest is unchanged."""
+    hook = render_network_hook(mtus) + render_mirror_hook()
+    url = guest_metrics_url()
+    if url:
+        hook += render_metrics_hook(url)
+    return hook
 
 
 def render_userdata(public_keys, mtus):
@@ -1855,6 +1908,8 @@ def main():
         raise RuntimeError(f"settings not applied: {', '.join(unapplied)}")
     if unsynced:
         raise RuntimeError(f"compute catalog not reconciled: {', '.join(unsynced)}")
+    if GUEST_METRICS_URL and not GUEST_METRICS_URL_RE.match(GUEST_METRICS_URL):  # guest_metrics_url() refused it
+        raise RuntimeError(f"GUEST_METRICS_URL {GUEST_METRICS_URL!r} is not a plain http(s) URL; guests get no vmagent settings")
 
 
 if __name__ == "__main__":

@@ -540,6 +540,94 @@ class MirrorHookTest(unittest.TestCase):
         self.assertEqual([line for line in hook.splitlines() if line.startswith("#!")], ["#!/bin/sh"])
 
 
+class MetricsHookTest(unittest.TestCase):
+    URL = "https://metrics.example/api/v1/write"
+    ID = "6f1c2a9e-0b4d-4e8a-9c3f-2d7e5b1a8c04"
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.root)
+        with open(f"{self.root}/hook.sh", "w") as f:
+            f.write("#!/bin/sh\n" + sync.render_metrics_hook(self.URL)
+                    .replace("/etc/", f"{self.root}/etc/").replace("/usr/local/", f"{self.root}/usr/local/")
+                    .replace("/var/lib/cloud/", f"{self.root}/var/lib/cloud/"))
+
+    def install_vmagent(self):
+        os.makedirs(f"{self.root}/usr/local/bin")
+        with open(f"{self.root}{sync.VMAGENT_BIN}", "w") as f:
+            f.write("#!/bin/sh\n")
+        os.chmod(f"{self.root}{sync.VMAGENT_BIN}", 0o755)
+
+    def run_hook(self, instance=ID):
+        env = {k: v for k, v in os.environ.items() if k != "INSTANCE_ID"}
+        if instance:
+            env["INSTANCE_ID"] = instance
+        out = subprocess.run(["sh", f"{self.root}/hook.sh"], env=env, capture_output=True, text=True)
+        self.assertEqual(out.returncode, 0, out.stderr)
+
+    def settings(self):
+        path = f"{self.root}{sync.VMAGENT_ENV}"
+        if not os.path.exists(path):
+            return None
+        with open(path) as f:
+            return f.read()
+
+    def args(self):
+        # what systemd's EnvironmentFile= and the unit's unquoted $VMAGENT_ARGS make of the file
+        import shlex
+        (line,) = self.settings().splitlines()
+        name, _, value = line.partition("=")
+        self.assertEqual(name, "VMAGENT_ARGS")
+        (value,) = shlex.split(value)
+        return value.split()
+
+    def test_points_vmagent_at_the_server_with_the_instance_id(self):
+        self.install_vmagent()
+        self.run_hook()
+        self.assertEqual(self.args(), [f"-remoteWrite.url={self.URL}", f"-remoteWrite.label=instance_id={self.ID}"])
+
+    def test_nothing_without_vmagent(self):
+        self.run_hook()
+        self.assertIsNone(self.settings())
+
+    def test_once_per_instance(self):
+        self.install_vmagent()
+        self.run_hook()
+        os.remove(f"{self.root}{sync.VMAGENT_ENV}")
+        self.run_hook()
+        self.assertIsNone(self.settings())
+        self.run_hook(instance="i-copy")  # a copied disk gets its own ID
+        self.assertEqual(self.args()[1], "-remoteWrite.label=instance_id=i-copy")
+
+    def test_nothing_for_a_missing_or_odd_instance_id(self):
+        self.install_vmagent()
+        for instance in (None, 'x" -remoteWrite.url=http://elsewhere', "a b", "$(id)"):
+            self.run_hook(instance=instance)
+            self.assertIsNone(self.settings(), instance)
+
+    def test_refuses_a_url_the_quoting_would_not_keep(self):
+        for url in ("metrics.example/api/v1/write", "https://metrics.example/a b", "https://metrics.example/x?a=%s",
+                    "https://metrics.example/'", 'https://metrics.example/"'):
+            with self.assertRaises(ValueError, msg=url):
+                sync.render_metrics_hook(url)
+        sync.render_metrics_hook("http://vmagent-gateway.example:8480/insert/0/prometheus/api/v1/write")
+
+    def test_only_with_a_url(self):
+        mtus = {"10.94.0.0/16": 1450}
+        with mock.patch.object(sync, "GUEST_METRICS_URL", None):
+            self.assertEqual(sync.render_boot_hook(mtus), sync.render_network_hook(mtus) + sync.render_mirror_hook())
+        with mock.patch.object(sync, "GUEST_METRICS_URL", self.URL):
+            hook = sync.render_boot_hook(mtus)
+        self.assertEqual(hook, sync.render_network_hook(mtus) + sync.render_mirror_hook() + sync.render_metrics_hook(self.URL))
+        self.assertEqual([line for line in hook.splitlines() if line.startswith("#!")], ["#!/bin/sh"])
+
+    def test_a_refused_url_leaves_out_only_the_vmagent_settings(self):
+        mtus = {"10.94.0.0/16": 1450}
+        with mock.patch.object(sync, "GUEST_METRICS_URL", "metrics.example/api/v1/write"):
+            self.assertIsNone(sync.guest_metrics_url())
+            self.assertEqual(sync.render_boot_hook(mtus), sync.render_network_hook(mtus) + sync.render_mirror_hook())
+
+
 class UserDataTest(unittest.TestCase):
     KEYS = ["ssh-ed25519 AAA warpgate"]
     MTUS = {"10.94.0.0/16": 1450}
@@ -846,6 +934,17 @@ class BastionStepsTest(unittest.TestCase):
                          {s: 1 for s in self.STEPS if s not in ("sync_client_keys", "sync_template_userdata")})
         self.assertEqual((m["sync_client_keys"].call_count, m["sync_template_userdata"].call_count), (0, 0))
         self.assertIn("error: warpgate client key client-rsa: missing", out.getvalue())
+
+    def test_a_refused_metrics_url_fails_the_run_after_every_step(self):
+        with mock.patch.multiple(sync, **{step: mock.DEFAULT for step in self.STEPS}) as m, \
+                mock.patch.multiple(sync, WARPGATE_HOST="warpgate.example", WARPGATE_TLS_NAME="warpgate.example",
+                                    WARPGATE_TOKEN="token", GUEST_METRICS_URL="https://metrics.example/a b"):
+            for step in ("sync_oidc_providers", "sync_settings", "sync_compute_catalog"):
+                m[step].return_value = []
+            m["sync_client_keys"].return_value = ["ssh-ed25519 AAA"]
+            with self.assertRaisesRegex(RuntimeError, "GUEST_METRICS_URL"):
+                sync.main()
+        self.assertEqual({s: m[s].call_count for s in self.STEPS}, {s: 1 for s in self.STEPS})
 
 
 class WarpgateKeysManifestTest(unittest.TestCase):
