@@ -65,7 +65,8 @@ APT_MIRROR_CFG = "/etc/cloud/cloud.cfg.d/90-apt-mirror.cfg"
 # os-release ID -> where the guest's package manager is pointed on its first
 # boot: the department's caching proxy (the deb-mirror app) where it carries the
 # distribution, else a Korean mirror, checked in step with upstream. Debian's
-# security archive stays on deb.debian.org, a CDN that is near already. Rocky
+# security archive stays on deb.debian.org (DEBIAN_SECURITY), a CDN that is
+# near already and not behind a mirror's sync interval. Rocky
 # Linux and AlmaLinux are absent: their mirror lists already rank Korean
 # mirrors first.
 GUEST_MIRRORS = {
@@ -76,6 +77,9 @@ GUEST_MIRRORS = {
     "arch": "https://mirror.navercorp.com/archlinux",
     "alpine": "https://mirror.navercorp.com/alpine",
 }
+# cloud-init puts security on the primary mirror when only primary is given,
+# and the archive mirror has no -security suites, so Debian names it
+DEBIAN_SECURITY = "https://deb.debian.org/debian-security"
 MIRROR_SEM = "snucse-mirrors"  # cloud-init semaphore: the mirrors are set once per instance
 USERDATA_BOUNDARY = "==cloudstack-user-data=="
 CATALOG_PATH = os.environ.get("TEMPLATE_CATALOG", "/opt/sync/templates.toml")
@@ -572,11 +576,13 @@ def render_network_hook(mtus):
 
 
 def apt_mirror_cfg(distro):
-    """cloud-init's apt section for Ubuntu (archive and security) or Debian
-    (archive only), for amd64: on another architecture cloud-init keeps its
-    own default mirror (ports, for Ubuntu)."""
+    """cloud-init's apt section for Ubuntu (archive and security on the
+    mirror) or Debian (archive on the mirror, security on DEBIAN_SECURITY),
+    for amd64: on another architecture cloud-init keeps its own default
+    mirror (ports, for Ubuntu)."""
     mirror = [{"arches": ["amd64"], "uri": GUEST_MIRRORS[distro]}]
-    apt = {"primary": mirror, "security": mirror} if distro == "ubuntu" else {"primary": mirror}
+    security = mirror if distro == "ubuntu" else [{"arches": ["amd64"], "uri": DEBIAN_SECURITY}]
+    apt = {"primary": mirror, "security": security}
     return json.dumps({"apt": apt}, sort_keys=True)
 
 

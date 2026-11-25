@@ -461,9 +461,12 @@ class MirrorHookTest(unittest.TestCase):
         self.run_hook('"ubuntu"')
         self.assertIn("primary", self.apt())
 
-    def test_debian_gets_the_mirror_for_the_archive_only(self):
+    def test_debian_gets_the_mirror_for_the_archive_and_names_security(self):
+        # without security, cloud-init would put it on the archive mirror,
+        # which has no -security suites
         self.run_hook("debian")
-        self.assertEqual(self.apt(), {"primary": [{"arches": ["amd64"], "uri": sync.GUEST_MIRRORS["debian"]}]})
+        self.assertEqual(self.apt(), {"primary": [{"arches": ["amd64"], "uri": sync.GUEST_MIRRORS["debian"]}],
+                                      "security": [{"arches": ["amd64"], "uri": sync.DEBIAN_SECURITY}]})
 
     def test_fedora_trades_the_metalink_for_the_mirror(self):
         self.put("/etc/yum.repos.d/fedora.repo", self.FEDORA)
@@ -527,7 +530,7 @@ class MirrorHookTest(unittest.TestCase):
             self.assertFalse(os.path.exists(f"{self.root}{sync.APT_MIRROR_CFG}"), distro_id)
 
     def test_every_mirror_is_a_url_the_shell_keeps_intact(self):
-        for distro, url in sync.GUEST_MIRRORS.items():
+        for distro, url in (*sync.GUEST_MIRRORS.items(), ("debian-security", sync.DEBIAN_SECURITY)):
             self.assertRegex(url, r"^https?://[a-z0-9.-]+(/[a-z0-9._-]+)+$", distro)
 
     def test_runs_after_the_network_hook(self):
