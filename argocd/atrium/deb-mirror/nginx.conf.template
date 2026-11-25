@@ -1,0 +1,85 @@
+worker_processes 1;
+pid /var/cache/nginx/nginx.pid;
+error_log /dev/stderr warn;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    log_format cache '$remote_addr $host "$request" $status $body_bytes_sent cache=$upstream_cache_status';
+    access_log /dev/stdout cache;
+
+    resolver ${NGINX_LOCAL_RESOLVERS} ipv6=off valid=30s;
+    client_body_temp_path /var/cache/nginx/client_temp;
+    proxy_temp_path /var/cache/nginx/proxy_temp;
+    proxy_cache_path /var/cache/nginx/packages levels=1:2 keys_zone=packages:16m max_size=10g inactive=7d use_temp_path=off;
+
+    map $uri $repository_host {
+        default "";
+        ~^/debian/pve/ download.proxmox.com;
+        ~^/(debian|debian-security)/ deb.debian.org;
+        ~^/ubuntu/ mirror.kakao.com;
+        ~^/node/ deb.nodesource.com;
+        ~^/sbt/ scala.jfrog.io;
+        ~^/vscode/ packages.microsoft.com;
+    }
+
+    map $repository_host $repository_scheme {
+        default https;
+        download.proxmox.com http;
+    }
+
+    map $request_uri $repository_uri {
+        default $request_uri;
+        ~^/node/(?<node_path>.*)$ /$node_path;
+        ~^/sbt/(?<sbt_path>.*)$ /artifactory/debian/$sbt_path;
+        ~^/vscode/(?<vscode_path>.*)$ /repos/vscode/$vscode_path;
+    }
+
+    map $upstream_http_cache_control $uncacheable {
+        default 0;
+        "~*(no-cache|no-store|private|(s-maxage|max-age)\s*=\s*0(\s|,|$))" 1;
+    }
+
+    server {
+        listen 8080;
+
+        proxy_set_header Host $repository_host;
+        proxy_set_header Connection "";
+        proxy_set_header X-Forwarded-For "";
+        proxy_ssl_server_name on;
+        proxy_ssl_name $repository_host;
+        proxy_ssl_verify on;
+        proxy_ssl_verify_depth 3;
+        proxy_ssl_trusted_certificate /etc/ssl/cert.pem;
+
+        proxy_cache packages;
+        proxy_cache_key "$repository_scheme://$repository_host$repository_uri";
+        proxy_cache_lock on;
+        proxy_cache_revalidate on;
+        proxy_cache_bypass $http_authorization $http_cookie;
+        proxy_no_cache $http_authorization $http_cookie $uncacheable;
+        proxy_ignore_headers Cache-Control Expires;
+        proxy_hide_header X-Cache;
+        add_header X-Cache $upstream_cache_status always;
+
+        location = /healthz {
+            access_log off;
+            return 200 "OK\n";
+        }
+
+        location ~ ^/(ubuntu|debian|debian-security)/(.+[.](deb|udeb)|dists/.*/by-hash/(MD5Sum|SHA1|SHA256|SHA512)/[0-9a-fA-F]+)$ {
+            proxy_cache_valid 200 7d;
+            proxy_pass $repository_scheme://$repository_host$repository_uri;
+        }
+
+        location / {
+            if ($repository_host = "") {
+                return 404;
+            }
+            proxy_cache_valid 200 2m;
+            proxy_pass $repository_scheme://$repository_host$repository_uri;
+        }
+    }
+}
