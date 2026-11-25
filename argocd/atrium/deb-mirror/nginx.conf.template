@@ -23,7 +23,6 @@ http {
         ~^/(fedora|opensuse)/ ftp.kaist.ac.kr;
         ~^/(archlinux|alpine)/ mirror.navercorp.com;
         ~^/node/ deb.nodesource.com;
-        ~^/sbt/ scala.jfrog.io;
         ~^/vscode/ packages.microsoft.com;
     }
 
@@ -35,7 +34,6 @@ http {
     map $request_uri $repository_uri {
         default $request_uri;
         ~^/node/(?<node_path>.*)$ /$node_path;
-        ~^/sbt/(?<sbt_path>.*)$ /artifactory/debian/$sbt_path;
         ~^/vscode/(?<vscode_path>.*)$ /repos/vscode/$vscode_path;
     }
 
