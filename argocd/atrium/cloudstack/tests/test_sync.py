@@ -1,4 +1,5 @@
 import base64
+import glob
 import importlib
 import io
 import json
@@ -400,6 +401,17 @@ exec %s -c 'import sys; sys.path.insert(0, sys.argv[1]); exec(compile(sys.stdin.
         self.assertEqual(out.returncode, 0, out.stderr)
 
 
+def migrate_semaphores(root):
+    """What cloud-init's migrator module does on every boot where it runs
+    (Debian 12, openSUSE Leap 15.6): give each semaphore of every instance its
+    canonical name, dashes turned into underscores."""
+    for sems in glob.glob(f"{root}/var/lib/cloud/instances/*/sem"):
+        for name in os.listdir(sems):
+            canonical = name.replace("-", "_")
+            if canonical != name and not os.path.exists(f"{sems}/{canonical}"):
+                os.rename(f"{sems}/{name}", f"{sems}/{canonical}")
+
+
 class MirrorHookTest(unittest.TestCase):
     # stock files: Debian's and Alpine's from the template images, the others
     # as their distributions document them
@@ -519,6 +531,20 @@ class MirrorHookTest(unittest.TestCase):
         self.run_hook("alpine", instance="i-2")
         self.assertNotEqual(self.get("/etc/apk/repositories"), self.ALPINE)
 
+    def test_once_per_instance_where_cloud_init_renames_semaphores(self):
+        self.put("/etc/apk/repositories", self.ALPINE)
+        self.run_hook("alpine")
+        migrate_semaphores(self.root)
+        self.put("/etc/apk/repositories", self.ALPINE)  # the user goes back to dl-cdn
+        self.run_hook("alpine")  # the next boot
+        self.assertEqual(self.get("/etc/apk/repositories"), self.ALPINE)
+
+    def test_instances_that_booted_with_the_dashed_semaphore_stay_done(self):
+        self.put("/etc/apk/repositories", self.ALPINE)
+        self.put("/var/lib/cloud/instances/i-1/sem/snucse-mirrors", "")
+        self.run_hook("alpine")
+        self.assertEqual(self.get("/etc/apk/repositories"), self.ALPINE)
+
     def test_nothing_without_an_instance_id(self):
         self.put("/etc/apk/repositories", self.ALPINE)
         self.run_hook("alpine", instance=None)
@@ -598,6 +624,21 @@ class MetricsHookTest(unittest.TestCase):
         self.assertIsNone(self.settings())
         self.run_hook(instance="i-copy")  # a copied disk gets its own ID
         self.assertEqual(self.args()[1], "-remoteWrite.label=instance_id=i-copy")
+
+    def test_once_per_instance_where_cloud_init_renames_semaphores(self):
+        self.install_vmagent()
+        self.run_hook()
+        migrate_semaphores(self.root)
+        os.remove(f"{self.root}{sync.VMAGENT_ENV}")
+        self.run_hook()  # the next boot
+        self.assertIsNone(self.settings())
+
+    def test_instances_that_booted_with_the_dashed_semaphore_stay_done(self):
+        self.install_vmagent()
+        os.makedirs(f"{self.root}/var/lib/cloud/instances/{self.ID}/sem")
+        open(f"{self.root}/var/lib/cloud/instances/{self.ID}/sem/snucse-vmagent", "w").close()
+        self.run_hook()
+        self.assertIsNone(self.settings())
 
     def test_nothing_for_a_missing_or_odd_instance_id(self):
         self.install_vmagent()
