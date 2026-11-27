@@ -157,6 +157,9 @@ spec:
                     secretKeyRef:
                       name: warpgate
                       key: admin_token
+                # where the GPU image's vmagent pushes its metrics (cloudstack-monitoring)
+                - name: GUEST_METRICS_URL
+                  value: https://metrics.cloud.snucse.org/api/v1/write
                 # OpenID providers (idps.toml): OIDC_<NAME>_CLIENT_ID,
                 # OIDC_<NAME>_CLIENT_SECRET, OIDC_<NAME>_MEMBERSHIP_SECRET
                 - name: OIDC_SNUCSE_CLIENT_ID

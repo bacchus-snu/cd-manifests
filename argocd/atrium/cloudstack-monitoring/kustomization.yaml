@@ -1,0 +1,16 @@
+resources:
+  - prometheus.yaml
+  - receiver.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: cloudstack-monitoring
+
+configMapGenerator:
+  - name: metrics-receiver-config
+    files:
+      - nginx.conf
+
+images:
+  - name: nginx
+    newTag: 1.31.10-alpine
