@@ -1,0 +1,71 @@
+---
+# Per-VM checks of the GPU image's vmagent, from two sources: what CloudStack
+# says (cloudstack_vm, from the exporter; vmagent="true" when the VM's
+# template ships vmagent) and what the guests push (vmagent's up series for
+# its dcgm-exporter target, every 30s, labelled with the VM's UUID). Nothing
+# receives the alerts yet: they show on Prometheus's /alerts page and as
+# ALERTS series.
+#
+# VMs that got no vmagent settings (created before the sync job wrote them,
+# or with GUEST_METRICS_URL unset) count as missing.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cloudstack-guests
+spec:
+  groups:
+    - name: cloudstack-guests
+      rules:
+        # running on a vmagent template, but nothing pushed for 5m; the 10m
+        # wait also covers the first boot
+        - alert: GuestMetricsMissing
+          expr: |
+            cloudstack_vm{vmagent="true", state="Running"}
+              unless on (instance_id)
+            present_over_time(up{job="dcgm-exporter"}[5m])
+          for: 10m
+          annotations:
+            summary: VM {{ $labels.instance_id }} sends no metrics
+            description: >-
+              CloudStack runs VM {{ $labels.instance_id }} (account
+              {{ $labels.account }}) on a template that ships vmagent, but
+              nothing has arrived from it for 15 minutes: vmagent is stopped,
+              unconfigured or cannot reach metrics.cloud.snucse.org.
+        # vmagent pushes, but every scrape of the guest's dcgm-exporter failed
+        - alert: GuestExporterDown
+          expr: |
+            max by (instance_id) (max_over_time(up{job="dcgm-exporter"}[10m])) == 0
+          for: 5m
+          annotations:
+            summary: dcgm-exporter down on VM {{ $labels.instance_id }}
+            description: >-
+              vmagent on VM {{ $labels.instance_id }} is running but has not
+              reached dcgm-exporter for 15 minutes, so there are no GPU metrics.
+        # metrics under an instance_id that CloudStack does not run: a
+        # destroyed or stopped VM's, or a made-up one. Checked only while the
+        # exporter answers, or every VM would look unknown.
+        - alert: GuestMetricsUnknownInstance
+          expr: |
+            (
+              max by (instance_id) (present_over_time(up{job="dcgm-exporter"}[5m]))
+                unless on (instance_id)
+              cloudstack_vm{state="Running"}
+            )
+              and on ()
+            (up{job="cloudstack-exporter"} == 1)
+          for: 10m
+          annotations:
+            summary: Metrics from unknown VM {{ $labels.instance_id }}
+            description: >-
+              Metrics arrive labelled instance_id={{ $labels.instance_id }},
+              but CloudStack runs no VM with that UUID.
+        # without the exporter the checks above see no VMs at all
+        - alert: CloudStackExporterDown
+          expr: |
+            up{job="cloudstack-exporter"} == 0 or absent(up{job="cloudstack-exporter"})
+          for: 5m
+          annotations:
+            summary: The CloudStack exporter is down
+            description: >-
+              The cloudstack-exporter scrape has failed for 5 minutes, so the
+              guest metrics checks cannot tell which VMs should report.

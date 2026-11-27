@@ -1000,6 +1000,30 @@ class CatalogTest(unittest.TestCase):
         self.assertEqual([c["name"] for c in cat], ["ubuntu-24.04-20260911", "debian-13-20260914"])
         self.assertFalse(cat[0]["featured"])
         self.assertTrue(cat[1]["featured"])
+        self.assertEqual([c["vmagent"] for c in cat], [False, False])
+
+    def test_remote_entries_ship_vmagent_unless_they_say_otherwise(self):
+        entry = ('name = "{0}"\ndisplay = "{0}"\nurl = "https://example/{0}.qcow2"\nchecksum = "{{SHA-256}}ab"\n'
+                 'ostype = "Other Ubuntu (64-bit)"\nuser = "ubuntu"\n')
+        local = "[[template]]\n" + entry.format("plain") + "[[template]]\n" + entry.format("local-gpu") + "vmagent = true\n"
+        remote = "[[template]]\n" + entry.format("gpu") + "[[template]]\n" + entry.format("cpu") + "vmagent = false\n"
+
+        class Response(io.BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+        with tempfile.NamedTemporaryFile("w", suffix=".toml", delete=False) as f:
+            f.write(local)
+        try:
+            with mock.patch.object(sync, "CATALOG_URL", "https://images.test/templates.toml"), \
+                    mock.patch.object(sync.urllib.request, "urlopen", lambda url, timeout: Response(remote.encode())):
+                cat = sync.load_catalog(f.name)
+        finally:
+            os.unlink(f.name)
+        self.assertEqual({c["name"]: c["vmagent"] for c in cat},
+                         {"plain": False, "local-gpu": True, "gpu": True, "cpu": False})
 
     def test_missing_file_is_empty(self):
         self.assertEqual(sync.load_catalog("/nonexistent/templates.toml"), [])
@@ -1066,6 +1090,40 @@ class SyncTemplatesTest(unittest.TestCase):
         sync.sync_templates(catalog)
         updates = [p for c, p in self.calls if c == "updateTemplate"]
         self.assertEqual(updates, [{"id": "t-deb", "ostypeid": "os-deb12"}])
+
+    def tags(self):
+        return [p for c, p in self.calls if c == "createTags"]
+
+    def test_templates_that_ship_vmagent_are_tagged(self):
+        self.templates.append({"id": "t-gpu", "name": "ubuntu-26.04-a100-1", "templatetype": "USER", "ispublic": True,
+                               "isfeatured": False, "ostypeid": "os-other"})
+        catalog = [
+            {"name": "ubuntu-26.04-a100-1", "display": "A100", "url": "https://example/a.qcow2", "checksum": "{SHA-256}ab",
+             "ostype": "Other Linux (64-bit)", "user": "ubuntu", "featured": False, "vmagent": True},
+            {"name": "ubuntu-26.04-a100-2", "display": "A100", "url": "https://example/b.qcow2", "checksum": "{SHA-256}cd",
+             "ostype": "Other Linux (64-bit)", "user": "ubuntu", "featured": False, "vmagent": True},
+            {"name": "debian-13-20260914", "display": "Debian 13", "url": "https://example/d.qcow2", "checksum": "{SHA-512}cd",
+             "ostype": "Other Linux (64-bit)", "user": "debian", "featured": False, "vmagent": False},
+        ]
+        sync.sync_templates(catalog)
+        tag = {"resourcetype": "Template", "tags[0].key": "vmagent", "tags[0].value": "true"}
+        # the one already there and the one just registered; not the plain image
+        self.assertEqual(self.tags(), [{**tag, "resourceids": "t-gpu"}, {**tag, "resourceids": "t-new"}])
+
+    def test_a_tagged_template_is_left_alone(self):
+        self.templates.append({"id": "t-gpu", "name": "ubuntu-26.04-a100-1", "templatetype": "USER", "ispublic": True,
+                               "isfeatured": False, "ostypeid": "os-other", "tags": [{"key": "vmagent", "value": "true"}]})
+        sync.sync_templates([{"name": "ubuntu-26.04-a100-1", "display": "A100", "url": "https://example/a.qcow2",
+                              "checksum": "{SHA-256}ab", "ostype": "Other Linux (64-bit)", "user": "ubuntu",
+                              "featured": False, "vmagent": True}])
+        self.assertEqual(self.tags(), [])
+
+    def test_a_build_that_left_the_catalog_keeps_its_tag(self):
+        # its VMs still run vmagent; hiding the template must not unmark them
+        self.templates.append({"id": "t-gpu", "name": "ubuntu-26.04-a100-0", "templatetype": "USER", "ispublic": True,
+                               "isfeatured": False, "ostypeid": "os-other", "tags": [{"key": "vmagent", "value": "true"}]})
+        sync.sync_templates([])
+        self.assertEqual([c for c, _ in self.calls if c == "deleteTags"], [])
 
 
 class TrustScriptIncludeTest(unittest.TestCase):

@@ -1,0 +1,95 @@
+---
+# Exporter of the VMs CloudStack has (exporter.py), scraped by the
+# cloudstack-guests Prometheus (cloudstack-monitoring/scrape.yaml) for the
+# guest metrics alerts. Read-only use of the sync job's admin API keys.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudstack-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudstack-management
+      app.kubernetes.io/instance: cloudstack
+      app.kubernetes.io/component: exporter
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: exporter
+    spec:
+      # no Docker-style *_PORT variables for the namespace's Services
+      enableServiceLinks: false
+      automountServiceAccountToken: false
+      securityContext:
+        runAsUser: 65534
+        runAsGroup: 65534
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: exporter
+          image: python # replaced by kustomize
+          command: [python3, -u, /opt/exporter/exporter.py]
+          env:
+            - name: CLOUDSTACK_API_URL
+              value: http://cloudstack-management:8080/client/api
+            - name: CLOUDSTACK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cloudstack-api
+                  key: api_key
+            - name: CLOUDSTACK_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cloudstack-api
+                  key: secret_key
+            - name: PYTHONDONTWRITEBYTECODE
+              value: '1'
+          ports:
+            - name: metrics
+              containerPort: 9100
+          volumeMounts:
+            - name: script
+              mountPath: /opt/exporter
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+      volumes:
+        - name: script
+          configMap:
+            name: cloudstack-exporter
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudstack-exporter
+spec:
+  selector:
+    app.kubernetes.io/name: cloudstack-management
+    app.kubernetes.io/instance: cloudstack
+    app.kubernetes.io/component: exporter
+  ports:
+    - name: metrics
+      port: 9100
+      targetPort: metrics

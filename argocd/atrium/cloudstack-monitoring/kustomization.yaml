@@ -1,6 +1,8 @@
 resources:
   - prometheus.yaml
   - receiver.yaml
+  - scrape.yaml
+  - rules.yaml
 
 labels:
   - pairs:
