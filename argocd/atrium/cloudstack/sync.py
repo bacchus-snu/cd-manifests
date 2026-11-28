@@ -74,14 +74,19 @@ GUEST_MIRRORS = {
 # cloud-init puts security on the primary mirror when only primary is given,
 # and the archive mirror has no -security suites, so Debian names it
 DEBIAN_SECURITY = "http://mirror.snucse.org/debian-security"
-MIRROR_SEM = "snucse-mirrors"  # cloud-init semaphore: the mirrors are set once per instance
+# cloud-init semaphores of the boot hook, once per instance. Underscores, not
+# dashes: cloud-init's migrator module (run on every boot by Debian 12's
+# cloud-init 22.4 and openSUSE Leap 15.6's) renames a semaphore with a dash to
+# its canonical name with underscores, and a hook that looked for the dashed
+# name would run again on the next boot and undo what the user changed since
+MIRROR_SEM = "snucse_mirrors"  # the mirrors are set once per instance
 # Prometheus remote write URL for the vmagent baked into the GPU image (it ships
 # the guest's dcgm-exporter metrics); unset: guests get no vmagent settings
 GUEST_METRICS_URL = os.environ.get("GUEST_METRICS_URL") or None
 GUEST_METRICS_URL_RE = re.compile(r"^https?://[A-Za-z0-9.-]+(:[0-9]{1,5})?(/[A-Za-z0-9._~-]+)*/?$")
 VMAGENT_BIN = "/usr/local/bin/vmagent"
 VMAGENT_ENV = "/etc/default/vmagent"  # the image's vmagent unit starts only once this exists
-VMAGENT_SEM = "snucse-vmagent"  # cloud-init semaphore: vmagent is configured once per instance
+VMAGENT_SEM = "snucse_vmagent"  # vmagent is configured once per instance
 USERDATA_BOUNDARY = "==cloudstack-user-data=="
 CATALOG_PATH = os.environ.get("TEMPLATE_CATALOG", "/opt/sync/templates.toml")
 CATALOG_URL = os.environ.get("TEMPLATE_CATALOG_URL")
@@ -587,6 +592,17 @@ def apt_mirror_cfg(distro):
     return json.dumps({"apt": apt}, sort_keys=True)
 
 
+def semaphore_guard(name):
+    """Boot hook lines that set $sem to the semaphore name of this instance
+    and leave the fragment when it, or the dashed name instances that booted
+    before the rename got, is there already."""
+    legacy = name.replace("_", "-")
+    return (
+        f"sem=/var/lib/cloud/instances/$INSTANCE_ID/sem/{name}\n"
+        f"[ ! -e \"$sem\" ] && [ ! -e \"${{sem%/*}}/{legacy}\" ] || exit 0\n"
+    )
+
+
 def render_mirror_hook():
     """Boot hook fragment that points the package manager at GUEST_MIRRORS,
     once per instance (a cloud-init semaphore under the instance ID cloud-init
@@ -618,8 +634,7 @@ def render_mirror_hook():
     return (
         "(\n"
         "[ -n \"${INSTANCE_ID:-}\" ] || exit 0\n"
-        f"sem=/var/lib/cloud/instances/$INSTANCE_ID/sem/{MIRROR_SEM}\n"
-        "[ ! -e \"$sem\" ] || exit 0\n"
+        + semaphore_guard(MIRROR_SEM) +
         "id=$(sed -n 's/^ID=//p' /etc/os-release 2>/dev/null | tr -d '\"')\n"
         "case \"$id\" in\n"
         "ubuntu|debian)\n"
@@ -673,8 +688,7 @@ def render_metrics_hook(url):
         "[ -n \"${INSTANCE_ID:-}\" ] || exit 0\n"
         "case \"$INSTANCE_ID\" in *[!A-Za-z0-9._-]*) exit 0 ;; esac\n"
         f"[ -x {VMAGENT_BIN} ] || exit 0\n"
-        f"sem=/var/lib/cloud/instances/$INSTANCE_ID/sem/{VMAGENT_SEM}\n"
-        "[ ! -e \"$sem\" ] || exit 0\n"
+        + semaphore_guard(VMAGENT_SEM) +
         f"mkdir -p {os.path.dirname(VMAGENT_ENV)}\n"
         f"printf 'VMAGENT_ARGS=\"{args}%s\"\\n' \"$INSTANCE_ID\" > {VMAGENT_ENV}\n"
         "mkdir -p \"${sem%/*}\" && : > \"$sem\"\n"
