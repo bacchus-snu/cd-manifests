@@ -5,6 +5,7 @@ resources:
   - overlay-gw.yaml
   - console.yaml
   - sync.yaml
+  - exporter.yaml
   - warpgate.yaml
   - backup.yaml
 
@@ -25,6 +26,10 @@ configMapGenerator:
       - roles.toml
       - idps.toml
       - compute-catalog.json
+  # its own ConfigMap, so that a change to sync.py does not restart it
+  - name: cloudstack-exporter
+    files:
+      - exporter.py
   - name: warpgate-config
     files:
       - warpgate-config.yaml

@@ -1,0 +1,60 @@
+# Metrics that CloudStack guests push: the GPU image's vmagent sends its
+# dcgm-exporter metrics, labelled instance_id=<VM UUID>, to the remote write
+# receiver through metrics-receiver (receiver.yaml). The one scrape is the
+# CloudStack exporter (scrape.yaml), which the alerts (rules.yaml) check the
+# guests against.
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: cloudstack-guests
+spec:
+  version: v3.15.0
+  enableRemoteWriteReceiver: true
+  # this app's scrape configs and rules only; an unset selector selects none,
+  # so no ServiceMonitors or PodMonitors are picked up
+  scrapeConfigSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: cloudstack-monitoring
+  ruleSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: cloudstack-monitoring
+  scrapeInterval: 1m
+  evaluationInterval: 1m
+  retention: 30d
+  resources:
+    requests:
+      cpu: 250m
+      memory: 1Gi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  securityContext:
+    fsGroup: 2000
+    runAsGroup: 2000
+    runAsNonRoot: true
+    runAsUser: 1000
+    seccompProfile:
+      type: RuntimeDefault
+  storage:
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+          - ReadWriteOncePod
+        resources:
+          requests:
+            storage: 20Gi
+---
+# stable address of the Prometheus pod, for metrics-receiver
+# (prometheus-operated is headless: its address changes with the pod)
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudstack-prometheus
+spec:
+  selector:
+    operator.prometheus.io/name: cloudstack-guests
+  ports:
+    - name: http
+      port: 9090
+      targetPort: 9090

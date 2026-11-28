@@ -2,8 +2,8 @@
 Kubernetes and the certificate the console proxies serve, the users, roles
 and targets of the Warpgate bastion, and the user data that brings guests
 from the templates onto the network, points their package managers at near
-mirrors, points the GPU image's vmagent at the metrics server and makes them
-trust the bastion. It also
+mirrors, points the GPU image's vmagent at the metrics server (and tags the
+templates that ship it) and makes them trust the bastion. It also
 keeps the bastion's client keys to the declared ones and drops the records of
 management servers that are gone. Runs once per invocation; the CronJob
 provides the cadence."""
@@ -82,6 +82,10 @@ GUEST_METRICS_URL_RE = re.compile(r"^https?://[A-Za-z0-9.-]+(:[0-9]{1,5})?(/[A-Z
 VMAGENT_BIN = "/usr/local/bin/vmagent"
 VMAGENT_ENV = "/etc/default/vmagent"  # the image's vmagent unit starts only once this exists
 VMAGENT_SEM = "snucse-vmagent"  # cloud-init semaphore: vmagent is configured once per instance
+# template tag of the images that ship vmagent: the guest metrics exporter
+# (cloudstack-monitoring) expects their running VMs to report. Added, never
+# removed, so a build that leaves the catalog stays marked for its VMs.
+VMAGENT_TAG = ("vmagent", "true")
 USERDATA_BOUNDARY = "==cloudstack-user-data=="
 CATALOG_PATH = os.environ.get("TEMPLATE_CATALOG", "/opt/sync/templates.toml")
 CATALOG_URL = os.environ.get("TEMPLATE_CATALOG_URL")
@@ -730,21 +734,24 @@ def userdata_name(script):
 def load_catalog(path=CATALOG_PATH):
     """Operator-provided templates: name, display text, pinned image URL and
     checksum, guest OS type, the guest's default user (what the bastion logs
-    in as) and whether it is the featured pick."""
+    in as), whether it is the featured pick and whether the image ships
+    vmagent. The remote catalog lists the GPU images, which do; an entry's
+    own vmagent key overrides that."""
     try:
         with open(path, "rb") as f:
-            raw = tomllib.load(f).get("template", [])
+            raw = [(e, False) for e in tomllib.load(f).get("template", [])]
     except FileNotFoundError:
         raw = []
     if CATALOG_URL:
         with urllib.request.urlopen(CATALOG_URL, timeout=10) as response:
-            raw.extend(tomllib.loads(response.read().decode("utf-8")).get("template", []))
+            raw += [(e, True) for e in tomllib.loads(response.read().decode("utf-8")).get("template", [])]
     catalog = []
-    for entry in raw:
+    for entry, remote in raw:
         missing = [k for k in ("name", "display", "url", "checksum", "ostype", "user") if not entry.get(k)]
         if missing:
             raise ValueError(f"template {entry.get('name', '?')}: missing {missing}")
-        catalog.append({**entry, "featured": bool(entry.get("featured", False))})
+        catalog.append({**entry, "featured": bool(entry.get("featured", False)),
+                        "vmagent": bool(entry.get("vmagent", remote))})
     return catalog
 
 
@@ -781,8 +788,8 @@ def offering_lease_update(live, spec):
 
 def sync_templates(catalog):
     """Register catalogued templates that are missing, keep their public and
-    featured flags, and hide user templates that are not in the catalog.
-    Returns template id -> guest user for the catalogued ones. Templates are
+    featured flags, tag those whose image ships vmagent, and hide user
+    templates that are not in the catalog. Returns template id -> guest user for the catalogued ones. Templates are
     never deleted here: an old one may still back a VM's reinstall."""
     def user_templates():
         return [t for t in cloudstack_list("listTemplates", "template", templatefilter="all", listall="true")
@@ -812,6 +819,11 @@ def sync_templates(catalog):
             # the OS type picks the virtual hardware (virtio or IDE and e1000) of new instances
             cloudstack("updateTemplate", id=t["id"], ostypeid=ostypes[entry["ostype"]])
             print(f"template {entry['name']}: OS type {entry['ostype']}")
+        if t and entry.get("vmagent") and not any(
+                (tag.get("key"), tag.get("value")) == VMAGENT_TAG for tag in t.get("tags", [])):
+            cloudstack("createTags", resourcetype="Template", resourceids=t["id"],
+                       **{"tags[0].key": VMAGENT_TAG[0], "tags[0].value": VMAGENT_TAG[1]})
+            print(f"template {entry['name']}: tagged {VMAGENT_TAG[0]}={VMAGENT_TAG[1]}")
         if t:
             users[t["id"]] = entry["user"]
     names = {e["name"] for e in catalog}

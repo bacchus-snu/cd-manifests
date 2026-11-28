@@ -1,0 +1,16 @@
+---
+# The VMs CloudStack has, from the exporter in the cloudstack namespace
+# (cloudstack/exporter.py). A static target: no service discovery, so the
+# Prometheus needs no access to that namespace.
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: cloudstack-exporter
+spec:
+  jobName: cloudstack-exporter
+  scrapeInterval: 1m
+  # CloudStack's list calls can take a while; the exporter gives up at 20s
+  scrapeTimeout: 30s
+  staticConfigs:
+    - targets:
+        - cloudstack-exporter.cloudstack.svc:9100
